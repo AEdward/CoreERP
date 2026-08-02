@@ -6,16 +6,18 @@ Tracks work against the roadmap in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md
 
 Goal: a user can sign up, create or join a company, and land on an empty but permission-gated dashboard. Nothing else is buildable without this.
 
-- [ ] **Scaffolding**: Django + DRF project, Next.js project, Docker Compose (`postgres`, `backend`, `frontend`) — `docker compose up` boots all three locally
-- [ ] **Users**: custom `User` model, signup/login (session or token auth), password reset
-- [ ] **Companies**: `Company` model, create-company and join-company flows
-- [ ] **CompanyMemberships**: join table (`users` ↔ `companies`), "active company" session/context resolution, company switcher for users in more than one company
-- [ ] **Roles & Permissions**: `Role`, `Permission`, `RolePermission`, `MembershipRole` models; seed the five default roles (Owner, Finance Manager, HR Manager, Sales Manager, Inventory Manager) with their default `ROLE_PERMISSIONS`
-- [ ] **Authorization layer**: `permission_required(company, module, action)` check + DRF permission class, applied uniformly rather than per-view ad hoc
-- [ ] **Tenancy enforcement**: request-scoped "current company" query scoping + Postgres Row-Level Security policies on the first tenant tables (`companies`, `company_memberships`, `roles` where `company_id` is set)
-- [ ] **Settings**: company profile (name, logo, industry, country, currency, timezone, tax number) view/edit
-- [ ] **Dashboard shell**: empty, permission-gated landing page in Next.js (proves auth + company context + RBAC end to end)
-- [ ] **Seed data**: fixtures/management command for demo companies, users, and roles for local dev
+- [x] **Scaffolding**: Django + DRF project (`backend/`), Next.js project (`frontend/`), Docker Compose (`postgres`, `backend`, `frontend`). Note: verified by running each component directly (local Postgres, `manage.py runserver`, `npm run dev`) since this sandbox has no Docker daemon — the `docker-compose.yml`/Dockerfiles are written and reviewed but not yet run through `docker compose up` itself; worth a real run before relying on it.
+- [x] **Users**: custom `User` model (email as `USERNAME_FIELD`), signup/login/logout/`me` endpoints, session auth + CSRF
+  - [ ] Password reset — not built yet
+- [x] **Companies**: `Company` model, self-serve create-company flow (creator becomes Owner automatically)
+  - [ ] Join-an-existing-company flow (invite-by-link) — deferred; this is really Phase 2 team-invite scope per the architecture doc, not a Phase 1 blocker
+- [x] **CompanyMemberships**: join table, "active company" session context (`request.company`, set by `CurrentCompanyMiddleware`), company switcher UI (frontend dashboard)
+- [x] **Roles & Permissions**: `Role`, `Permission`, `RolePermission`, `MembershipRole` models; `apps/roles/seed.py` seeds the five default roles with their permissions on every company creation
+- [x] **Authorization layer**: `user_has_permission(user, company, module, action)` + DRF `HasCompanyPermission`, used directly in the company-settings PATCH endpoint
+- [x] **Tenancy enforcement**: `CurrentCompanyMiddleware` scopes `request.company`; Postgres RLS (`FORCE ROW LEVEL SECURITY` + a `SECURITY DEFINER` bypass function to avoid self-referential policy recursion) on `companies`, `company_memberships`, `roles`, `membership_roles` — verified end-to-end: an unrelated user gets an empty company list and a 404 on direct access, not a leak
+- [x] **Settings**: company profile GET (any member) / PATCH (`settings.manage` only) — verified a non-Owner role is blocked
+- [x] **Dashboard shell**: Next.js login/signup/dashboard; dashboard renders module tiles gated by the active membership's flattened permission list — verified in a real browser that an Owner sees all five tiles enabled and a Sales Manager sees only Sales & CRM
+- [x] **Seed data**: `manage.py seed_demo_data` — "Demo Co" with one user per default role, password `demopass123`
 
 ## Phase 2 — Business Core
 
@@ -60,6 +62,6 @@ Built as shared services when the first module needs them — not a phase of the
 
 ## Open risks to revisit (from architecture doc §11)
 
-- [ ] RLS policies written and tested per tenant table as each module ships, not retrofitted later
+- [x] RLS policies written and tested for the Phase 1 tables — pattern established (`current_user_company_ids()` SECURITY DEFINER function) for Phase 2 tables to reuse rather than reinvent. Learned two sharp edges worth remembering: (1) a policy can't safely reference its own table in a subquery — Postgres detects it as infinite recursion; (2) `INSERT ... RETURNING` (which Django's ORM always uses) is subject to the `USING`/SELECT policy too, not just `WITH CHECK` — so a row that grants its own visibility (like a company's first membership) needs a scoped `SET LOCAL` bypass at creation time.
 - [ ] Multi-company "active company" UX validated with a real multi-membership user, not just the data model
 - [ ] Decide Django admin's role for Super Admin platform-operator tooling before Phase 1 settings work locks in the pattern

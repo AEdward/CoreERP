@@ -1,0 +1,12 @@
+# Python / Django
+__pycache__/
+*.pyc
+backend/.env
+backend/db.sqlite3
+backend/staticfiles/
+.venv/
+venv/
+
+# Editors / OS
+.DS_Store
+*.swp
