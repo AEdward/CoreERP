@@ -1,6 +1,6 @@
 # CoreERP — Build Todo
 
-Tracks work against the roadmap in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#10-development-roadmap). Checked items are done; nothing below Phase 1 is started.
+Tracks work against the roadmap in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#10-development-roadmap). Checked items are done.
 
 ## Phase 1 — Foundation
 
@@ -21,15 +21,17 @@ Goal: a user can sign up, create or join a company, and land on an empty but per
 
 ## Phase 2 — Business Core
 
-Not started. Sequencing depends on Phase 1 landing cleanly (RLS pattern and permission checks get reused, not reinvented, per module).
+Backend APIs done for all seven areas, reusing the Phase 1 pattern end to end (`apps/common/rls.py`'s `tenant_policy_sql()`, `apps/common/views.py`'s `CompanyScopedViewSet`/`CompanyScopedReadOnlyViewSet`, `apps/common/serializers.py`'s `CompanyScopedSerializer`) — no module reinvented tenancy or permission checks. Verified via curl: nested line items, computed totals, stock movements updating materialized stock, cross-module permission gating, RLS + same-company FK validation on a real two-company user. Frontend CRUD screens for these are **not** built yet — only the Phase 1 dashboard tiles reflect that the modules exist.
 
-- [ ] Employees & Departments
-- [ ] Customers (CRM)
-- [ ] Suppliers
-- [ ] Product & Service Catalog (`Items`, type `product`/`service`)
-- [ ] Inventory Engine (Warehouses, Stock, Stock Movements)
-- [ ] Procurement Engine
-- [ ] Sales Engine (Quotations → Sales Orders → Invoices)
+- [x] Employees & Departments (`apps/hr`) — gated by `hr.view`/`hr.manage`
+- [x] Customers (`apps/crm`) — gated by `sales.view`/`sales.manage` per the existing matrix (Customers were always grouped under Sales Manager, not a separate CRM role)
+- [x] Suppliers (`apps/suppliers`) — gated by a new `procurement` permission (see below)
+- [x] Product & Service Catalog (`apps/catalog`, `Items` with `type` product/service) — gated by `inventory.manage` to write, but `inventory.view` OR `sales.view` to read (Sales needs to list items to build quotations) — the one module that doesn't fit the single-module pattern, handled with a small override rather than complicating the shared base for one case
+- [x] Inventory Engine (`apps/inventory`: Warehouses, Stock, StockMovement) — Stock is read-only over the API; only StockMovement (in/out/transfer/adjustment) mutates it, inside a transaction with `select_for_update`, so every quantity change has an audit-trail row explaining it
+- [x] Procurement Engine (`apps/procurement`: PurchaseOrder + line items) — added a `procurement` permission module the original Phase 1 matrix didn't anticipate, granted to Inventory Manager (purchasing-to-replenish-stock is usually the same job function) rather than inventing a new default role
+- [x] Sales Engine (`apps/sales`: Quotation → SalesOrder → Invoice, all with line items and computed totals) — an Invoice tied to a SalesOrder snapshots `amount_cents` from the order's total at creation time, so later changes to the order's lines never retroactively change an already-issued invoice (same locking principle ClipBirr uses for CPM)
+
+**Known gaps to close before calling Phase 2 done**: no frontend CRUD UI for any of these seven modules yet; no "convert Quotation to SalesOrder" convenience action (create the order manually, referencing the quotation); Invoice has no relationship to the Chart of Accounts / Journal Entries yet (that's Phase 3 — issuing an invoice should eventually post a journal entry).
 
 ## Phase 3 — Finance
 
@@ -63,5 +65,5 @@ Built as shared services when the first module needs them — not a phase of the
 ## Open risks to revisit (from architecture doc §11)
 
 - [x] RLS policies written and tested for the Phase 1 tables — pattern established (`current_user_company_ids()` SECURITY DEFINER function) for Phase 2 tables to reuse rather than reinvent. Learned two sharp edges worth remembering: (1) a policy can't safely reference its own table in a subquery — Postgres detects it as infinite recursion; (2) `INSERT ... RETURNING` (which Django's ORM always uses) is subject to the `USING`/SELECT policy too, not just `WITH CHECK` — so a row that grants its own visibility (like a company's first membership) needs a scoped `SET LOCAL` bypass at creation time.
-- [ ] Multi-company "active company" UX validated with a real multi-membership user, not just the data model
+- [x] Multi-company "active company" UX validated with a real multi-membership user — gave a user memberships in two companies and confirmed the `same_company_fields` check (not RLS, which is member-of-any-company-scoped by design) is what actually catches "wrong company active" mistakes on FK fields
 - [ ] Decide Django admin's role for Super Admin platform-operator tooling before Phase 1 settings work locks in the pattern

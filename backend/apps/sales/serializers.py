@@ -1,0 +1,151 @@
+from django.db import transaction
+from rest_framework import serializers
+
+from apps.common.serializers import CompanyScopedSerializer
+
+from .models import Invoice, Quotation, QuotationLine, SalesOrder, SalesOrderLine
+
+
+class QuotationLineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuotationLine
+        fields = ["id", "item", "quantity", "unit_price_cents"]
+        read_only_fields = ["id"]
+
+
+class QuotationSerializer(CompanyScopedSerializer):
+    same_company_fields = ["customer"]
+    lines = QuotationLineSerializer(many=True)
+    total_cents = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Quotation
+        fields = ["id", "customer", "status", "lines", "total_cents", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_lines(self, lines):
+        if not lines:
+            raise serializers.ValidationError("At least one line item is required.")
+        return lines
+
+    def _create_lines(self, quotation, company, lines_data):
+        for line in lines_data:
+            if line["item"].company_id != company.id:
+                raise serializers.ValidationError(
+                    {"lines": "All line items must belong to the active company."}
+                )
+            QuotationLine.objects.create(company=company, quotation=quotation, **line)
+
+    def create(self, validated_data):
+        lines_data = validated_data.pop("lines")
+        company = validated_data["company"]
+        with transaction.atomic():
+            quotation = Quotation.objects.create(**validated_data)
+            self._create_lines(quotation, company, lines_data)
+        return quotation
+
+    def update(self, instance, validated_data):
+        lines_data = validated_data.pop("lines", None)
+        with transaction.atomic():
+            instance.customer = validated_data.get("customer", instance.customer)
+            instance.status = validated_data.get("status", instance.status)
+            instance.save()
+            if lines_data is not None:
+                instance.lines.all().delete()
+                self._create_lines(instance, instance.company, lines_data)
+        return instance
+
+
+class SalesOrderLineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalesOrderLine
+        fields = ["id", "item", "quantity", "unit_price_cents"]
+        read_only_fields = ["id"]
+
+
+class SalesOrderSerializer(CompanyScopedSerializer):
+    same_company_fields = ["customer", "quotation"]
+    lines = SalesOrderLineSerializer(many=True)
+    total_cents = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = SalesOrder
+        fields = [
+            "id",
+            "customer",
+            "quotation",
+            "status",
+            "payment_status",
+            "lines",
+            "total_cents",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_lines(self, lines):
+        if not lines:
+            raise serializers.ValidationError("At least one line item is required.")
+        return lines
+
+    def _create_lines(self, order, company, lines_data):
+        for line in lines_data:
+            if line["item"].company_id != company.id:
+                raise serializers.ValidationError(
+                    {"lines": "All line items must belong to the active company."}
+                )
+            SalesOrderLine.objects.create(company=company, sales_order=order, **line)
+
+    def create(self, validated_data):
+        lines_data = validated_data.pop("lines")
+        company = validated_data["company"]
+        with transaction.atomic():
+            order = SalesOrder.objects.create(**validated_data)
+            self._create_lines(order, company, lines_data)
+        return order
+
+    def update(self, instance, validated_data):
+        lines_data = validated_data.pop("lines", None)
+        with transaction.atomic():
+            instance.customer = validated_data.get("customer", instance.customer)
+            instance.quotation = validated_data.get("quotation", instance.quotation)
+            instance.status = validated_data.get("status", instance.status)
+            instance.payment_status = validated_data.get("payment_status", instance.payment_status)
+            instance.save()
+            if lines_data is not None:
+                instance.lines.all().delete()
+                self._create_lines(instance, instance.company, lines_data)
+        return instance
+
+
+class InvoiceSerializer(CompanyScopedSerializer):
+    same_company_fields = ["sales_order"]
+
+    class Meta:
+        model = Invoice
+        fields = [
+            "id",
+            "sales_order",
+            "invoice_number",
+            "amount_cents",
+            "tax_amount_cents",
+            "due_date",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = ["id", "invoice_number", "created_at"]
+        extra_kwargs = {"amount_cents": {"required": False}}
+
+    def create(self, validated_data):
+        sales_order = validated_data.get("sales_order")
+        if sales_order is not None:
+            validated_data["amount_cents"] = sales_order.total_cents
+        elif "amount_cents" not in validated_data:
+            raise serializers.ValidationError(
+                {"amount_cents": "Required when not invoicing a sales order."}
+            )
+
+        with transaction.atomic():
+            invoice = Invoice.objects.create(**validated_data)
+            invoice.invoice_number = f"INV-{invoice.company_id}-{invoice.id:05d}"
+            invoice.save(update_fields=["invoice_number"])
+        return invoice

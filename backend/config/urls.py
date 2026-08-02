@@ -12,4 +12,11 @@ urlpatterns = [
     path("api/health/", health, name="health"),
     path("api/auth/", include("apps.users.urls")),
     path("api/companies/", include("apps.companies.urls")),
+    path("api/hr/", include("apps.hr.urls")),
+    path("api/crm/", include("apps.crm.urls")),
+    path("api/suppliers/", include("apps.suppliers.urls")),
+    path("api/catalog/", include("apps.catalog.urls")),
+    path("api/inventory/", include("apps.inventory.urls")),
+    path("api/procurement/", include("apps.procurement.urls")),
+    path("api/sales/", include("apps.sales.urls")),
 ]

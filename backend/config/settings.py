@@ -39,6 +39,13 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.companies",
     "apps.roles",
+    "apps.hr",
+    "apps.crm",
+    "apps.suppliers",
+    "apps.catalog",
+    "apps.inventory",
+    "apps.procurement",
+    "apps.sales",
 ]
 
 MIDDLEWARE = [

@@ -9,7 +9,8 @@ const MODULE_TILES = [
   { key: "accounting", label: "Accounting", permission: "accounting.view" },
   { key: "hr", label: "HR", permission: "hr.view" },
   { key: "sales", label: "Sales & CRM", permission: "sales.view" },
-  { key: "inventory", label: "Inventory", permission: "inventory.view" },
+  { key: "inventory", label: "Inventory & Catalog", permission: "inventory.view" },
+  { key: "procurement", label: "Procurement", permission: "procurement.view" },
 ];
 
 export default function DashboardPage() {
@@ -155,8 +156,9 @@ export default function DashboardPage() {
             })}
           </div>
           <p style={{ marginTop: 16, fontSize: 13, color: "#999" }}>
-            Modules are empty for now — Phase 1 (Foundation) only proves auth, company context, and
-            role-based access. See TODO.md for what&apos;s next.
+            The Phase 2 APIs behind these modules (HR, CRM, Suppliers, Catalog, Inventory,
+            Procurement, Sales) are live — this dashboard just doesn&apos;t have CRUD screens for
+            them yet. See TODO.md for what&apos;s next.
           </p>
         </section>
       ) : (

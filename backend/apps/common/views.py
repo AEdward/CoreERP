@@ -1,0 +1,55 @@
+from rest_framework import viewsets
+from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.permissions import IsAuthenticated
+
+from .permissions import user_has_permission
+
+
+class CompanyScopedMixin:
+    """Shared logic for every Phase 2+ module viewset.
+
+    Scopes the queryset to the active company (`request.company`, set by
+    CurrentCompanyMiddleware) and gates list/retrieve behind
+    `<permission_module>.view`, create/update/destroy behind
+    `<permission_module>.manage` — the same view/manage split every
+    default role in apps.roles.seed already uses. Row-Level Security
+    (apps.common.rls) is the backstop behind this, not a substitute for
+    it: this is what enforces "which one company am I looking at right
+    now", RLS is what makes it structurally impossible to see a company
+    you're not even a member of.
+
+    Subclasses just set `queryset`, `serializer_class`, and
+    `permission_module` — see apps/hr/views.py for the shape. Mixed into
+    both CompanyScopedViewSet (full CRUD) and CompanyScopedReadOnlyViewSet
+    (list/retrieve only — for tables like Stock that are only ever
+    mutated through a dedicated audit-trailed action, e.g. StockMovement).
+    """
+
+    permission_classes = [IsAuthenticated]
+    permission_module: str | None = None
+
+    def get_queryset(self):
+        if not getattr(self.request, "company", None):
+            return self.queryset.none()
+        return self.queryset.filter(company_id=self.request.company.id)
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if not request.company:
+            raise NotFound("Select an active company first (POST /api/companies/active/).")
+        action = "view" if self.action in ("list", "retrieve") else "manage"
+        if not user_has_permission(request.user, request.company, self.permission_module, action):
+            raise PermissionDenied(
+                f"You don't have permission to {action} {self.permission_module} in this company."
+            )
+
+    def perform_create(self, serializer):
+        serializer.save(company=self.request.company)
+
+
+class CompanyScopedViewSet(CompanyScopedMixin, viewsets.ModelViewSet):
+    pass
+
+
+class CompanyScopedReadOnlyViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
+    pass

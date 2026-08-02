@@ -1,6 +1,11 @@
 """Default permission catalog and per-company role seeding.
 
-See docs/ARCHITECTURE.md §8 for the permission matrix this encodes.
+See docs/ARCHITECTURE.md §8 for the original permission matrix this
+encodes. Phase 2 added a `procurement` module (Suppliers + Purchase
+Orders) that the original matrix didn't anticipate — it's granted to
+Inventory Manager rather than creating a new default role, since
+purchasing-to-replenish-stock is the same job function in most small
+companies. Revisit if that pairing doesn't hold up in practice.
 """
 
 from .models import Permission, Role
@@ -16,6 +21,8 @@ DEFAULT_PERMISSIONS = [
     ("sales", "manage"),
     ("inventory", "view"),
     ("inventory", "manage"),
+    ("procurement", "view"),
+    ("procurement", "manage"),
 ]
 
 DEFAULT_ROLES = {
@@ -30,11 +37,19 @@ DEFAULT_ROLES = {
         "sales.manage",
         "inventory.view",
         "inventory.manage",
+        "procurement.view",
+        "procurement.manage",
     ],
     "Finance Manager": ["dashboard.view", "accounting.view", "accounting.manage"],
     "HR Manager": ["dashboard.view", "hr.view", "hr.manage"],
     "Sales Manager": ["dashboard.view", "sales.view", "sales.manage"],
-    "Inventory Manager": ["dashboard.view", "inventory.view", "inventory.manage"],
+    "Inventory Manager": [
+        "dashboard.view",
+        "inventory.view",
+        "inventory.manage",
+        "procurement.view",
+        "procurement.manage",
+    ],
 }
 
 
