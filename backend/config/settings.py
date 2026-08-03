@@ -79,6 +79,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+_db_options = {}
+if os.environ.get("DB_SSLMODE"):
+    # Only set for hosted Postgres (e.g. Supabase, which requires TLS) —
+    # left unset for local Docker Postgres so nothing changes there.
+    _db_options["sslmode"] = os.environ["DB_SSLMODE"]
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -87,6 +93,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD", "coreerp_app"),
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
+        "OPTIONS": _db_options,
     }
 }
 

@@ -6,7 +6,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design �
 
 ## Status
 
-Phase 1 (Foundation) in progress: auth, multi-company, roles/permissions, and Postgres Row-Level Security are working end to end. See `TODO.md` for what's checked off.
+Phase 1 (Foundation) and Phase 2 (Business Core: HR, CRM, Suppliers, Catalog, Inventory, Procurement, Sales) backends are working end to end. See `TODO.md` for what's checked off.
 
 ## Running it locally
 
@@ -46,11 +46,20 @@ npm install
 npm run dev
 ```
 
+### Using Supabase instead of local Postgres
+
+1. In the Supabase Dashboard's **SQL Editor**, run `docker/postgres/supabase_init.sql` — but first edit the file and replace `CHANGE_ME_TO_A_STRONG_PASSWORD` with a real password you generate (not your project's main database password — this creates a separate, deliberately limited `coreerp_app` role). Keep that password somewhere safe; you'll need it in step 3.
+2. If the `rls_definer` / `BYPASSRLS` step in that script errors with a permissions error, stop and flag it — it means Supabase restricts granting that attribute here, and needs a different fix rather than a workaround guess.
+3. `cd backend && cp .env.supabase.example .env`, then fill in `DB_PASSWORD` with the password from step 1, and check `DB_HOST`/`DB_USER` match your project (Project Settings → Database → Connection pooling → **Session mode**, port 5432 — not the 6543 transaction-mode pooler; see the comments in `.env.supabase.example` for why that distinction matters here).
+4. `pip install -r requirements.txt && python manage.py migrate && python manage.py seed_demo_data`
+5. Run the frontend as usual (`cd frontend && npm install && npm run dev`) — it talks to the backend over HTTP, not the database directly, so nothing changes there.
+
 ## Repo layout
 
 ```
 backend/    Django + DRF API (apps/users, apps/companies, apps/roles, apps/common)
 frontend/   Next.js app (login, signup, permission-gated dashboard)
-docker/     Postgres init script (non-superuser app role + RLS support role)
+docker/     Postgres init scripts (non-superuser app role + RLS support role) —
+            init.sql for local Docker, supabase_init.sql for a Supabase project
 docs/       Architecture doc
 ```
