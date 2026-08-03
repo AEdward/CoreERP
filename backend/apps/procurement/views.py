@@ -14,3 +14,7 @@ class BillViewSet(CompanyScopedViewSet):
     queryset = Bill.objects.select_related("purchase_order")
     serializer_class = BillSerializer
     permission_module = "procurement"
+    # Same reasoning as InvoiceViewSet: recording a bill auto-posts a
+    # journal entry, so it's append-only to keep the ledger and the
+    # document in sync.
+    http_method_names = ["get", "post", "head", "options"]

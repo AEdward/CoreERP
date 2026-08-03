@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { RowActions } from "@/components/RowActions";
 import {
   api,
   ApiError,
@@ -48,9 +49,11 @@ export default function InventoryPage() {
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
   const [itemWorking, setItemWorking] = useState(false);
   const [itemError, setItemError] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
   const [warehouseForm, setWarehouseForm] = useState(EMPTY_WAREHOUSE_FORM);
   const [warehouseWorking, setWarehouseWorking] = useState(false);
+  const [editingWarehouseId, setEditingWarehouseId] = useState<number | null>(null);
 
   const [movementForm, setMovementForm] = useState(EMPTY_MOVEMENT_FORM);
   const [movementWorking, setMovementWorking] = useState(false);
@@ -86,20 +89,47 @@ export default function InventoryPage() {
     setItemWorking(true);
     setItemError(null);
     try {
-      await api.createItem({
+      const payload = {
         type: itemForm.type,
         name: itemForm.name,
         category: itemForm.category,
         price_cents: Math.round(Number(itemForm.price || 0) * 100),
         cost_cents: Math.round(Number(itemForm.cost || 0) * 100),
         tax_rate: itemForm.tax_rate,
-      });
+      };
+      if (editingItemId) {
+        await api.updateItem(editingItemId, payload);
+      } else {
+        await api.createItem(payload);
+      }
       setItemForm(EMPTY_ITEM_FORM);
+      setEditingItemId(null);
       await loadAll();
     } catch (err) {
-      setItemError(err instanceof ApiError ? err.message : "Failed to create item.");
+      setItemError(err instanceof ApiError ? err.message : "Failed to save item.");
     } finally {
       setItemWorking(false);
+    }
+  }
+
+  function startEditItem(item: Item) {
+    setEditingItemId(item.id);
+    setItemForm({
+      type: item.type,
+      name: item.name,
+      category: item.category,
+      price: (item.price_cents / 100).toString(),
+      cost: (item.cost_cents / 100).toString(),
+      tax_rate: item.tax_rate,
+    });
+  }
+
+  async function handleDeleteItem(id: number) {
+    try {
+      await api.deleteItem(id);
+      await loadAll();
+    } catch (err) {
+      setItemError(err instanceof ApiError ? err.message : "Failed to delete item.");
     }
   }
 
@@ -107,13 +137,32 @@ export default function InventoryPage() {
     e.preventDefault();
     setWarehouseWorking(true);
     try {
-      await api.createWarehouse(warehouseForm);
+      if (editingWarehouseId) {
+        await api.updateWarehouse(editingWarehouseId, warehouseForm);
+      } else {
+        await api.createWarehouse(warehouseForm);
+      }
       setWarehouseForm(EMPTY_WAREHOUSE_FORM);
+      setEditingWarehouseId(null);
       await loadAll();
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Failed to create warehouse.");
+      setLoadError(err instanceof ApiError ? err.message : "Failed to save warehouse.");
     } finally {
       setWarehouseWorking(false);
+    }
+  }
+
+  function startEditWarehouse(w: Warehouse) {
+    setEditingWarehouseId(w.id);
+    setWarehouseForm({ name: w.name, location: w.location });
+  }
+
+  async function handleDeleteWarehouse(id: number) {
+    try {
+      await api.deleteWarehouse(id);
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete warehouse.");
     }
   }
 
@@ -176,6 +225,7 @@ export default function InventoryPage() {
                   <th style={{ padding: "6px 4px" }}>Price</th>
                   <th style={{ padding: "6px 4px" }}>Cost</th>
                   <th style={{ padding: "6px 4px" }}>Status</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -187,11 +237,20 @@ export default function InventoryPage() {
                     <td style={{ padding: "6px 4px" }}>{formatCents(item.price_cents)}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(item.cost_cents)}</td>
                     <td style={{ padding: "6px 4px" }}>{item.status}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditItem(item)}
+                          onDelete={() => handleDeleteItem(item.id)}
+                          disabled={itemWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {items?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
                       No items yet.
                     </td>
                   </tr>
@@ -255,13 +314,23 @@ export default function InventoryPage() {
                   onChange={(e) => setItemForm({ ...itemForm, tax_rate: e.target.value })}
                   style={{ padding: 8 }}
                 />
-                <button
-                  type="submit"
-                  disabled={itemWorking || !itemForm.name}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
-                >
-                  Add item
-                </button>
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                  <button type="submit" disabled={itemWorking || !itemForm.name} style={{ padding: "8px 16px" }}>
+                    {editingItemId ? "Save changes" : "Add item"}
+                  </button>
+                  {editingItemId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingItemId(null);
+                        setItemForm(EMPTY_ITEM_FORM);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 {itemError && (
                   <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{itemError}</p>
                 )}
@@ -280,6 +349,15 @@ export default function InventoryPage() {
                   <tr key={w.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ padding: "6px 4px" }}>{w.name}</td>
                     <td style={{ padding: "6px 4px", color: "#666" }}>{w.location || "—"}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditWarehouse(w)}
+                          onDelete={() => handleDeleteWarehouse(w.id)}
+                          disabled={warehouseWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {warehouses?.length === 0 && (
@@ -309,8 +387,20 @@ export default function InventoryPage() {
                   disabled={warehouseWorking || !warehouseForm.name}
                   style={{ padding: "8px 16px" }}
                 >
-                  Add warehouse
+                  {editingWarehouseId ? "Save changes" : "Add warehouse"}
                 </button>
+                {editingWarehouseId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingWarehouseId(null);
+                      setWarehouseForm(EMPTY_WAREHOUSE_FORM);
+                    }}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    Cancel
+                  </button>
+                )}
               </form>
             )}
           </section>

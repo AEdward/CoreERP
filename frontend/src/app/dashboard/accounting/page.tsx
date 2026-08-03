@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { RowActions } from "@/components/RowActions";
 import {
   api,
   ApiError,
@@ -45,6 +46,8 @@ export default function AccountingPage() {
 
   const [accountForm, setAccountForm] = useState(EMPTY_ACCOUNT_FORM);
   const [accountWorking, setAccountWorking] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [editingAccountId, setEditingAccountId] = useState<number | null>(null);
 
   const [jeReference, setJeReference] = useState("");
   const [jeMemo, setJeMemo] = useState("");
@@ -92,14 +95,34 @@ export default function AccountingPage() {
   async function handleAddAccount(e: React.FormEvent) {
     e.preventDefault();
     setAccountWorking(true);
+    setAccountError(null);
     try {
-      await api.createAccount(accountForm);
+      if (editingAccountId) {
+        await api.updateAccount(editingAccountId, accountForm);
+      } else {
+        await api.createAccount(accountForm);
+      }
       setAccountForm(EMPTY_ACCOUNT_FORM);
+      setEditingAccountId(null);
       await loadAll();
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Failed to create account.");
+      setAccountError(err instanceof ApiError ? err.message : "Failed to save account.");
     } finally {
       setAccountWorking(false);
+    }
+  }
+
+  function startEditAccount(a: Account) {
+    setEditingAccountId(a.id);
+    setAccountForm({ code: a.code, name: a.name, type: a.type });
+  }
+
+  async function handleDeleteAccount(id: number) {
+    try {
+      await api.deleteAccount(id);
+      await loadAll();
+    } catch (err) {
+      setAccountError(err instanceof ApiError ? err.message : "Failed to delete account.");
     }
   }
 
@@ -185,6 +208,7 @@ export default function AccountingPage() {
                   <th style={{ padding: "6px 4px" }}>Code</th>
                   <th style={{ padding: "6px 4px" }}>Name</th>
                   <th style={{ padding: "6px 4px" }}>Type</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -193,10 +217,26 @@ export default function AccountingPage() {
                     <td style={{ padding: "6px 4px" }}>{a.code}</td>
                     <td style={{ padding: "6px 4px" }}>{a.name}</td>
                     <td style={{ padding: "6px 4px" }}>{a.type}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        {a.role ? (
+                          <span style={{ fontSize: 12, color: "#999" }} title="A well-known account the posting engine looks up by role — edit/delete disabled to keep auto-posting working.">
+                            System account
+                          </span>
+                        ) : (
+                          <RowActions
+                            onEdit={() => startEditAccount(a)}
+                            onDelete={() => handleDeleteAccount(a.id)}
+                            disabled={accountWorking}
+                          />
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
+            {accountError && <p style={{ color: "crimson" }}>{accountError}</p>}
             {canManage && (
               <form onSubmit={handleAddAccount} style={{ marginTop: 12, display: "flex", gap: 8 }}>
                 <input
@@ -231,8 +271,20 @@ export default function AccountingPage() {
                   disabled={accountWorking || !accountForm.code || !accountForm.name}
                   style={{ padding: "8px 16px" }}
                 >
-                  Add account
+                  {editingAccountId ? "Save changes" : "Add account"}
                 </button>
+                {editingAccountId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingAccountId(null);
+                      setAccountForm(EMPTY_ACCOUNT_FORM);
+                    }}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    Cancel
+                  </button>
+                )}
               </form>
             )}
           </section>

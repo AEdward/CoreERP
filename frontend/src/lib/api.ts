@@ -382,19 +382,35 @@ export const api = {
   listDepartments: () => request<Department[]>("/api/hr/departments/"),
   createDepartment: (data: { name: string }) =>
     request<Department>("/api/hr/departments/", { method: "POST", body: JSON.stringify(data) }),
+  updateDepartment: (id: number, data: { name: string }) =>
+    request<Department>(`/api/hr/departments/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteDepartment: (id: number) => request<void>(`/api/hr/departments/${id}/`, { method: "DELETE" }),
   listEmployees: () => request<Employee[]>("/api/hr/employees/"),
   createEmployee: (data: Partial<Employee>) =>
     request<Employee>("/api/hr/employees/", { method: "POST", body: JSON.stringify(data) }),
+  updateEmployee: (id: number, data: Partial<Employee>) =>
+    request<Employee>(`/api/hr/employees/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteEmployee: (id: number) => request<void>(`/api/hr/employees/${id}/`, { method: "DELETE" }),
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),
   createItem: (data: Partial<Item>) =>
     request<Item>("/api/catalog/items/", { method: "POST", body: JSON.stringify(data) }),
+  updateItem: (id: number, data: Partial<Item>) =>
+    request<Item>(`/api/catalog/items/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteItem: (id: number) => request<void>(`/api/catalog/items/${id}/`, { method: "DELETE" }),
 
   // --- Inventory ---
   listWarehouses: () => request<Warehouse[]>("/api/inventory/warehouses/"),
   createWarehouse: (data: { name: string; location?: string }) =>
     request<Warehouse>("/api/inventory/warehouses/", { method: "POST", body: JSON.stringify(data) }),
+  updateWarehouse: (id: number, data: { name: string; location?: string }) =>
+    request<Warehouse>(`/api/inventory/warehouses/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteWarehouse: (id: number) =>
+    request<void>(`/api/inventory/warehouses/${id}/`, { method: "DELETE" }),
   listStock: () => request<Stock[]>("/api/inventory/stock/"),
   listStockMovements: () => request<StockMovement[]>("/api/inventory/stock-movements/"),
   createStockMovement: (data: Partial<StockMovement>) =>
@@ -407,11 +423,21 @@ export const api = {
   listCustomers: () => request<Customer[]>("/api/crm/customers/"),
   createCustomer: (data: Partial<Customer>) =>
     request<Customer>("/api/crm/customers/", { method: "POST", body: JSON.stringify(data) }),
+  updateCustomer: (id: number, data: Partial<Customer>) =>
+    request<Customer>(`/api/crm/customers/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteCustomer: (id: number) => request<void>(`/api/crm/customers/${id}/`, { method: "DELETE" }),
 
   // --- Suppliers ---
   listSuppliers: () => request<Supplier[]>("/api/suppliers/suppliers/"),
   createSupplier: (data: Partial<Supplier>) =>
     request<Supplier>("/api/suppliers/suppliers/", { method: "POST", body: JSON.stringify(data) }),
+  updateSupplier: (id: number, data: Partial<Supplier>) =>
+    request<Supplier>(`/api/suppliers/suppliers/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteSupplier: (id: number) =>
+    request<void>(`/api/suppliers/suppliers/${id}/`, { method: "DELETE" }),
 
   // --- Procurement ---
   listPurchaseOrders: () => request<PurchaseOrder[]>("/api/procurement/purchase-orders/"),
@@ -424,6 +450,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  updatePurchaseOrder: (
+    id: number,
+    data: {
+      supplier: number;
+      status: string;
+      lines: { item: number; quantity: number; unit_cost_cents: number }[];
+    }
+  ) =>
+    request<PurchaseOrder>(`/api/procurement/purchase-orders/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deletePurchaseOrder: (id: number) =>
+    request<void>(`/api/procurement/purchase-orders/${id}/`, { method: "DELETE" }),
 
   // --- Sales ---
   listQuotations: () => request<Quotation[]>("/api/sales/quotations/"),
@@ -433,6 +473,20 @@ export const api = {
     lines: { item: number; quantity: number; unit_price_cents: number }[];
   }) =>
     request<Quotation>("/api/sales/quotations/", { method: "POST", body: JSON.stringify(data) }),
+  updateQuotation: (
+    id: number,
+    data: {
+      customer: number;
+      status: string;
+      lines: { item: number; quantity: number; unit_price_cents: number }[];
+    }
+  ) =>
+    request<Quotation>(`/api/sales/quotations/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteQuotation: (id: number) =>
+    request<void>(`/api/sales/quotations/${id}/`, { method: "DELETE" }),
   listSalesOrders: () => request<SalesOrder[]>("/api/sales/sales-orders/"),
   createSalesOrder: (data: {
     customer: number;
@@ -442,6 +496,22 @@ export const api = {
     lines: { item: number; quantity: number; unit_price_cents: number }[];
   }) =>
     request<SalesOrder>("/api/sales/sales-orders/", { method: "POST", body: JSON.stringify(data) }),
+  updateSalesOrder: (
+    id: number,
+    data: {
+      customer: number;
+      quotation?: number | null;
+      status: string;
+      payment_status: string;
+      lines: { item: number; quantity: number; unit_price_cents: number }[];
+    }
+  ) =>
+    request<SalesOrder>(`/api/sales/sales-orders/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteSalesOrder: (id: number) =>
+    request<void>(`/api/sales/sales-orders/${id}/`, { method: "DELETE" }),
   listInvoices: () => request<Invoice[]>("/api/sales/invoices/"),
   createInvoice: (data: {
     sales_order?: number | null;
@@ -463,6 +533,13 @@ export const api = {
   listAccounts: () => request<Account[]>("/api/accounting/accounts/"),
   createAccount: (data: Partial<Account>) =>
     request<Account>("/api/accounting/accounts/", { method: "POST", body: JSON.stringify(data) }),
+  updateAccount: (id: number, data: Partial<Account>) =>
+    request<Account>(`/api/accounting/accounts/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteAccount: (id: number) =>
+    request<void>(`/api/accounting/accounts/${id}/`, { method: "DELETE" }),
   listJournalEntries: () => request<JournalEntry[]>("/api/accounting/journal-entries/"),
   createJournalEntry: (data: {
     reference: string;

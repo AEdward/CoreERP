@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type Department, type Employee } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
@@ -31,10 +32,12 @@ export default function HrPage() {
 
   const [newDeptName, setNewDeptName] = useState("");
   const [deptWorking, setDeptWorking] = useState(false);
+  const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
 
   const [empForm, setEmpForm] = useState(EMPTY_EMPLOYEE_FORM);
   const [empWorking, setEmpWorking] = useState(false);
   const [empError, setEmpError] = useState<string | null>(null);
+  const [editingEmpId, setEditingEmpId] = useState<number | null>(null);
 
   async function loadAll() {
     try {
@@ -58,13 +61,32 @@ export default function HrPage() {
     e.preventDefault();
     setDeptWorking(true);
     try {
-      await api.createDepartment({ name: newDeptName });
+      if (editingDeptId) {
+        await api.updateDepartment(editingDeptId, { name: newDeptName });
+      } else {
+        await api.createDepartment({ name: newDeptName });
+      }
       setNewDeptName("");
+      setEditingDeptId(null);
       await loadAll();
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Failed to create department.");
+      setLoadError(err instanceof ApiError ? err.message : "Failed to save department.");
     } finally {
       setDeptWorking(false);
+    }
+  }
+
+  function startEditDepartment(d: Department) {
+    setEditingDeptId(d.id);
+    setNewDeptName(d.name);
+  }
+
+  async function handleDeleteDepartment(id: number) {
+    try {
+      await api.deleteDepartment(id);
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete department.");
     }
   }
 
@@ -73,7 +95,7 @@ export default function HrPage() {
     setEmpWorking(true);
     setEmpError(null);
     try {
-      await api.createEmployee({
+      const payload = {
         first_name: empForm.first_name,
         last_name: empForm.last_name,
         email: empForm.email,
@@ -83,13 +105,43 @@ export default function HrPage() {
         salary_cents: empForm.salary_cents ? Math.round(Number(empForm.salary_cents) * 100) : 0,
         joining_date: empForm.joining_date || null,
         status: empForm.status,
-      });
+      };
+      if (editingEmpId) {
+        await api.updateEmployee(editingEmpId, payload);
+      } else {
+        await api.createEmployee(payload);
+      }
       setEmpForm(EMPTY_EMPLOYEE_FORM);
+      setEditingEmpId(null);
       await loadAll();
     } catch (err) {
-      setEmpError(err instanceof ApiError ? err.message : "Failed to create employee.");
+      setEmpError(err instanceof ApiError ? err.message : "Failed to save employee.");
     } finally {
       setEmpWorking(false);
+    }
+  }
+
+  function startEditEmployee(emp: Employee) {
+    setEditingEmpId(emp.id);
+    setEmpForm({
+      first_name: emp.first_name,
+      last_name: emp.last_name,
+      email: emp.email,
+      phone: emp.phone,
+      position: emp.position,
+      department: emp.department ? String(emp.department) : "",
+      salary_cents: emp.salary_cents ? String(emp.salary_cents / 100) : "",
+      joining_date: emp.joining_date ?? "",
+      status: emp.status,
+    });
+  }
+
+  async function handleDeleteEmployee(id: number) {
+    try {
+      await api.deleteEmployee(id);
+      await loadAll();
+    } catch (err) {
+      setEmpError(err instanceof ApiError ? err.message : "Failed to delete employee.");
     }
   }
 
@@ -121,6 +173,15 @@ export default function HrPage() {
                 {departments?.map((d) => (
                   <tr key={d.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ padding: "6px 4px" }}>{d.name}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditDepartment(d)}
+                          onDelete={() => handleDeleteDepartment(d.id)}
+                          disabled={deptWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {departments?.length === 0 && (
@@ -143,8 +204,20 @@ export default function HrPage() {
                   disabled={deptWorking || !newDeptName}
                   style={{ padding: "8px 16px" }}
                 >
-                  Add department
+                  {editingDeptId ? "Save changes" : "Add department"}
                 </button>
+                {editingDeptId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingDeptId(null);
+                      setNewDeptName("");
+                    }}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    Cancel
+                  </button>
+                )}
               </form>
             )}
           </section>
@@ -160,6 +233,7 @@ export default function HrPage() {
                   <th style={{ padding: "6px 4px" }}>Position</th>
                   <th style={{ padding: "6px 4px" }}>Department</th>
                   <th style={{ padding: "6px 4px" }}>Status</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -171,11 +245,20 @@ export default function HrPage() {
                     <td style={{ padding: "6px 4px" }}>{emp.position || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{departmentName(emp.department)}</td>
                     <td style={{ padding: "6px 4px" }}>{STATUS_LABELS[emp.status]}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditEmployee(emp)}
+                          onDelete={() => handleDeleteEmployee(emp.id)}
+                          disabled={empWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {employees?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
                       No employees yet.
                     </td>
                   </tr>
@@ -263,13 +346,27 @@ export default function HrPage() {
                   <option value="on_leave">On leave</option>
                   <option value="terminated">Terminated</option>
                 </select>
-                <button
-                  type="submit"
-                  disabled={empWorking || !empForm.first_name || !empForm.last_name}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
-                >
-                  Add employee
-                </button>
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                  <button
+                    type="submit"
+                    disabled={empWorking || !empForm.first_name || !empForm.last_name}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    {editingEmpId ? "Save changes" : "Add employee"}
+                  </button>
+                  {editingEmpId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingEmpId(null);
+                        setEmpForm(EMPTY_EMPLOYEE_FORM);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 {empError && (
                   <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{empError}</p>
                 )}

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
+import { RowActions } from "@/components/RowActions";
 import {
   api,
   ApiError,
   type Customer,
   type Invoice,
   type Item,
+  type OrderLine,
   type Quotation,
   type SalesOrder,
 } from "@/lib/api";
@@ -36,6 +38,14 @@ function linesToPayload(rows: LineItemRow[]) {
     }));
 }
 
+function linesToRows(lines: OrderLine[]): LineItemRow[] {
+  return lines.map((l) => ({
+    item: String(l.item),
+    quantity: String(l.quantity),
+    unitPrice: (l.unit_price_cents / 100).toString(),
+  }));
+}
+
 export default function SalesPage() {
   const { me, activeMembership, error: sessionError } = useSession();
 
@@ -48,17 +58,20 @@ export default function SalesPage() {
 
   const [customerForm, setCustomerForm] = useState(EMPTY_CUSTOMER_FORM);
   const [customerWorking, setCustomerWorking] = useState(false);
+  const [editingCustomerId, setEditingCustomerId] = useState<number | null>(null);
 
   const [qCustomer, setQCustomer] = useState("");
   const [qLines, setQLines] = useState<LineItemRow[]>([{ ...EMPTY_LINE }]);
   const [qWorking, setQWorking] = useState(false);
   const [qError, setQError] = useState<string | null>(null);
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
 
   const [soCustomer, setSoCustomer] = useState("");
   const [soQuotation, setSoQuotation] = useState("");
   const [soLines, setSoLines] = useState<LineItemRow[]>([{ ...EMPTY_LINE }]);
   const [soWorking, setSoWorking] = useState(false);
   const [soError, setSoError] = useState<string | null>(null);
+  const [editingSalesOrder, setEditingSalesOrder] = useState<SalesOrder | null>(null);
 
   const [invSalesOrder, setInvSalesOrder] = useState("");
   const [invAmount, setInvAmount] = useState("");
@@ -98,13 +111,32 @@ export default function SalesPage() {
     e.preventDefault();
     setCustomerWorking(true);
     try {
-      await api.createCustomer(customerForm);
+      if (editingCustomerId) {
+        await api.updateCustomer(editingCustomerId, customerForm);
+      } else {
+        await api.createCustomer(customerForm);
+      }
       setCustomerForm(EMPTY_CUSTOMER_FORM);
+      setEditingCustomerId(null);
       await loadAll();
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Failed to create customer.");
+      setLoadError(err instanceof ApiError ? err.message : "Failed to save customer.");
     } finally {
       setCustomerWorking(false);
+    }
+  }
+
+  function startEditCustomer(c: Customer) {
+    setEditingCustomerId(c.id);
+    setCustomerForm({ name: c.name, phone: c.phone, email: c.email, type: c.type, address: c.address });
+  }
+
+  async function handleDeleteCustomer(id: number) {
+    try {
+      await api.deleteCustomer(id);
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete customer.");
     }
   }
 
@@ -113,18 +145,39 @@ export default function SalesPage() {
     setQWorking(true);
     setQError(null);
     try {
-      await api.createQuotation({
+      const payload = {
         customer: Number(qCustomer),
-        status: "draft",
+        status: editingQuotation?.status ?? "draft",
         lines: linesToPayload(qLines),
-      });
+      };
+      if (editingQuotation) {
+        await api.updateQuotation(editingQuotation.id, payload);
+      } else {
+        await api.createQuotation(payload);
+      }
       setQCustomer("");
       setQLines([{ ...EMPTY_LINE }]);
+      setEditingQuotation(null);
       await loadAll();
     } catch (err) {
-      setQError(err instanceof ApiError ? err.message : "Failed to create quotation.");
+      setQError(err instanceof ApiError ? err.message : "Failed to save quotation.");
     } finally {
       setQWorking(false);
+    }
+  }
+
+  function startEditQuotation(q: Quotation) {
+    setEditingQuotation(q);
+    setQCustomer(String(q.customer));
+    setQLines(linesToRows(q.lines));
+  }
+
+  async function handleDeleteQuotation(id: number) {
+    try {
+      await api.deleteQuotation(id);
+      await loadAll();
+    } catch (err) {
+      setQError(err instanceof ApiError ? err.message : "Failed to delete quotation.");
     }
   }
 
@@ -133,21 +186,43 @@ export default function SalesPage() {
     setSoWorking(true);
     setSoError(null);
     try {
-      await api.createSalesOrder({
+      const payload = {
         customer: Number(soCustomer),
         quotation: soQuotation ? Number(soQuotation) : null,
-        status: "pending",
-        payment_status: "unpaid",
+        status: editingSalesOrder?.status ?? "pending",
+        payment_status: editingSalesOrder?.payment_status ?? "unpaid",
         lines: linesToPayload(soLines),
-      });
+      };
+      if (editingSalesOrder) {
+        await api.updateSalesOrder(editingSalesOrder.id, payload);
+      } else {
+        await api.createSalesOrder(payload);
+      }
       setSoCustomer("");
       setSoQuotation("");
       setSoLines([{ ...EMPTY_LINE }]);
+      setEditingSalesOrder(null);
       await loadAll();
     } catch (err) {
-      setSoError(err instanceof ApiError ? err.message : "Failed to create sales order.");
+      setSoError(err instanceof ApiError ? err.message : "Failed to save sales order.");
     } finally {
       setSoWorking(false);
+    }
+  }
+
+  function startEditSalesOrder(o: SalesOrder) {
+    setEditingSalesOrder(o);
+    setSoCustomer(String(o.customer));
+    setSoQuotation(o.quotation ? String(o.quotation) : "");
+    setSoLines(linesToRows(o.lines));
+  }
+
+  async function handleDeleteSalesOrder(id: number) {
+    try {
+      await api.deleteSalesOrder(id);
+      await loadAll();
+    } catch (err) {
+      setSoError(err instanceof ApiError ? err.message : "Failed to delete sales order.");
     }
   }
 
@@ -205,6 +280,7 @@ export default function SalesPage() {
                   <th style={{ padding: "6px 4px" }}>Type</th>
                   <th style={{ padding: "6px 4px" }}>Phone</th>
                   <th style={{ padding: "6px 4px" }}>Email</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -214,11 +290,20 @@ export default function SalesPage() {
                     <td style={{ padding: "6px 4px" }}>{c.type}</td>
                     <td style={{ padding: "6px 4px" }}>{c.phone || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{c.email || "—"}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditCustomer(c)}
+                          onDelete={() => handleDeleteCustomer(c.id)}
+                          disabled={customerWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {customers?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
                       No customers yet.
                     </td>
                   </tr>
@@ -274,13 +359,27 @@ export default function SalesPage() {
                   onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
                   style={{ padding: 8 }}
                 />
-                <button
-                  type="submit"
-                  disabled={customerWorking || !customerForm.name}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
-                >
-                  Add customer
-                </button>
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                  <button
+                    type="submit"
+                    disabled={customerWorking || !customerForm.name}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    {editingCustomerId ? "Save changes" : "Add customer"}
+                  </button>
+                  {editingCustomerId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingCustomerId(null);
+                        setCustomerForm(EMPTY_CUSTOMER_FORM);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             )}
           </section>
@@ -297,6 +396,7 @@ export default function SalesPage() {
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   <th style={{ padding: "6px 4px" }}>Lines</th>
                   <th style={{ padding: "6px 4px" }}>Total</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -306,11 +406,20 @@ export default function SalesPage() {
                     <td style={{ padding: "6px 4px" }}>{q.status}</td>
                     <td style={{ padding: "6px 4px" }}>{q.lines.length}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(q.total_cents)}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditQuotation(q)}
+                          onDelete={() => handleDeleteQuotation(q.id)}
+                          disabled={qWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {quotations?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
                       No quotations yet.
                     </td>
                   </tr>
@@ -338,13 +447,24 @@ export default function SalesPage() {
                   onChange={setQLines}
                   priceLabel="Unit price"
                 />
-                <button
-                  type="submit"
-                  disabled={qWorking || !qCustomer}
-                  style={{ padding: "8px 16px", marginTop: 8 }}
-                >
-                  Create quotation
-                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button type="submit" disabled={qWorking || !qCustomer} style={{ padding: "8px 16px" }}>
+                    {editingQuotation ? "Save changes" : "Create quotation"}
+                  </button>
+                  {editingQuotation && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingQuotation(null);
+                        setQCustomer("");
+                        setQLines([{ ...EMPTY_LINE }]);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 {qError && <p style={{ color: "crimson" }}>{qError}</p>}
               </form>
             )}
@@ -362,6 +482,7 @@ export default function SalesPage() {
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   <th style={{ padding: "6px 4px" }}>Payment</th>
                   <th style={{ padding: "6px 4px" }}>Total</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -371,11 +492,20 @@ export default function SalesPage() {
                     <td style={{ padding: "6px 4px" }}>{o.status}</td>
                     <td style={{ padding: "6px 4px" }}>{o.payment_status}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditSalesOrder(o)}
+                          onDelete={() => handleDeleteSalesOrder(o.id)}
+                          disabled={soWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {orders?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
                       No sales orders yet.
                     </td>
                   </tr>
@@ -417,13 +547,25 @@ export default function SalesPage() {
                   onChange={setSoLines}
                   priceLabel="Unit price"
                 />
-                <button
-                  type="submit"
-                  disabled={soWorking || !soCustomer}
-                  style={{ padding: "8px 16px", marginTop: 8 }}
-                >
-                  Create sales order
-                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button type="submit" disabled={soWorking || !soCustomer} style={{ padding: "8px 16px" }}>
+                    {editingSalesOrder ? "Save changes" : "Create sales order"}
+                  </button>
+                  {editingSalesOrder && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSalesOrder(null);
+                        setSoCustomer("");
+                        setSoQuotation("");
+                        setSoLines([{ ...EMPTY_LINE }]);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 {soError && <p style={{ color: "crimson" }}>{soError}</p>}
               </form>
             )}

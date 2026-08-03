@@ -8,6 +8,9 @@ from .permissions import user_has_permission
 DUPLICATE_ERROR = {
     "detail": "That already exists for this company — check for a duplicate name or reference."
 }
+IN_USE_ERROR = {
+    "detail": "Can't delete this — it's still referenced by other records (orders, stock, journal entries, etc.)."
+}
 
 
 class CompanyScopedMixin:
@@ -68,6 +71,18 @@ class CompanyScopedMixin:
                 serializer.save()
         except IntegrityError as exc:
             raise ValidationError(DUPLICATE_ERROR) from exc
+
+    def perform_destroy(self, instance):
+        # Most reference/master data (Item, Customer, Supplier, Warehouse,
+        # Account...) is FK-PROTECT'd from rows that depend on it, so a
+        # delete that's still in use raises ProtectedError (an IntegrityError
+        # subclass) rather than silently cascading — this turns that into a
+        # normal 400 instead of a raw 500.
+        try:
+            with transaction.atomic():
+                instance.delete()
+        except IntegrityError as exc:
+            raise ValidationError(IN_USE_ERROR) from exc
 
 
 class CompanyScopedViewSet(CompanyScopedMixin, viewsets.ModelViewSet):

@@ -3,8 +3,17 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
+import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type Bill, type Item, type PurchaseOrder, type Supplier } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+
+function poLinesToRows(lines: PurchaseOrder["lines"]): LineItemRow[] {
+  return lines.map((l) => ({
+    item: String(l.item),
+    quantity: String(l.quantity),
+    unitPrice: (l.unit_cost_cents / 100).toString(),
+  }));
+}
 
 const EMPTY_SUPPLIER_FORM = { name: "", phone: "", email: "", address: "", tax_number: "" };
 
@@ -23,12 +32,14 @@ export default function ProcurementPage() {
 
   const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
   const [supplierWorking, setSupplierWorking] = useState(false);
+  const [editingSupplierId, setEditingSupplierId] = useState<number | null>(null);
 
   const [poSupplier, setPoSupplier] = useState("");
   const [poStatus, setPoStatus] = useState<PurchaseOrder["status"]>("draft");
   const [poLines, setPoLines] = useState<LineItemRow[]>([{ ...EMPTY_LINE }]);
   const [poWorking, setPoWorking] = useState(false);
   const [poError, setPoError] = useState<string | null>(null);
+  const [editingPoId, setEditingPoId] = useState<number | null>(null);
 
   const [billPo, setBillPo] = useState("");
   const [billAmount, setBillAmount] = useState("");
@@ -66,13 +77,38 @@ export default function ProcurementPage() {
     e.preventDefault();
     setSupplierWorking(true);
     try {
-      await api.createSupplier(supplierForm);
+      if (editingSupplierId) {
+        await api.updateSupplier(editingSupplierId, supplierForm);
+      } else {
+        await api.createSupplier(supplierForm);
+      }
       setSupplierForm(EMPTY_SUPPLIER_FORM);
+      setEditingSupplierId(null);
       await loadAll();
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Failed to create supplier.");
+      setLoadError(err instanceof ApiError ? err.message : "Failed to save supplier.");
     } finally {
       setSupplierWorking(false);
+    }
+  }
+
+  function startEditSupplier(s: Supplier) {
+    setEditingSupplierId(s.id);
+    setSupplierForm({
+      name: s.name,
+      phone: s.phone,
+      email: s.email,
+      address: s.address,
+      tax_number: s.tax_number,
+    });
+  }
+
+  async function handleDeleteSupplier(id: number) {
+    try {
+      await api.deleteSupplier(id);
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete supplier.");
     }
   }
 
@@ -88,15 +124,37 @@ export default function ProcurementPage() {
           quantity: Number(l.quantity),
           unit_cost_cents: Math.round(Number(l.unitPrice || 0) * 100),
         }));
-      await api.createPurchaseOrder({ supplier: Number(poSupplier), status: poStatus, lines });
+      const payload = { supplier: Number(poSupplier), status: poStatus, lines };
+      if (editingPoId) {
+        await api.updatePurchaseOrder(editingPoId, payload);
+      } else {
+        await api.createPurchaseOrder(payload);
+      }
       setPoSupplier("");
       setPoStatus("draft");
       setPoLines([{ ...EMPTY_LINE }]);
+      setEditingPoId(null);
       await loadAll();
     } catch (err) {
-      setPoError(err instanceof ApiError ? err.message : "Failed to create purchase order.");
+      setPoError(err instanceof ApiError ? err.message : "Failed to save purchase order.");
     } finally {
       setPoWorking(false);
+    }
+  }
+
+  function startEditPurchaseOrder(o: PurchaseOrder) {
+    setEditingPoId(o.id);
+    setPoSupplier(String(o.supplier));
+    setPoStatus(o.status);
+    setPoLines(poLinesToRows(o.lines));
+  }
+
+  async function handleDeletePurchaseOrder(id: number) {
+    try {
+      await api.deletePurchaseOrder(id);
+      await loadAll();
+    } catch (err) {
+      setPoError(err instanceof ApiError ? err.message : "Failed to delete purchase order.");
     }
   }
 
@@ -154,6 +212,7 @@ export default function ProcurementPage() {
                   <th style={{ padding: "6px 4px" }}>Phone</th>
                   <th style={{ padding: "6px 4px" }}>Email</th>
                   <th style={{ padding: "6px 4px" }}>Tax number</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -163,11 +222,20 @@ export default function ProcurementPage() {
                     <td style={{ padding: "6px 4px" }}>{s.phone || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{s.email || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{s.tax_number || "—"}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditSupplier(s)}
+                          onDelete={() => handleDeleteSupplier(s.id)}
+                          disabled={supplierWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {suppliers?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
                       No suppliers yet.
                     </td>
                   </tr>
@@ -218,13 +286,27 @@ export default function ProcurementPage() {
                   onChange={(e) => setSupplierForm({ ...supplierForm, tax_number: e.target.value })}
                   style={{ padding: 8 }}
                 />
-                <button
-                  type="submit"
-                  disabled={supplierWorking || !supplierForm.name}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
-                >
-                  Add supplier
-                </button>
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                  <button
+                    type="submit"
+                    disabled={supplierWorking || !supplierForm.name}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    {editingSupplierId ? "Save changes" : "Add supplier"}
+                  </button>
+                  {editingSupplierId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSupplierId(null);
+                        setSupplierForm(EMPTY_SUPPLIER_FORM);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             )}
           </section>
@@ -241,6 +323,7 @@ export default function ProcurementPage() {
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   <th style={{ padding: "6px 4px" }}>Lines</th>
                   <th style={{ padding: "6px 4px" }}>Total</th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -250,11 +333,20 @@ export default function ProcurementPage() {
                     <td style={{ padding: "6px 4px" }}>{o.status}</td>
                     <td style={{ padding: "6px 4px" }}>{o.lines.length}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditPurchaseOrder(o)}
+                          onDelete={() => handleDeletePurchaseOrder(o.id)}
+                          disabled={poWorking}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {orders?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
                       No purchase orders yet.
                     </td>
                   </tr>
@@ -296,13 +388,25 @@ export default function ProcurementPage() {
                   onChange={setPoLines}
                   priceLabel="Unit cost"
                 />
-                <button
-                  type="submit"
-                  disabled={poWorking || !poSupplier}
-                  style={{ padding: "8px 16px", marginTop: 8 }}
-                >
-                  Create purchase order
-                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button type="submit" disabled={poWorking || !poSupplier} style={{ padding: "8px 16px" }}>
+                    {editingPoId ? "Save changes" : "Create purchase order"}
+                  </button>
+                  {editingPoId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingPoId(null);
+                        setPoSupplier("");
+                        setPoStatus("draft");
+                        setPoLines([{ ...EMPTY_LINE }]);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
                 {poError && <p style={{ color: "crimson" }}>{poError}</p>}
               </form>
             )}

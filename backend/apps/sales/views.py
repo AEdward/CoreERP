@@ -20,3 +20,9 @@ class InvoiceViewSet(CompanyScopedViewSet):
     queryset = Invoice.objects.select_related("sales_order")
     serializer_class = InvoiceSerializer
     permission_module = "sales"
+    # Issuing an invoice auto-posts a journal entry (apps.accounting.signals);
+    # editing or deleting it afterwards would desync the ledger from the
+    # document, same reasoning as JournalEntry/Payment being append-only.
+    # Correcting a mistake means a void status change or a reversing entry,
+    # not editing history.
+    http_method_names = ["get", "post", "head", "options"]
