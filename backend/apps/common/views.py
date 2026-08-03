@@ -1,8 +1,13 @@
+from django.db import IntegrityError, transaction
 from rest_framework import viewsets
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
 from .permissions import user_has_permission
+
+DUPLICATE_ERROR = {
+    "detail": "That already exists for this company — check for a duplicate name or reference."
+}
 
 
 class CompanyScopedMixin:
@@ -44,7 +49,25 @@ class CompanyScopedMixin:
             )
 
     def perform_create(self, serializer):
-        serializer.save(company=self.request.company)
+        # A model-level UniqueConstraint on (company, ...) can't be
+        # validated by DRF's usual automatic uniqueness check, because
+        # `company` is deliberately not a client-writable serializer
+        # field (it's injected here, after validation already passed).
+        # Without this, a duplicate name crashes as a raw 500 instead of
+        # a normal 400 — genuinely reachable via a real duplicate entry,
+        # not just a double-click.
+        try:
+            with transaction.atomic():
+                serializer.save(company=self.request.company)
+        except IntegrityError as exc:
+            raise ValidationError(DUPLICATE_ERROR) from exc
+
+    def perform_update(self, serializer):
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError as exc:
+            raise ValidationError(DUPLICATE_ERROR) from exc
 
 
 class CompanyScopedViewSet(CompanyScopedMixin, viewsets.ModelViewSet):

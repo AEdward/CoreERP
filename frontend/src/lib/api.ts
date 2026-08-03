@@ -96,6 +96,73 @@ export interface Me {
   active_company_id: number | null;
 }
 
+// --- HR ---
+
+export interface Department {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
+export interface Employee {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  position: string;
+  department: number | null;
+  salary_cents: number;
+  joining_date: string | null;
+  status: "active" | "on_leave" | "terminated";
+  created_at: string;
+}
+
+// --- Catalog ---
+
+export interface Item {
+  id: number;
+  type: "product" | "service";
+  name: string;
+  category: string;
+  price_cents: number;
+  cost_cents: number;
+  tax_rate: string;
+  status: "active" | "archived";
+  created_at: string;
+}
+
+// --- Inventory ---
+
+export interface Warehouse {
+  id: number;
+  name: string;
+  location: string;
+  created_at: string;
+}
+
+export interface Stock {
+  id: number;
+  item: number;
+  item_name: string;
+  warehouse: number;
+  warehouse_name: string;
+  quantity: number;
+  minimum_stock: number;
+  created_at: string;
+}
+
+export interface StockMovement {
+  id: number;
+  item: number;
+  warehouse: number;
+  to_warehouse: number | null;
+  type: "in" | "out" | "transfer" | "adjustment";
+  quantity: number;
+  reference: string;
+  created_at: string;
+}
+
 export const api = {
   ensureCsrf,
   me: () => request<Me>("/api/auth/me/"),
@@ -114,4 +181,29 @@ export const api = {
     }),
   updateCompany: (id: number, data: Partial<Company>) =>
     request<Company>(`/api/companies/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  // --- HR ---
+  listDepartments: () => request<Department[]>("/api/hr/departments/"),
+  createDepartment: (data: { name: string }) =>
+    request<Department>("/api/hr/departments/", { method: "POST", body: JSON.stringify(data) }),
+  listEmployees: () => request<Employee[]>("/api/hr/employees/"),
+  createEmployee: (data: Partial<Employee>) =>
+    request<Employee>("/api/hr/employees/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Catalog ---
+  listItems: () => request<Item[]>("/api/catalog/items/"),
+  createItem: (data: Partial<Item>) =>
+    request<Item>("/api/catalog/items/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Inventory ---
+  listWarehouses: () => request<Warehouse[]>("/api/inventory/warehouses/"),
+  createWarehouse: (data: { name: string; location?: string }) =>
+    request<Warehouse>("/api/inventory/warehouses/", { method: "POST", body: JSON.stringify(data) }),
+  listStock: () => request<Stock[]>("/api/inventory/stock/"),
+  listStockMovements: () => request<StockMovement[]>("/api/inventory/stock-movements/"),
+  createStockMovement: (data: Partial<StockMovement>) =>
+    request<StockMovement>("/api/inventory/stock-movements/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
