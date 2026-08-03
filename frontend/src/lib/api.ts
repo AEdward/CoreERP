@@ -96,11 +96,24 @@ export interface Me {
   active_company_id: number | null;
 }
 
+// --- Branches ---
+
+export interface Branch {
+  id: number;
+  name: string;
+  code: string;
+  address: string;
+  phone: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 // --- HR ---
 
 export interface Department {
   id: number;
   name: string;
+  branch: number | null;
   created_at: string;
 }
 
@@ -112,6 +125,7 @@ export interface Employee {
   phone: string;
   position: string;
   department: number | null;
+  branch: number | null;
   salary_cents: number;
   joining_date: string | null;
   status: "active" | "on_leave" | "terminated";
@@ -138,6 +152,7 @@ export interface Warehouse {
   id: number;
   name: string;
   location: string;
+  branch: number | null;
   created_at: string;
 }
 
@@ -378,11 +393,19 @@ export const api = {
   updateCompany: (id: number, data: Partial<Company>) =>
     request<Company>(`/api/companies/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
 
+  // --- Branches ---
+  listBranches: () => request<Branch[]>("/api/branches/"),
+  createBranch: (data: Partial<Branch>) =>
+    request<Branch>("/api/branches/", { method: "POST", body: JSON.stringify(data) }),
+  updateBranch: (id: number, data: Partial<Branch>) =>
+    request<Branch>(`/api/branches/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteBranch: (id: number) => request<void>(`/api/branches/${id}/`, { method: "DELETE" }),
+
   // --- HR ---
   listDepartments: () => request<Department[]>("/api/hr/departments/"),
-  createDepartment: (data: { name: string }) =>
+  createDepartment: (data: { name: string; branch?: number | null }) =>
     request<Department>("/api/hr/departments/", { method: "POST", body: JSON.stringify(data) }),
-  updateDepartment: (id: number, data: { name: string }) =>
+  updateDepartment: (id: number, data: { name: string; branch?: number | null }) =>
     request<Department>(`/api/hr/departments/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteDepartment: (id: number) => request<void>(`/api/hr/departments/${id}/`, { method: "DELETE" }),
   listEmployees: () => request<Employee[]>("/api/hr/employees/"),
@@ -402,9 +425,9 @@ export const api = {
 
   // --- Inventory ---
   listWarehouses: () => request<Warehouse[]>("/api/inventory/warehouses/"),
-  createWarehouse: (data: { name: string; location?: string }) =>
+  createWarehouse: (data: { name: string; location?: string; branch?: number | null }) =>
     request<Warehouse>("/api/inventory/warehouses/", { method: "POST", body: JSON.stringify(data) }),
-  updateWarehouse: (id: number, data: { name: string; location?: string }) =>
+  updateWarehouse: (id: number, data: { name: string; location?: string; branch?: number | null }) =>
     request<Warehouse>(`/api/inventory/warehouses/${id}/`, {
       method: "PATCH",
       body: JSON.stringify(data),

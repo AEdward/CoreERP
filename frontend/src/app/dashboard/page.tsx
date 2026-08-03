@@ -7,7 +7,7 @@ import { api, ApiError, type CompanySummary } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
 const MODULE_TILES = [
-  { key: "settings", label: "Settings", permission: "settings.manage" },
+  { key: "settings", label: "Settings", permission: "settings.view", href: "/dashboard/settings" },
   {
     key: "accounting",
     label: "Accounting",
@@ -237,7 +237,7 @@ export default function DashboardPage() {
               })}
             </div>
             <p style={{ marginTop: 16, fontSize: 13, color: "#999" }}>
-              Every module except Settings has a working screen now. See TODO.md.
+              Every module has a working screen now. See TODO.md.
             </p>
           </section>
         </>

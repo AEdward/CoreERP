@@ -12,6 +12,7 @@ from .models import Permission, Role
 
 DEFAULT_PERMISSIONS = [
     ("dashboard", "view"),
+    ("settings", "view"),
     ("settings", "manage"),
     ("accounting", "view"),
     ("accounting", "manage"),
@@ -28,6 +29,7 @@ DEFAULT_PERMISSIONS = [
 DEFAULT_ROLES = {
     "Owner": [
         "dashboard.view",
+        "settings.view",
         "settings.manage",
         "accounting.view",
         "accounting.manage",
@@ -40,11 +42,12 @@ DEFAULT_ROLES = {
         "procurement.view",
         "procurement.manage",
     ],
-    "Finance Manager": ["dashboard.view", "accounting.view", "accounting.manage"],
-    "HR Manager": ["dashboard.view", "hr.view", "hr.manage"],
-    "Sales Manager": ["dashboard.view", "sales.view", "sales.manage"],
+    "Finance Manager": ["dashboard.view", "settings.view", "accounting.view", "accounting.manage"],
+    "HR Manager": ["dashboard.view", "settings.view", "hr.view", "hr.manage"],
+    "Sales Manager": ["dashboard.view", "settings.view", "sales.view", "sales.manage"],
     "Inventory Manager": [
         "dashboard.view",
+        "settings.view",
         "inventory.view",
         "inventory.manage",
         "procurement.view",

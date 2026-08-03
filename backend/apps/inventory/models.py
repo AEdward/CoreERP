@@ -1,5 +1,6 @@
 from django.db import models
 
+from apps.branches.models import Branch
 from apps.catalog.models import Item
 from apps.common.models import TenantModel
 
@@ -7,6 +8,9 @@ from apps.common.models import TenantModel
 class Warehouse(TenantModel):
     name = models.CharField(max_length=100)
     location = models.CharField(max_length=255, blank=True)
+    branch = models.ForeignKey(
+        Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name="warehouses"
+    )
 
     class Meta:
         db_table = "warehouses"

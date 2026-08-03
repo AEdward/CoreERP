@@ -1,6 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 
+from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
 
 from .models import Bill, PurchaseOrder, PurchaseOrderLine
@@ -88,6 +89,6 @@ class BillSerializer(CompanyScopedSerializer):
 
         with transaction.atomic():
             bill = Bill.objects.create(**validated_data)
-            bill.bill_number = f"BILL-{bill.company_id}-{bill.id:05d}"
+            bill.bill_number = next_number(bill.company, "BILL")
             bill.save(update_fields=["bill_number"])
         return bill

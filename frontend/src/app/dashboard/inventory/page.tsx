@@ -6,6 +6,7 @@ import { RowActions } from "@/components/RowActions";
 import {
   api,
   ApiError,
+  type Branch,
   type Item,
   type Stock,
   type StockMovement,
@@ -22,7 +23,7 @@ const EMPTY_ITEM_FORM = {
   tax_rate: "0",
 };
 
-const EMPTY_WAREHOUSE_FORM = { name: "", location: "" };
+const EMPTY_WAREHOUSE_FORM = { name: "", location: "", branch: "" };
 
 const EMPTY_MOVEMENT_FORM = {
   type: "in" as StockMovement["type"],
@@ -42,6 +43,7 @@ export default function InventoryPage() {
 
   const [items, setItems] = useState<Item[] | null>(null);
   const [warehouses, setWarehouses] = useState<Warehouse[] | null>(null);
+  const [branches, setBranches] = useState<Branch[] | null>(null);
   const [stock, setStock] = useState<Stock[] | null>(null);
   const [movements, setMovements] = useState<StockMovement[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -61,14 +63,16 @@ export default function InventoryPage() {
 
   async function loadAll() {
     try {
-      const [i, w, s, m] = await Promise.all([
+      const [i, w, br, s, m] = await Promise.all([
         api.listItems(),
         api.listWarehouses(),
+        api.listBranches(),
         api.listStock(),
         api.listStockMovements(),
       ]);
       setItems(i);
       setWarehouses(w);
+      setBranches(br);
       setStock(s);
       setMovements(m);
     } catch (err) {
@@ -137,10 +141,15 @@ export default function InventoryPage() {
     e.preventDefault();
     setWarehouseWorking(true);
     try {
+      const payload = {
+        name: warehouseForm.name,
+        location: warehouseForm.location,
+        branch: warehouseForm.branch ? Number(warehouseForm.branch) : null,
+      };
       if (editingWarehouseId) {
-        await api.updateWarehouse(editingWarehouseId, warehouseForm);
+        await api.updateWarehouse(editingWarehouseId, payload);
       } else {
-        await api.createWarehouse(warehouseForm);
+        await api.createWarehouse(payload);
       }
       setWarehouseForm(EMPTY_WAREHOUSE_FORM);
       setEditingWarehouseId(null);
@@ -154,7 +163,11 @@ export default function InventoryPage() {
 
   function startEditWarehouse(w: Warehouse) {
     setEditingWarehouseId(w.id);
-    setWarehouseForm({ name: w.name, location: w.location });
+    setWarehouseForm({
+      name: w.name,
+      location: w.location,
+      branch: w.branch ? String(w.branch) : "",
+    });
   }
 
   async function handleDeleteWarehouse(id: number) {
@@ -197,6 +210,7 @@ export default function InventoryPage() {
   const canManage = activeMembership?.permissions.includes("inventory.manage") ?? false;
   const itemName = (id: number) => items?.find((i) => i.id === id)?.name ?? "—";
   const warehouseName = (id: number | null) => warehouses?.find((w) => w.id === id)?.name ?? "—";
+  const branchName = (id: number | null) => branches?.find((b) => b.id === id)?.name ?? "—";
 
   return (
     <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
@@ -349,6 +363,7 @@ export default function InventoryPage() {
                   <tr key={w.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ padding: "6px 4px" }}>{w.name}</td>
                     <td style={{ padding: "6px 4px", color: "#666" }}>{w.location || "—"}</td>
+                    <td style={{ padding: "6px 4px", color: "#666" }}>{branchName(w.branch)}</td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
                         <RowActions
@@ -362,7 +377,9 @@ export default function InventoryPage() {
                 ))}
                 {warehouses?.length === 0 && (
                   <tr>
-                    <td style={{ padding: "6px 4px", color: "#999" }}>No warehouses yet.</td>
+                    <td colSpan={3} style={{ padding: "6px 4px", color: "#999" }}>
+                      No warehouses yet.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -382,6 +399,18 @@ export default function InventoryPage() {
                   onChange={(e) => setWarehouseForm({ ...warehouseForm, location: e.target.value })}
                   style={{ padding: 8, flex: 1, maxWidth: 240 }}
                 />
+                <select
+                  value={warehouseForm.branch}
+                  onChange={(e) => setWarehouseForm({ ...warehouseForm, branch: e.target.value })}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">No branch</option>
+                  {branches?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="submit"
                   disabled={warehouseWorking || !warehouseForm.name}

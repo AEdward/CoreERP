@@ -7,9 +7,11 @@ from .models import Stock, StockMovement, Warehouse
 
 
 class WarehouseSerializer(CompanyScopedSerializer):
+    same_company_fields = ["branch"]
+
     class Meta:
         model = Warehouse
-        fields = ["id", "name", "location", "created_at"]
+        fields = ["id", "name", "location", "branch", "created_at"]
         read_only_fields = ["id", "created_at"]
 
 

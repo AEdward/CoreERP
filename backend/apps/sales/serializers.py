@@ -1,6 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 
+from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
 
 from .models import Invoice, Quotation, QuotationLine, SalesOrder, SalesOrderLine
@@ -146,6 +147,6 @@ class InvoiceSerializer(CompanyScopedSerializer):
 
         with transaction.atomic():
             invoice = Invoice.objects.create(**validated_data)
-            invoice.invoice_number = f"INV-{invoice.company_id}-{invoice.id:05d}"
+            invoice.invoice_number = next_number(invoice.company, "INV")
             invoice.save(update_fields=["invoice_number"])
         return invoice

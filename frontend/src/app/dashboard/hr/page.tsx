@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { RowActions } from "@/components/RowActions";
-import { api, ApiError, type Department, type Employee } from "@/lib/api";
+import { api, ApiError, type Branch, type Department, type Employee } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
 const STATUS_LABELS: Record<Employee["status"], string> = {
@@ -19,6 +19,7 @@ const EMPTY_EMPLOYEE_FORM = {
   phone: "",
   position: "",
   department: "",
+  branch: "",
   salary_cents: "",
   joining_date: "",
   status: "active" as Employee["status"],
@@ -28,9 +29,11 @@ export default function HrPage() {
   const { me, activeMembership, error: sessionError } = useSession();
   const [departments, setDepartments] = useState<Department[] | null>(null);
   const [employees, setEmployees] = useState<Employee[] | null>(null);
+  const [branches, setBranches] = useState<Branch[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [newDeptName, setNewDeptName] = useState("");
+  const [deptBranch, setDeptBranch] = useState("");
   const [deptWorking, setDeptWorking] = useState(false);
   const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
 
@@ -41,9 +44,14 @@ export default function HrPage() {
 
   async function loadAll() {
     try {
-      const [depts, emps] = await Promise.all([api.listDepartments(), api.listEmployees()]);
+      const [depts, emps, brs] = await Promise.all([
+        api.listDepartments(),
+        api.listEmployees(),
+        api.listBranches(),
+      ]);
       setDepartments(depts);
       setEmployees(emps);
+      setBranches(brs);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load HR data.");
     }
@@ -61,12 +69,14 @@ export default function HrPage() {
     e.preventDefault();
     setDeptWorking(true);
     try {
+      const payload = { name: newDeptName, branch: deptBranch ? Number(deptBranch) : null };
       if (editingDeptId) {
-        await api.updateDepartment(editingDeptId, { name: newDeptName });
+        await api.updateDepartment(editingDeptId, payload);
       } else {
-        await api.createDepartment({ name: newDeptName });
+        await api.createDepartment(payload);
       }
       setNewDeptName("");
+      setDeptBranch("");
       setEditingDeptId(null);
       await loadAll();
     } catch (err) {
@@ -79,6 +89,7 @@ export default function HrPage() {
   function startEditDepartment(d: Department) {
     setEditingDeptId(d.id);
     setNewDeptName(d.name);
+    setDeptBranch(d.branch ? String(d.branch) : "");
   }
 
   async function handleDeleteDepartment(id: number) {
@@ -102,6 +113,7 @@ export default function HrPage() {
         phone: empForm.phone,
         position: empForm.position,
         department: empForm.department ? Number(empForm.department) : null,
+        branch: empForm.branch ? Number(empForm.branch) : null,
         salary_cents: empForm.salary_cents ? Math.round(Number(empForm.salary_cents) * 100) : 0,
         joining_date: empForm.joining_date || null,
         status: empForm.status,
@@ -130,6 +142,7 @@ export default function HrPage() {
       phone: emp.phone,
       position: emp.position,
       department: emp.department ? String(emp.department) : "",
+      branch: emp.branch ? String(emp.branch) : "",
       salary_cents: emp.salary_cents ? String(emp.salary_cents / 100) : "",
       joining_date: emp.joining_date ?? "",
       status: emp.status,
@@ -150,6 +163,7 @@ export default function HrPage() {
 
   const canManage = activeMembership?.permissions.includes("hr.manage") ?? false;
   const departmentName = (id: number | null) => departments?.find((d) => d.id === id)?.name ?? "—";
+  const branchName = (id: number | null) => branches?.find((b) => b.id === id)?.name ?? "—";
 
   return (
     <main style={{ maxWidth: 960, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
@@ -173,6 +187,7 @@ export default function HrPage() {
                 {departments?.map((d) => (
                   <tr key={d.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ padding: "6px 4px" }}>{d.name}</td>
+                    <td style={{ padding: "6px 4px", color: "#666" }}>{branchName(d.branch)}</td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
                         <RowActions
@@ -186,7 +201,9 @@ export default function HrPage() {
                 ))}
                 {departments?.length === 0 && (
                   <tr>
-                    <td style={{ padding: "6px 4px", color: "#999" }}>No departments yet.</td>
+                    <td colSpan={3} style={{ padding: "6px 4px", color: "#999" }}>
+                      No departments yet.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -199,6 +216,18 @@ export default function HrPage() {
                   onChange={(e) => setNewDeptName(e.target.value)}
                   style={{ padding: 8, flex: 1, maxWidth: 280 }}
                 />
+                <select
+                  value={deptBranch}
+                  onChange={(e) => setDeptBranch(e.target.value)}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">No branch</option>
+                  {branches?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="submit"
                   disabled={deptWorking || !newDeptName}
@@ -212,6 +241,7 @@ export default function HrPage() {
                     onClick={() => {
                       setEditingDeptId(null);
                       setNewDeptName("");
+                      setDeptBranch("");
                     }}
                     style={{ padding: "8px 16px" }}
                   >
@@ -232,6 +262,7 @@ export default function HrPage() {
                   <th style={{ padding: "6px 4px" }}>Name</th>
                   <th style={{ padding: "6px 4px" }}>Position</th>
                   <th style={{ padding: "6px 4px" }}>Department</th>
+                  <th style={{ padding: "6px 4px" }}>Branch</th>
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   {canManage && <th></th>}
                 </tr>
@@ -244,6 +275,7 @@ export default function HrPage() {
                     </td>
                     <td style={{ padding: "6px 4px" }}>{emp.position || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{departmentName(emp.department)}</td>
+                    <td style={{ padding: "6px 4px" }}>{branchName(emp.branch)}</td>
                     <td style={{ padding: "6px 4px" }}>{STATUS_LABELS[emp.status]}</td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
@@ -258,7 +290,7 @@ export default function HrPage() {
                 ))}
                 {employees?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
                       No employees yet.
                     </td>
                   </tr>
@@ -319,6 +351,18 @@ export default function HrPage() {
                   {departments?.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={empForm.branch}
+                  onChange={(e) => setEmpForm({ ...empForm, branch: e.target.value })}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">No branch</option>
+                  {branches?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
                     </option>
                   ))}
                 </select>
