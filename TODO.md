@@ -43,18 +43,24 @@ Building HR/Inventory surfaced a real backend bug, now fixed: a `UniqueConstrain
 - [x] Procurement Engine (`apps/procurement`: PurchaseOrder + line items) — added a `procurement` permission module the original Phase 1 matrix didn't anticipate, granted to Inventory Manager (purchasing-to-replenish-stock is usually the same job function) rather than inventing a new default role
 - [x] Sales Engine (`apps/sales`: Quotation → SalesOrder → Invoice, all with line items and computed totals) — an Invoice tied to a SalesOrder snapshots `amount_cents` from the order's total at creation time, so later changes to the order's lines never retroactively change an already-issued invoice (same locking principle ClipBirr uses for CPM)
 
-**Known gaps to close before calling Phase 2 done**: no frontend CRUD UI for any of these seven modules yet; no "convert Quotation to SalesOrder" convenience action (create the order manually, referencing the quotation); Invoice has no relationship to the Chart of Accounts / Journal Entries yet (that's Phase 3 — issuing an invoice should eventually post a journal entry).
+**Known gaps**: frontend UI now exists for all seven modules (see Phase 3 below — building Accounting added Bills to the Procurement page and finished the loop); still no "convert Quotation to SalesOrder" convenience action (create the order manually, referencing the quotation).
 
 ## Phase 3 — Finance
 
-Not started.
+Chart of Accounts, Journal Entries/GL, and AP/AR are done and verified end-to-end — including the hardest part, that a Balance Sheet generated from real transactions actually balances. Financial Reports (the doc's "stretch goal") are done too. Company dashboard widgets are the one item not built.
 
-- [ ] Chart of Accounts (seeded default set per company)
-- [ ] Journal Entries / General Ledger posting engine (balanced-transaction invariant enforced at posting time)
-- [ ] Accounts Payable / Accounts Receivable ledgers
-- [ ] Payment Engine
-- [ ] Company dashboard (revenue, expenses, profit, sales, inventory, employees, pending payments)
-- [ ] Financial Reports (P&L, Balance Sheet) — stretch goal within this phase
+- [x] Chart of Accounts (`apps/accounting.Account`) — seeded default set per company (`apps/accounting/seed.py`, hooked into company creation the same way default roles are) via `Account.role` marking the "well-known" accounts (Cash, Accounts Receivable, Accounts Payable, Sales Revenue, Tax Payable, Default Expense) the posting engine looks up by meaning, not by name
+- [x] Journal Entries / General Ledger posting engine (`apps/accounting.JournalEntry`/`JournalLine`) — append-only (`http_method_names` excludes PATCH/DELETE, same pattern as StockMovement: correcting a mistake means a reversing entry, not editing history); balanced-debits-equal-credits enforced in the serializer for manual entries, and structurally guaranteed for auto-posted ones since `posting.py` always writes matched pairs; a DB `CheckConstraint` also blocks a line from being both a debit and a credit at once
+- [x] Accounts Payable / Accounts Receivable — genuinely "thin ledgers over the same journal-line mechanism" as the architecture doc says, not separate balance tables: issuing an `Invoice` (`apps.sales`) or a new `Bill` (`apps.procurement`, the AP counterpart to Invoice) auto-posts Dr AR/Cr Revenue or Dr Expense/Cr AP; recording a `Payment` (`apps.accounting`) auto-posts the clearing entry and flips the Invoice/Bill to `paid` once fully covered. Wired via Django signals in `apps/accounting/signals.py` — `apps.sales`/`apps.procurement` have zero awareness accounting exists, same one-directional-dependency principle as everywhere else in this codebase
+- [x] Payment Engine — `apps.accounting.Payment`, unified for both directions (received from a customer against an Invoice, paid to a supplier against a Bill); append-only like JournalEntry
+- [x] Financial Reports (`apps/accounting/reports.py`) — Trial Balance, Profit & Loss, Balance Sheet, all computed live from `journal_lines` aggregates, no summary tables to keep in sync. Balance Sheet is honest about its one real simplification: there's no period-close mechanism yet, so the current period's net income shows as its own "retained earnings (this period)" line rather than being folded into a real Retained Earnings equity account — the report says so explicitly in a `note` field rather than silently fudging the number
+- [ ] Company dashboard (revenue, expenses, profit, sales, inventory, employees, pending payments) — not built; the accounting page's report tables are the closest thing so far
+
+Frontend: `dashboard/accounting` (Chart of Accounts, Journal Entries with a manual-entry form, Payments, all three reports) and Bills added to `dashboard/procurement` (next to Purchase Orders, matching Invoice's placement next to Sales Orders — both gated by their existing module's permission, not a new one).
+
+Verified end-to-end, backend via curl and frontend via a real browser: an invoice's auto-posted entry (Dr AR 10500 = Cr Revenue 10000 + Cr Tax Payable 500), a payment against it clearing AR to zero and flipping the invoice to paid, the identical loop on the AP side (Bill → Payment paid), an unbalanced manual entry rejected with a clear message, append-only enforcement (405 on PATCH/DELETE) for both JournalEntry and Payment, permission gating (Sales Manager 403, Finance Manager 200) and RLS (a brand-new company gets its own isolated seeded COA and sees zero of another company's journal entries) — and the Balance Sheet identity holding exactly against hand-checked math after a mix of invoice, bill, payment, and manual entries: Assets (450200) = Liabilities (500) + Equity (500000) + Net Income (-50300).
+
+One real bug caught along the way, not in the accounting logic but in a test script: Playwright's `section:has-text("Payments")` does case-insensitive substring matching, and the Journal Entries section's own description text happens to contain the word "payments" — so a locator scoped that way silently grabbed a dropdown from the wrong section. Fixed by scoping via an exact-match heading instead. Worth remembering for any future test that reuses this pattern.
 
 ## Phase 4 — Industry Modules
 

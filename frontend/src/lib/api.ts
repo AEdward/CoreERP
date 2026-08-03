@@ -245,6 +245,93 @@ export interface Invoice {
   created_at: string;
 }
 
+// --- Procurement: Bills ---
+
+export interface Bill {
+  id: number;
+  purchase_order: number | null;
+  bill_number: string;
+  amount_cents: number;
+  tax_amount_cents: number;
+  due_date: string | null;
+  status: "draft" | "received" | "paid" | "overdue" | "void";
+  created_at: string;
+}
+
+// --- Accounting ---
+
+export interface Account {
+  id: number;
+  code: string;
+  name: string;
+  type: "asset" | "liability" | "equity" | "revenue" | "expense";
+  parent: number | null;
+  role: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface JournalLine {
+  id: number;
+  account: number;
+  debit_cents: number;
+  credit_cents: number;
+}
+
+export interface JournalEntry {
+  id: number;
+  reference: string;
+  memo: string;
+  lines: JournalLine[];
+  created_at: string;
+}
+
+export interface Payment {
+  id: number;
+  direction: "received" | "paid";
+  amount_cents: number;
+  method: "cash" | "bank_transfer" | "mobile_money" | "card";
+  reference: string;
+  invoice: number | null;
+  bill: number | null;
+  created_at: string;
+}
+
+export interface TrialBalanceRow {
+  account_id: number;
+  code: string;
+  name: string;
+  type: Account["type"];
+  total_debit_cents: number;
+  total_credit_cents: number;
+  net_cents: number;
+}
+
+export interface ReportLine {
+  code: string;
+  name: string;
+  amount_cents: number;
+}
+
+export interface ProfitAndLoss {
+  revenue: ReportLine[];
+  total_revenue_cents: number;
+  expenses: ReportLine[];
+  total_expense_cents: number;
+  net_income_cents: number;
+}
+
+export interface BalanceSheet {
+  assets: ReportLine[];
+  total_assets_cents: number;
+  liabilities: ReportLine[];
+  total_liabilities_cents: number;
+  equity: ReportLine[];
+  total_equity_cents: number;
+  retained_earnings_current_period_cents: number;
+  note: string;
+}
+
 export const api = {
   ensureCsrf,
   me: () => request<Me>("/api/auth/me/"),
@@ -335,4 +422,40 @@ export const api = {
     tax_amount_cents?: number;
     due_date?: string | null;
   }) => request<Invoice>("/api/sales/invoices/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Procurement: Bills ---
+  listBills: () => request<Bill[]>("/api/procurement/bills/"),
+  createBill: (data: {
+    purchase_order?: number | null;
+    amount_cents?: number;
+    tax_amount_cents?: number;
+    due_date?: string | null;
+  }) => request<Bill>("/api/procurement/bills/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Accounting ---
+  listAccounts: () => request<Account[]>("/api/accounting/accounts/"),
+  createAccount: (data: Partial<Account>) =>
+    request<Account>("/api/accounting/accounts/", { method: "POST", body: JSON.stringify(data) }),
+  listJournalEntries: () => request<JournalEntry[]>("/api/accounting/journal-entries/"),
+  createJournalEntry: (data: {
+    reference: string;
+    memo: string;
+    lines: { account: number; debit_cents: number; credit_cents: number }[];
+  }) =>
+    request<JournalEntry>("/api/accounting/journal-entries/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  listPayments: () => request<Payment[]>("/api/accounting/payments/"),
+  createPayment: (data: {
+    direction: Payment["direction"];
+    amount_cents: number;
+    method: Payment["method"];
+    reference?: string;
+    invoice?: number | null;
+    bill?: number | null;
+  }) => request<Payment>("/api/accounting/payments/", { method: "POST", body: JSON.stringify(data) }),
+  trialBalance: () => request<TrialBalanceRow[]>("/api/accounting/reports/trial-balance/"),
+  profitAndLoss: () => request<ProfitAndLoss>("/api/accounting/reports/profit-and-loss/"),
+  balanceSheet: () => request<BalanceSheet>("/api/accounting/reports/balance-sheet/"),
 };

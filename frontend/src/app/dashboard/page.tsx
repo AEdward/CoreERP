@@ -8,7 +8,12 @@ import { useSession } from "@/lib/useSession";
 
 const MODULE_TILES = [
   { key: "settings", label: "Settings", permission: "settings.manage" },
-  { key: "accounting", label: "Accounting", permission: "accounting.view" },
+  {
+    key: "accounting",
+    label: "Accounting",
+    permission: "accounting.view",
+    href: "/dashboard/accounting",
+  },
   { key: "hr", label: "HR", permission: "hr.view", href: "/dashboard/hr" },
   { key: "sales", label: "Sales & CRM", permission: "sales.view", href: "/dashboard/sales" },
   {
@@ -137,8 +142,7 @@ export default function DashboardPage() {
             })}
           </div>
           <p style={{ marginTop: 16, fontSize: 13, color: "#999" }}>
-            Every module except Settings and Accounting has a working screen now — Accounting has no
-            backend yet. See TODO.md.
+            Every module except Settings has a working screen now. See TODO.md.
           </p>
         </section>
       ) : (

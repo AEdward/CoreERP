@@ -236,7 +236,7 @@ Credit: Accounts Receivable   -100
 - ✅ Chart of Accounts (seeded default set per company, extensible)
 - ✅ Journal Entries / General Ledger (the postings engine described above)
 - ✅ Accounts Payable / Accounts Receivable (thin ledgers over the same journal-line mechanism)
-- 🔜 Financial Reports (P&L, Balance Sheet) — stretch goal *within* Phase 3, not a Phase 1 requirement; these are read-side aggregations over the ledger and can follow once postings are trustworthy.
+- ✅ Financial Reports (P&L, Balance Sheet) — read-side aggregations over the ledger, built once postings were trustworthy; see TODO.md for the verification that a real Balance Sheet actually balances.
 
 ---
 

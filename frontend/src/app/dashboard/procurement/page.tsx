@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
-import { api, ApiError, type Item, type PurchaseOrder, type Supplier } from "@/lib/api";
+import { api, ApiError, type Bill, type Item, type PurchaseOrder, type Supplier } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
 const EMPTY_SUPPLIER_FORM = { name: "", phone: "", email: "", address: "", tax_number: "" };
@@ -18,6 +18,7 @@ export default function ProcurementPage() {
   const [suppliers, setSuppliers] = useState<Supplier[] | null>(null);
   const [items, setItems] = useState<Item[] | null>(null);
   const [orders, setOrders] = useState<PurchaseOrder[] | null>(null);
+  const [bills, setBills] = useState<Bill[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
@@ -29,16 +30,25 @@ export default function ProcurementPage() {
   const [poWorking, setPoWorking] = useState(false);
   const [poError, setPoError] = useState<string | null>(null);
 
+  const [billPo, setBillPo] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [billTax, setBillTax] = useState("0");
+  const [billDueDate, setBillDueDate] = useState("");
+  const [billWorking, setBillWorking] = useState(false);
+  const [billError, setBillError] = useState<string | null>(null);
+
   async function loadAll() {
     try {
-      const [s, i, o] = await Promise.all([
+      const [s, i, o, b] = await Promise.all([
         api.listSuppliers(),
         api.listItems(),
         api.listPurchaseOrders(),
+        api.listBills(),
       ]);
       setSuppliers(s);
       setItems(i);
       setOrders(o);
+      setBills(b);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load procurement data.");
     }
@@ -87,6 +97,29 @@ export default function ProcurementPage() {
       setPoError(err instanceof ApiError ? err.message : "Failed to create purchase order.");
     } finally {
       setPoWorking(false);
+    }
+  }
+
+  async function handleAddBill(e: React.FormEvent) {
+    e.preventDefault();
+    setBillWorking(true);
+    setBillError(null);
+    try {
+      await api.createBill({
+        purchase_order: billPo ? Number(billPo) : null,
+        amount_cents: billPo ? undefined : Math.round(Number(billAmount || 0) * 100),
+        tax_amount_cents: Math.round(Number(billTax || 0) * 100),
+        due_date: billDueDate || null,
+      });
+      setBillPo("");
+      setBillAmount("");
+      setBillTax("0");
+      setBillDueDate("");
+      await loadAll();
+    } catch (err) {
+      setBillError(err instanceof ApiError ? err.message : "Failed to create bill.");
+    } finally {
+      setBillWorking(false);
     }
   }
 
@@ -271,6 +304,98 @@ export default function ProcurementPage() {
                   Create purchase order
                 </button>
                 {poError && <p style={{ color: "crimson" }}>{poError}</p>}
+              </form>
+            )}
+          </section>
+
+          {/* Bills (AP) */}
+          <section style={{ marginTop: 40, marginBottom: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Bills
+            </h2>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Number</th>
+                  <th style={{ padding: "6px 4px" }}>Amount</th>
+                  <th style={{ padding: "6px 4px" }}>Tax</th>
+                  <th style={{ padding: "6px 4px" }}>Due date</th>
+                  <th style={{ padding: "6px 4px" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bills?.map((bill) => (
+                  <tr key={bill.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{bill.bill_number}</td>
+                    <td style={{ padding: "6px 4px" }}>{formatCents(bill.amount_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{formatCents(bill.tax_amount_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{bill.due_date || "—"}</td>
+                    <td style={{ padding: "6px 4px" }}>{bill.status}</td>
+                  </tr>
+                ))}
+                {bills?.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                      No bills yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {canManage && (
+              <form
+                onSubmit={handleAddBill}
+                style={{
+                  marginTop: 12,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                  maxWidth: 720,
+                }}
+              >
+                <select value={billPo} onChange={(e) => setBillPo(e.target.value)} style={{ padding: 8 }}>
+                  <option value="">No linked purchase order (manual amount)</option>
+                  {orders?.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      PO-{o.id} ({supplierName(o.supplier)}) — {formatCents(o.total_cents)}
+                    </option>
+                  ))}
+                </select>
+                {!billPo && (
+                  <input
+                    placeholder="Amount"
+                    type="number"
+                    step="0.01"
+                    value={billAmount}
+                    onChange={(e) => setBillAmount(e.target.value)}
+                    style={{ padding: 8 }}
+                  />
+                )}
+                <input
+                  placeholder="Tax amount"
+                  type="number"
+                  step="0.01"
+                  value={billTax}
+                  onChange={(e) => setBillTax(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  type="date"
+                  value={billDueDate}
+                  onChange={(e) => setBillDueDate(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <button
+                  type="submit"
+                  disabled={billWorking || (!billPo && !billAmount)}
+                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
+                >
+                  Create bill
+                </button>
+                {billError && (
+                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{billError}</p>
+                )}
               </form>
             )}
           </section>

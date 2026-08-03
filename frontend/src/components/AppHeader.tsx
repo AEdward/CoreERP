@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/dashboard/inventory", label: "Inventory & Catalog" },
   { href: "/dashboard/sales", label: "Sales & CRM" },
   { href: "/dashboard/procurement", label: "Procurement" },
+  { href: "/dashboard/accounting", label: "Accounting" },
 ];
 
 export function AppHeader({ activeMembership }: { activeMembership: Membership | null }) {

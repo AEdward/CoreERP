@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.common.serializers import CompanyScopedSerializer
 
-from .models import PurchaseOrder, PurchaseOrderLine
+from .models import Bill, PurchaseOrder, PurchaseOrderLine
 
 
 class PurchaseOrderLineSerializer(serializers.ModelSerializer):
@@ -57,3 +57,37 @@ class PurchaseOrderSerializer(CompanyScopedSerializer):
                 instance.lines.all().delete()
                 self._create_lines(instance, instance.company, lines_data)
         return instance
+
+
+class BillSerializer(CompanyScopedSerializer):
+    same_company_fields = ["purchase_order"]
+
+    class Meta:
+        model = Bill
+        fields = [
+            "id",
+            "purchase_order",
+            "bill_number",
+            "amount_cents",
+            "tax_amount_cents",
+            "due_date",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = ["id", "bill_number", "created_at"]
+        extra_kwargs = {"amount_cents": {"required": False}}
+
+    def create(self, validated_data):
+        purchase_order = validated_data.get("purchase_order")
+        if purchase_order is not None:
+            validated_data["amount_cents"] = purchase_order.total_cents
+        elif "amount_cents" not in validated_data:
+            raise serializers.ValidationError(
+                {"amount_cents": "Required when not billing against a purchase order."}
+            )
+
+        with transaction.atomic():
+            bill = Bill.objects.create(**validated_data)
+            bill.bill_number = f"BILL-{bill.company_id}-{bill.id:05d}"
+            bill.save(update_fields=["bill_number"])
+        return bill

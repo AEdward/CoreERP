@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import connection, transaction
 from django.utils import timezone
 
+from apps.accounting.seed import create_default_accounts_for_company
 from apps.companies.models import Company, CompanyMembership
 from apps.roles.models import MembershipRole
 from apps.roles.seed import create_default_roles_for_company
@@ -42,6 +43,7 @@ class Command(BaseCommand):
             },
         )
         roles = create_default_roles_for_company(company)
+        create_default_accounts_for_company(company)
 
         for email, first_name, last_name, role_name in DEMO_USERS:
             user, user_created = User.objects.get_or_create(
