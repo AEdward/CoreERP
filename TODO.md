@@ -23,7 +23,17 @@ Goal: a user can sign up, create or join a company, and land on an empty but per
 
 Backend APIs done for all seven areas, reusing the Phase 1 pattern end to end (`apps/common/rls.py`'s `tenant_policy_sql()`, `apps/common/views.py`'s `CompanyScopedViewSet`/`CompanyScopedReadOnlyViewSet`, `apps/common/serializers.py`'s `CompanyScopedSerializer`) — no module reinvented tenancy or permission checks. Verified via curl: nested line items, computed totals, stock movements updating materialized stock, cross-module permission gating, RLS + same-company FK validation on a real two-company user.
 
-**Frontend**: HR and Inventory & Catalog have working screens (`frontend/src/app/dashboard/hr`, `.../inventory`) — list + create for departments, employees, items, warehouses, and stock movements (with live stock levels). CRM, Suppliers, Procurement, and Sales still only have the API, no UI. Building these surfaced a real backend bug, now fixed: a `UniqueConstraint` on `(company, ...)` can't be validated by DRF's automatic uniqueness check, because `company` is deliberately not a client-writable serializer field — a duplicate name was crashing as a raw 500 instead of a clean 400. `CompanyScopedMixin.perform_create`/`perform_update` now catch `IntegrityError` and turn it into a normal validation error, for every Phase 2+ module at once.
+**Frontend**: all seven modules have working screens now.
+- `dashboard/hr` — departments, employees
+- `dashboard/inventory` — items, warehouses, live stock levels (read-only), stock movements
+- `dashboard/procurement` — suppliers, purchase orders (with line items, computed totals)
+- `dashboard/sales` — customers, quotations, sales orders, invoices (all with line items where relevant; invoicing from a sales order snapshots its total)
+
+`components/LineItemsEditor.tsx` is shared by purchase orders, quotations, and sales orders — the "pick an item, quantity, price, add/remove line" interaction is identical across all three, differing only in which field name the price maps to server-side. Verified in a real browser end to end: every create flow, computed totals matching hand-checked math, the invoice-from-sales-order snapshot picking up the *correct* order's total (caught and fixed a wrong assumption in the test script itself — the order list is newest-first, so "last dropdown option" was the wrong element to pick), and a role without a module's view permission (HR Manager hitting Sales or Procurement directly by URL) getting a clean permission error with empty tables, not a crash or a data leak.
+
+Building HR/Inventory surfaced a real backend bug, now fixed: a `UniqueConstraint` on `(company, ...)` can't be validated by DRF's automatic uniqueness check, because `company` is deliberately not a client-writable serializer field — a duplicate name was crashing as a raw 500 instead of a clean 400. `CompanyScopedMixin.perform_create`/`perform_update` now catch `IntegrityError` and turn it into a normal validation error, for every Phase 2+ module at once.
+
+**Known gaps**: no edit/delete UI anywhere yet (list + create only, matching the API's scope choices so far); the permission-denied message on Sales/Procurement is technically accurate but generic (it surfaces whichever endpoint's 403 happened to reject first in the page's `Promise.all`, not a purpose-written "you don't have access to this module" message).
 
 - [x] Employees & Departments (`apps/hr`) — gated by `hr.view`/`hr.manage`
 - [x] Customers (`apps/crm`) — gated by `sales.view`/`sales.manage` per the existing matrix (Customers were always grouped under Sales Manager, not a separate CRM role)

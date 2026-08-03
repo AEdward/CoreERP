@@ -163,6 +163,88 @@ export interface StockMovement {
   created_at: string;
 }
 
+// --- CRM ---
+
+export interface Customer {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  type: "individual" | "business" | "government" | "vip";
+  address: string;
+  created_at: string;
+}
+
+// --- Suppliers ---
+
+export interface Supplier {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  tax_number: string;
+  created_at: string;
+}
+
+// --- Procurement ---
+
+export interface PurchaseOrderLine {
+  id: number;
+  item: number;
+  quantity: number;
+  unit_cost_cents: number;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  supplier: number;
+  status: "draft" | "submitted" | "approved" | "received" | "cancelled";
+  lines: PurchaseOrderLine[];
+  total_cents: number;
+  created_at: string;
+}
+
+// --- Sales ---
+
+export interface OrderLine {
+  id: number;
+  item: number;
+  quantity: number;
+  unit_price_cents: number;
+}
+
+export interface Quotation {
+  id: number;
+  customer: number;
+  status: "draft" | "sent" | "accepted" | "rejected" | "expired";
+  lines: OrderLine[];
+  total_cents: number;
+  created_at: string;
+}
+
+export interface SalesOrder {
+  id: number;
+  customer: number;
+  quotation: number | null;
+  status: "pending" | "processing" | "fulfilled" | "cancelled";
+  payment_status: "unpaid" | "partially_paid" | "paid";
+  lines: OrderLine[];
+  total_cents: number;
+  created_at: string;
+}
+
+export interface Invoice {
+  id: number;
+  sales_order: number | null;
+  invoice_number: string;
+  amount_cents: number;
+  tax_amount_cents: number;
+  due_date: string | null;
+  status: "draft" | "sent" | "paid" | "overdue" | "void";
+  created_at: string;
+}
+
 export const api = {
   ensureCsrf,
   me: () => request<Me>("/api/auth/me/"),
@@ -206,4 +288,51 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  // --- CRM ---
+  listCustomers: () => request<Customer[]>("/api/crm/customers/"),
+  createCustomer: (data: Partial<Customer>) =>
+    request<Customer>("/api/crm/customers/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Suppliers ---
+  listSuppliers: () => request<Supplier[]>("/api/suppliers/suppliers/"),
+  createSupplier: (data: Partial<Supplier>) =>
+    request<Supplier>("/api/suppliers/suppliers/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Procurement ---
+  listPurchaseOrders: () => request<PurchaseOrder[]>("/api/procurement/purchase-orders/"),
+  createPurchaseOrder: (data: {
+    supplier: number;
+    status: string;
+    lines: { item: number; quantity: number; unit_cost_cents: number }[];
+  }) =>
+    request<PurchaseOrder>("/api/procurement/purchase-orders/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // --- Sales ---
+  listQuotations: () => request<Quotation[]>("/api/sales/quotations/"),
+  createQuotation: (data: {
+    customer: number;
+    status: string;
+    lines: { item: number; quantity: number; unit_price_cents: number }[];
+  }) =>
+    request<Quotation>("/api/sales/quotations/", { method: "POST", body: JSON.stringify(data) }),
+  listSalesOrders: () => request<SalesOrder[]>("/api/sales/sales-orders/"),
+  createSalesOrder: (data: {
+    customer: number;
+    quotation?: number | null;
+    status: string;
+    payment_status: string;
+    lines: { item: number; quantity: number; unit_price_cents: number }[];
+  }) =>
+    request<SalesOrder>("/api/sales/sales-orders/", { method: "POST", body: JSON.stringify(data) }),
+  listInvoices: () => request<Invoice[]>("/api/sales/invoices/"),
+  createInvoice: (data: {
+    sales_order?: number | null;
+    amount_cents?: number;
+    tax_amount_cents?: number;
+    due_date?: string | null;
+  }) => request<Invoice>("/api/sales/invoices/", { method: "POST", body: JSON.stringify(data) }),
 };

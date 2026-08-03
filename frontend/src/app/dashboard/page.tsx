@@ -10,14 +10,19 @@ const MODULE_TILES = [
   { key: "settings", label: "Settings", permission: "settings.manage" },
   { key: "accounting", label: "Accounting", permission: "accounting.view" },
   { key: "hr", label: "HR", permission: "hr.view", href: "/dashboard/hr" },
-  { key: "sales", label: "Sales & CRM", permission: "sales.view" },
+  { key: "sales", label: "Sales & CRM", permission: "sales.view", href: "/dashboard/sales" },
   {
     key: "inventory",
     label: "Inventory & Catalog",
     permission: "inventory.view",
     href: "/dashboard/inventory",
   },
-  { key: "procurement", label: "Procurement", permission: "procurement.view" },
+  {
+    key: "procurement",
+    label: "Procurement",
+    permission: "procurement.view",
+    href: "/dashboard/procurement",
+  },
 ];
 
 export default function DashboardPage() {
@@ -132,8 +137,8 @@ export default function DashboardPage() {
             })}
           </div>
           <p style={{ marginTop: 16, fontSize: 13, color: "#999" }}>
-            HR and Inventory & Catalog have working screens now. The rest still only have live APIs
-            behind them — see TODO.md.
+            Every module except Settings and Accounting has a working screen now — Accounting has no
+            backend yet. See TODO.md.
           </p>
         </section>
       ) : (
