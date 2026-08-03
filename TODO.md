@@ -62,9 +62,35 @@ Verified end-to-end, backend via curl and frontend via a real browser: an invoic
 
 One real bug caught along the way, not in the accounting logic but in a test script: Playwright's `section:has-text("Payments")` does case-insensitive substring matching, and the Journal Entries section's own description text happens to contain the word "payments" — so a locator scoped that way silently grabbed a dropdown from the wrong section. Fixed by scoping via an exact-match heading instead. Worth remembering for any future test that reuses this pattern.
 
+## Phase 3.5 — Platform Hardening (before Industry Modules)
+
+The strategic plan is Core-first, then build Industry-Specific ERPs (Hotel, Real Estate, Retail, Healthcare, Construction) *on top of* this core. That reframes what "done" means here: Phase 4 verticals will reuse Items, Customers, Inventory, Sales, and Accounting rather than duplicating them, so any gap in the core becomes a gap repeated in every vertical built later. This phase is that gap list, grouped the same way it was scoped in conversation.
+
+### Cross-cutting services
+- [ ] Document Management (attach a file to any record in any module)
+- [ ] Notification System (in-app first; email later)
+- [ ] Workflow Engine (configurable approval chains)
+
+### Team growth
+- [ ] Invite-by-link flow (join an existing company — today you can only create one and become its Owner)
+- [ ] Custom roles per company (beyond the five seeded defaults)
+
+### Trust & safety
+- [ ] Edit/delete UI across all modules (list+create only until now)
+- [ ] Automated test suite (backend + frontend) — everything so far has been verified manually per session via curl/Playwright, nothing regression-checked automatically
+- [ ] Password reset
+- [ ] Verified `docker compose up` end-to-end run (components have only been run individually in this sandbox so far, no Docker daemon available here)
+- [ ] Audit log (who changed what, when — distinct from the accounting journal, which is financial-only)
+
+### Platform-operator tooling
+- [ ] Super Admin UI for managing companies/billing (`is_platform_admin` exists as a flag on `User`; nothing built on top of it yet)
+
+### Prove the extension pattern
+- [ ] Build a thin real vertical slice (Hotel: room bookings on top of the existing Items/Inventory models, folios on top of the existing Invoice model) to validate that verticals genuinely *extend* the core rather than needing to duplicate it, before committing to that pattern across five industries
+
 ## Phase 4 — Industry Modules
 
-Backlog, unscheduled. Pick based on real demand once Phases 1–3 are live, not speculatively.
+Backlog, unscheduled. Pick based on real demand once Phases 1–3.5 are live, not speculatively.
 
 - [ ] Hotel (room bookings, folios)
 - [ ] Real Estate (leases, units)
@@ -72,16 +98,8 @@ Backlog, unscheduled. Pick based on real demand once Phases 1–3 are live, not 
 - [ ] Healthcare (patient records)
 - [ ] Construction (project costing)
 
-## Cross-cutting Platform Services
-
-Built as shared services when the first module needs them — not a phase of their own, and not built speculatively ahead of that need.
-
-- [ ] Document Management (attach a file to any record in any module)
-- [ ] Notification System (in-app first; email later)
-- [ ] Workflow Engine (configurable approval chains)
-
 ## Open risks to revisit (from architecture doc §11)
 
 - [x] RLS policies written and tested for the Phase 1 tables — pattern established (`current_user_company_ids()` SECURITY DEFINER function) for Phase 2 tables to reuse rather than reinvent. Learned two sharp edges worth remembering: (1) a policy can't safely reference its own table in a subquery — Postgres detects it as infinite recursion; (2) `INSERT ... RETURNING` (which Django's ORM always uses) is subject to the `USING`/SELECT policy too, not just `WITH CHECK` — so a row that grants its own visibility (like a company's first membership) needs a scoped `SET LOCAL` bypass at creation time.
 - [x] Multi-company "active company" UX validated with a real multi-membership user — gave a user memberships in two companies and confirmed the `same_company_fields` check (not RLS, which is member-of-any-company-scoped by design) is what actually catches "wrong company active" mistakes on FK fields
-- [ ] Decide Django admin's role for Super Admin platform-operator tooling before Phase 1 settings work locks in the pattern
+- [ ] Decide Django admin's role for Super Admin platform-operator tooling — tracked under Phase 3.5 platform-operator tooling above
