@@ -25,6 +25,13 @@ BEGIN
 END
 $$;
 
+-- Creating a role does NOT automatically make the creator a member of
+-- it. The ALTER DEFAULT PRIVILEGES FOR ROLE coreerp_app statement below
+-- needs that membership (Postgres requires you to be a member of a role
+-- to alter its default privileges) — without this line it fails with
+-- "permission denied to change default privileges".
+GRANT coreerp_app TO CURRENT_USER;
+
 GRANT ALL PRIVILEGES ON DATABASE postgres TO coreerp_app;
 GRANT ALL ON SCHEMA public TO coreerp_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO coreerp_app;
