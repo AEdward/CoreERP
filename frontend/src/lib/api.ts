@@ -332,6 +332,33 @@ export interface BalanceSheet {
   note: string;
 }
 
+// --- Company dashboard summary ---
+// Each section is present only if the user has that module's own view
+// permission — same per-module gating as everywhere else, so a
+// single-role user still gets a (smaller) dashboard, not a 403.
+
+export interface CompanySummary {
+  finance?: {
+    revenue_cents: number;
+    expense_cents: number;
+    profit_cents: number;
+    pending_receivable_cents: number;
+    pending_payable_cents: number;
+  };
+  sales?: {
+    order_count: number;
+    total_sales_cents: number;
+  };
+  inventory?: {
+    item_count: number;
+    total_units: number;
+    low_stock_count: number;
+  };
+  hr?: {
+    employee_count: number;
+  };
+}
+
 export const api = {
   ensureCsrf,
   me: () => request<Me>("/api/auth/me/"),
@@ -458,4 +485,7 @@ export const api = {
   trialBalance: () => request<TrialBalanceRow[]>("/api/accounting/reports/trial-balance/"),
   profitAndLoss: () => request<ProfitAndLoss>("/api/accounting/reports/profit-and-loss/"),
   balanceSheet: () => request<BalanceSheet>("/api/accounting/reports/balance-sheet/"),
+
+  // --- Company dashboard summary ---
+  companySummary: () => request<CompanySummary>("/api/dashboard/summary/"),
 };

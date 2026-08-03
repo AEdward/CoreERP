@@ -6,7 +6,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design â€
 
 ## Status
 
-Phase 1 (Foundation) and Phase 2 (Business Core: HR, CRM, Suppliers, Catalog, Inventory, Procurement, Sales) backends are working end to end. See `TODO.md` for what's checked off.
+Phases 1â€“3 (Foundation, Business Core, Finance) are working end to end, backend and frontend, plus a company overview dashboard. See `TODO.md` for what's checked off.
 
 ## Running it locally
 
