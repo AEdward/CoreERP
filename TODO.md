@@ -69,7 +69,7 @@ One real bug caught along the way, not in the accounting logic but in a test scr
 The strategic plan is Core-first, then build Industry-Specific ERPs (Hotel, Real Estate, Retail, Healthcare, Construction) *on top of* this core. That reframes what "done" means here: Phase 4 verticals will reuse Items, Customers, Inventory, Sales, and Accounting rather than duplicating them, so any gap in the core becomes a gap repeated in every vertical built later. This phase is that gap list, grouped the same way it was scoped in conversation.
 
 ### Cross-cutting services
-- [ ] Document Management (attach a file to any record in any module)
+- [x] Document Management (attach a file to any record in any module) — `apps.documents`; generic content-type-based attachment with a whitelisted target registry and permission derived from the target record's own module, not a fixed one. Files are served only through a permission-checked `download` action, never a public `/media/` URL. Verified end-to-end: upload/list/download/delete on HR Employee, Sales Invoice, and Procurement Purchase Order; rejected an unlisted-model attach attempt and a nonexistent/cross-company `object_id` cleanly (400, not a crash); confirmed `/media/` itself returns 404 with no route.
 - [ ] Notification System (in-app first; email later)
 - [ ] Workflow Engine (configurable approval chains)
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
+import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { RowActions } from "@/components/RowActions";
 import {
   api,
@@ -584,6 +585,7 @@ export default function SalesPage() {
                   <th style={{ padding: "6px 4px" }}>Tax</th>
                   <th style={{ padding: "6px 4px" }}>Due date</th>
                   <th style={{ padding: "6px 4px" }}>Status</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -594,11 +596,17 @@ export default function SalesPage() {
                     <td style={{ padding: "6px 4px" }}>{formatCents(inv.tax_amount_cents)}</td>
                     <td style={{ padding: "6px 4px" }}>{inv.due_date || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{inv.status}</td>
+                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <DocumentsPanel
+                        target={{ appLabel: "sales", model: "invoice", objectId: inv.id }}
+                        canManage={canManage}
+                      />
+                    </td>
                   </tr>
                 ))}
                 {invoices?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
                       No invoices yet.
                     </td>
                   </tr>

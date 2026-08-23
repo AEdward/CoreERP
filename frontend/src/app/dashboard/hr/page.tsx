@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type Branch, type Department, type Employee } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
@@ -264,6 +265,7 @@ export default function HrPage() {
                   <th style={{ padding: "6px 4px" }}>Department</th>
                   <th style={{ padding: "6px 4px" }}>Branch</th>
                   <th style={{ padding: "6px 4px" }}>Status</th>
+                  <th></th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
@@ -277,6 +279,12 @@ export default function HrPage() {
                     <td style={{ padding: "6px 4px" }}>{departmentName(emp.department)}</td>
                     <td style={{ padding: "6px 4px" }}>{branchName(emp.branch)}</td>
                     <td style={{ padding: "6px 4px" }}>{STATUS_LABELS[emp.status]}</td>
+                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <DocumentsPanel
+                        target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
+                        canManage={canManage}
+                      />
+                    </td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
                         <RowActions
@@ -290,7 +298,7 @@ export default function HrPage() {
                 ))}
                 {employees?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
                       No employees yet.
                     </td>
                   </tr>

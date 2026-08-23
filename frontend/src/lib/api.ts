@@ -23,7 +23,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     // any unsafe request — this just forwards whatever's already set.
     const csrfToken = getCookie("csrftoken");
     if (csrfToken) headers.set("X-CSRFToken", csrfToken);
-    if (!headers.has("Content-Type") && options.body) {
+    // A FormData body (file uploads) must NOT get a manual Content-Type —
+    // the browser sets its own multipart boundary. JSON bodies still get
+    // one automatically as before.
+    if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
       headers.set("Content-Type", "application/json");
     }
   }
@@ -347,6 +350,27 @@ export interface BalanceSheet {
   note: string;
 }
 
+// --- Documents ---
+// A document attaches to any (app_label, model, object_id) named in the
+// backend's apps.documents.registry.ALLOWED_TARGETS — see that file for
+// the current whitelist.
+
+export interface DocumentTarget {
+  appLabel: string;
+  model: string;
+  objectId: number;
+}
+
+export interface Document {
+  id: number;
+  target_label: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_by_name: string;
+  created_at: string;
+}
+
 // --- Company dashboard summary ---
 // Each section is present only if the user has that module's own view
 // permission — same per-module gating as everywhere else, so a
@@ -585,6 +609,22 @@ export const api = {
   trialBalance: () => request<TrialBalanceRow[]>("/api/accounting/reports/trial-balance/"),
   profitAndLoss: () => request<ProfitAndLoss>("/api/accounting/reports/profit-and-loss/"),
   balanceSheet: () => request<BalanceSheet>("/api/accounting/reports/balance-sheet/"),
+
+  // --- Documents ---
+  listDocuments: (target: DocumentTarget) =>
+    request<Document[]>(
+      `/api/documents/?app_label=${target.appLabel}&model=${target.model}&object_id=${target.objectId}`
+    ),
+  uploadDocument: (target: DocumentTarget, file: File) => {
+    const form = new FormData();
+    form.append("app_label", target.appLabel);
+    form.append("model", target.model);
+    form.append("object_id", String(target.objectId));
+    form.append("file", file);
+    return request<Document>("/api/documents/", { method: "POST", body: form });
+  },
+  deleteDocument: (id: number) => request<void>(`/api/documents/${id}/`, { method: "DELETE" }),
+  documentDownloadUrl: (id: number) => `${API_URL}/api/documents/${id}/download/`,
 
   // --- Company dashboard summary ---
   companySummary: () => request<CompanySummary>("/api/dashboard/summary/"),

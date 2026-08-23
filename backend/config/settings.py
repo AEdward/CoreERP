@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.procurement",
     "apps.sales",
     "apps.accounting",
+    "apps.documents",
     "apps.dashboard",
 ]
 
@@ -118,6 +119,13 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Local disk storage — fine for the dev/demo footprint this project runs
+# at today. A real deployment would point this at S3-compatible object
+# storage instead; noted as a known limitation rather than built now.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB — generous for the attachments apps.documents expects
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

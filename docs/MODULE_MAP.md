@@ -25,8 +25,8 @@ Scope note: sections I onward (Manufacturing and every named industry) are Phase
 - [x] Customer Management — `apps.crm.Customer`
 - [x] Supplier Management — `apps.suppliers.Supplier`
 - [x] Product & Service Catalog — `apps.catalog.Item`
-- [ ] Document Management — backlog (Phase 3.5), not built
-- [ ] File / Attachment Management — same as above
+- [x] Document Management — `apps.documents` (generic `Document` model via `content_type`/`object_id`, whitelisted target registry, permission derived from the target record's own module). Wired into HR Employee, Sales Invoice, Procurement Purchase Order as proof across different modules; adding a new target is one line in `apps/documents/registry.py`.
+- [x] File / Attachment Management — same module as above
 - [ ] Notifications — backlog (Phase 3.5), not built
 - [ ] Tasks — not built
 - [ ] Calendar — not built

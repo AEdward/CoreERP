@@ -21,5 +21,9 @@ urlpatterns = [
     path("api/procurement/", include("apps.procurement.urls")),
     path("api/sales/", include("apps.sales.urls")),
     path("api/accounting/", include("apps.accounting.urls")),
+    path("api/", include("apps.documents.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
 ]
+
+# No public /media/ URL on purpose — Document.file is only ever served
+# through DocumentViewSet's permission-checked `download` action.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
+import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type Bill, type Item, type PurchaseOrder, type Supplier } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
@@ -323,6 +324,7 @@ export default function ProcurementPage() {
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   <th style={{ padding: "6px 4px" }}>Lines</th>
                   <th style={{ padding: "6px 4px" }}>Total</th>
+                  <th></th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
@@ -333,6 +335,12 @@ export default function ProcurementPage() {
                     <td style={{ padding: "6px 4px" }}>{o.status}</td>
                     <td style={{ padding: "6px 4px" }}>{o.lines.length}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
+                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <DocumentsPanel
+                        target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                        canManage={canManage}
+                      />
+                    </td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
                         <RowActions
@@ -346,7 +354,7 @@ export default function ProcurementPage() {
                 ))}
                 {orders?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
                       No purchase orders yet.
                     </td>
                   </tr>
