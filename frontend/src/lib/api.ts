@@ -371,6 +371,16 @@ export interface Document {
   created_at: string;
 }
 
+// --- Notifications ---
+
+export interface Notification {
+  id: number;
+  message: string;
+  link: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 // --- Company dashboard summary ---
 // Each section is present only if the user has that module's own view
 // permission — same per-module gating as everywhere else, so a
@@ -625,6 +635,16 @@ export const api = {
   },
   deleteDocument: (id: number) => request<void>(`/api/documents/${id}/`, { method: "DELETE" }),
   documentDownloadUrl: (id: number) => `${API_URL}/api/documents/${id}/download/`,
+
+  // --- Notifications ---
+  listNotifications: () => request<Notification[]>("/api/notifications/"),
+  unreadNotificationCount: () => request<{ count: number }>("/api/notifications/unread_count/"),
+  markNotificationRead: (id: number) =>
+    request<Notification>(`/api/notifications/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_read: true }),
+    }),
+  markAllNotificationsRead: () => request<void>("/api/notifications/mark_all_read/", { method: "POST" }),
 
   // --- Company dashboard summary ---
   companySummary: () => request<CompanySummary>("/api/dashboard/summary/"),

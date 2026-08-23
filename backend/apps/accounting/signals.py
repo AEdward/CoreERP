@@ -15,6 +15,7 @@ change).
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from apps.notifications.services import notify_permission
 from apps.procurement.models import Bill
 from apps.sales.models import Invoice
 
@@ -38,6 +39,14 @@ def handle_bill_saved(sender, instance, **kwargs):
     if JournalEntry.objects.filter(company=instance.company, reference=instance.bill_number).exists():
         return
     post_bill_journal(instance)
+    total_due = (instance.amount_cents + instance.tax_amount_cents) / 100
+    notify_permission(
+        instance.company,
+        "accounting",
+        "manage",
+        f"New bill {instance.bill_number} for {total_due:.2f} needs payment",
+        link="/dashboard/accounting",
+    )
 
 
 @receiver(post_save, sender=Payment)

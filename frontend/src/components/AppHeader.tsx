@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { NotificationBell } from "@/components/NotificationBell";
 import { api, type Membership } from "@/lib/api";
 
 const NAV_LINKS = [
@@ -34,9 +35,12 @@ export function AppHeader({ activeMembership }: { activeMembership: Membership |
             <span style={{ marginLeft: 12, color: "#666" }}>{activeMembership.company.name}</span>
           )}
         </div>
-        <button onClick={handleLogout} style={{ padding: "6px 14px" }}>
-          Log out
-        </button>
+        <div>
+          <NotificationBell active={!!activeMembership} />
+          <button onClick={handleLogout} style={{ padding: "6px 14px" }}>
+            Log out
+          </button>
+        </div>
       </div>
       <nav style={{ display: "flex", gap: 16, marginTop: 12 }}>
         {NAV_LINKS.map((link) => (

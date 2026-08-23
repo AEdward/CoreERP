@@ -27,7 +27,7 @@ Scope note: sections I onward (Manufacturing and every named industry) are Phase
 - [x] Product & Service Catalog — `apps.catalog.Item`
 - [x] Document Management — `apps.documents` (generic `Document` model via `content_type`/`object_id`, whitelisted target registry, permission derived from the target record's own module). Wired into HR Employee, Sales Invoice, Procurement Purchase Order as proof across different modules; adding a new target is one line in `apps/documents/registry.py`.
 - [x] File / Attachment Management — same module as above
-- [ ] Notifications — backlog (Phase 3.5), not built
+- [x] Notifications — `apps.notifications` (in-app; email/SMS deliberately not built — no real trigger for it yet). Recipient-scoped, not just company-scoped — RLS is the "member of this company" backstop, the viewset itself filters to `recipient=request.user`. `notify_permission(company, module, action, message, link)` messages every user holding that permission, without the caller needing to know which roles carry it. Two real triggers wired: a low-stock crossing on `StockMovement` (only on the movement that actually crosses into shortage, not every one after), and a new `Bill` (to whoever holds `accounting.manage`). Bell icon + polling badge + dropdown in `AppHeader`, mark-one/mark-all-read.
 - [ ] Tasks — not built
 - [ ] Calendar — not built
 - [ ] Notes & Comments — not built

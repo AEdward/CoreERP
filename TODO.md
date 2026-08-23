@@ -70,7 +70,7 @@ The strategic plan is Core-first, then build Industry-Specific ERPs (Hotel, Real
 
 ### Cross-cutting services
 - [x] Document Management (attach a file to any record in any module) — `apps.documents`; generic content-type-based attachment with a whitelisted target registry and permission derived from the target record's own module, not a fixed one. Files are served only through a permission-checked `download` action, never a public `/media/` URL. Verified end-to-end: upload/list/download/delete on HR Employee, Sales Invoice, and Procurement Purchase Order; rejected an unlisted-model attach attempt and a nonexistent/cross-company `object_id` cleanly (400, not a crash); confirmed `/media/` itself returns 404 with no route.
-- [ ] Notification System (in-app first; email later)
+- [x] Notification System (in-app first; email later) — `apps.notifications`; `notify_permission()` helper reaches every user holding a given `module.action` permission without callers needing to know which roles carry it. Wired to two real events (low-stock crossing, new Bill) rather than built speculatively ahead of a trigger. Verified end-to-end: both triggers fire with correct message/link, bell badge + dropdown work, mark-one and mark-all-read both work, a user without the relevant permission gets zero notifications, and cross-recipient isolation holds (RLS is the company-membership backstop, the viewset itself narrows to `recipient=request.user`).
 - [ ] Workflow Engine (configurable approval chains)
 
 ### Team growth

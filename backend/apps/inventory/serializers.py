@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.common.serializers import CompanyScopedSerializer
+from apps.notifications.services import notify_permission
 
 from .models import Stock, StockMovement, Warehouse
 
@@ -80,6 +81,7 @@ class StockMovementSerializer(CompanyScopedSerializer):
                 warehouse=movement.warehouse,
                 defaults={"quantity": 0},
             )
+            was_above_minimum = stock.quantity > stock.minimum_stock
 
             if movement.type == StockMovement.MovementType.IN:
                 stock.quantity += movement.quantity
@@ -105,4 +107,17 @@ class StockMovementSerializer(CompanyScopedSerializer):
                 dest_stock.save(update_fields=["quantity"])
 
             stock.save(update_fields=["quantity"])
+
+            # Only notify on the movement that actually crosses into
+            # shortage, not every subsequent movement while already below
+            # minimum — otherwise every later OUT/ADJUSTMENT re-alerts.
+            if was_above_minimum and stock.quantity <= stock.minimum_stock:
+                notify_permission(
+                    company,
+                    "inventory",
+                    "manage",
+                    f"Low stock: {movement.item.name} at {movement.warehouse.name} "
+                    f"({stock.quantity} left, minimum {stock.minimum_stock})",
+                    link="/dashboard/inventory",
+                )
         return movement
