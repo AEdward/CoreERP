@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
+import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
 import {
   api,
@@ -597,10 +598,16 @@ export default function SalesPage() {
                     <td style={{ padding: "6px 4px" }}>{inv.due_date || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{inv.status}</td>
                     <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                      <DocumentsPanel
-                        target={{ appLabel: "sales", model: "invoice", objectId: inv.id }}
-                        canManage={canManage}
-                      />
+                      <span style={{ display: "inline-flex", gap: 6 }}>
+                        <DocumentsPanel
+                          target={{ appLabel: "sales", model: "invoice", objectId: inv.id }}
+                          canManage={canManage}
+                        />
+                        <NotesPanel
+                          target={{ appLabel: "sales", model: "invoice", objectId: inv.id }}
+                          canManage={canManage}
+                        />
+                      </span>
                     </td>
                   </tr>
                 ))}

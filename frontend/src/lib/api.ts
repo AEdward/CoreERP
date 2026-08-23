@@ -350,12 +350,12 @@ export interface BalanceSheet {
   note: string;
 }
 
-// --- Documents ---
-// A document attaches to any (app_label, model, object_id) named in the
-// backend's apps.documents.registry.ALLOWED_TARGETS — see that file for
-// the current whitelist.
+// --- Documents & Notes ---
+// Both attach to any (app_label, model, object_id) named in the
+// backend's apps.common.targeting.ALLOWED_TARGETS — see that file for
+// the current whitelist. Same target shape, shared by both features.
 
-export interface DocumentTarget {
+export interface RecordTarget {
   appLabel: string;
   model: string;
   objectId: number;
@@ -368,6 +368,13 @@ export interface Document {
   mime_type: string;
   size_bytes: number;
   uploaded_by_name: string;
+  created_at: string;
+}
+
+export interface Note {
+  id: number;
+  body: string;
+  author_name: string;
   created_at: string;
 }
 
@@ -656,11 +663,11 @@ export const api = {
   balanceSheet: () => request<BalanceSheet>("/api/accounting/reports/balance-sheet/"),
 
   // --- Documents ---
-  listDocuments: (target: DocumentTarget) =>
+  listDocuments: (target: RecordTarget) =>
     request<Document[]>(
       `/api/documents/?app_label=${target.appLabel}&model=${target.model}&object_id=${target.objectId}`
     ),
-  uploadDocument: (target: DocumentTarget, file: File) => {
+  uploadDocument: (target: RecordTarget, file: File) => {
     const form = new FormData();
     form.append("app_label", target.appLabel);
     form.append("model", target.model);
@@ -670,6 +677,20 @@ export const api = {
   },
   deleteDocument: (id: number) => request<void>(`/api/documents/${id}/`, { method: "DELETE" }),
   documentDownloadUrl: (id: number) => `${API_URL}/api/documents/${id}/download/`,
+
+  // --- Notes ---
+  listNotes: (target: RecordTarget) =>
+    request<Note[]>(
+      `/api/notes/?app_label=${target.appLabel}&model=${target.model}&object_id=${target.objectId}`
+    ),
+  createNote: (target: RecordTarget, body: string) =>
+    request<Note>("/api/notes/", {
+      method: "POST",
+      body: JSON.stringify({ app_label: target.appLabel, model: target.model, object_id: target.objectId, body }),
+    }),
+  updateNote: (id: number, body: string) =>
+    request<Note>(`/api/notes/${id}/`, { method: "PATCH", body: JSON.stringify({ body }) }),
+  deleteNote: (id: number) => request<void>(`/api/notes/${id}/`, { method: "DELETE" }),
 
   // --- Notifications ---
   listNotifications: () => request<Notification[]>("/api/notifications/"),

@@ -1,9 +1,9 @@
 from rest_framework import serializers
 
 from apps.common.permissions import user_has_permission
+from apps.common.targeting import resolve_target
 
 from .models import Document
-from .registry import resolve_target
 
 
 class DocumentSerializer(serializers.ModelSerializer):

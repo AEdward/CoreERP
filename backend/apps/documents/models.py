@@ -8,7 +8,8 @@ from apps.common.models import TenantModel
 
 class Document(TenantModel):
     """A file attached to some other record — any record, in any module,
-    named in apps.documents.registry.ALLOWED_TARGETS. Uses Django's
+    named in apps.common.targeting.ALLOWED_TARGETS (shared with
+    apps.notes, which needs the identical mechanism). Uses Django's
     contenttypes framework (content_type + object_id) rather than a
     per-module FK, so this app never needs to know Employee/Invoice/Item
     exist; new target models just add one line to the registry.

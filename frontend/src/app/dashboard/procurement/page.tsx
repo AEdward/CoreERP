@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
+import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type Bill, type Item, type PurchaseOrder, type Supplier } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
@@ -336,10 +337,16 @@ export default function ProcurementPage() {
                     <td style={{ padding: "6px 4px" }}>{o.lines.length}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
                     <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                      <DocumentsPanel
-                        target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
-                        canManage={canManage}
-                      />
+                      <span style={{ display: "inline-flex", gap: 6 }}>
+                        <DocumentsPanel
+                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                          canManage={canManage}
+                        />
+                        <NotesPanel
+                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                          canManage={canManage}
+                        />
+                      </span>
                     </td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>

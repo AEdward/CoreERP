@@ -5,9 +5,9 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
 from apps.common.permissions import user_has_permission
+from apps.common.targeting import resolve_target
 
 from .models import Document
-from .registry import resolve_target
 from .serializers import DocumentSerializer
 
 
@@ -16,7 +16,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     fixed `permission_module` per viewset, but a Document's governing
     module depends on which record it's attached to (an Invoice's
     documents need sales.manage, a Bill's need procurement.manage) — see
-    apps.documents.registry. list/create/destroy all resolve the target's
+    apps.common.targeting. list/create/destroy all resolve the target's
     module themselves instead.
 
     No update — replacing a file's bytes in place isn't a real use case;
@@ -34,12 +34,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Company-scoped only — enough for a pk lookup (retrieve/destroy).
-        # `list` narrows this further itself, since listing needs the
-        # target's own module permission, which a bare pk lookup doesn't
-        # know yet.
+        # `list` narrows this further via _list_content_type/_list_object_id,
+        # since listing needs the target's own module permission, which a
+        # bare pk lookup doesn't know yet. (Note: setting self.queryset here
+        # would NOT work — GenericAPIView.list() calls self.get_queryset(),
+        # not self.queryset, so an override of get_queryset() must itself
+        # read the narrowing filter.)
         if not getattr(self.request, "company", None):
             return Document.objects.none()
-        return Document.objects.filter(company_id=self.request.company.id)
+        qs = Document.objects.filter(company_id=self.request.company.id)
+        content_type = getattr(self, "_list_content_type", None)
+        object_id = getattr(self, "_list_object_id", None)
+        if content_type is not None and object_id is not None:
+            qs = qs.filter(content_type=content_type, object_id=object_id)
+        return qs
 
     def list(self, request, *args, **kwargs):
         app_label = request.query_params.get("app_label")
@@ -56,7 +64,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
         if not user_has_permission(request.user, request.company, permission_module, "view"):
             raise PermissionDenied(f"You don't have permission to view {permission_module} attachments.")
 
-        self.queryset = self.get_queryset().filter(content_type=content_type, object_id=object_id)
+        self._list_content_type = content_type
+        self._list_object_id = object_id
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError, type Document, type DocumentTarget } from "@/lib/api";
+import { api, ApiError, type Document, type RecordTarget } from "@/lib/api";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -11,9 +11,9 @@ function formatSize(bytes: number) {
 
 /** Self-contained "Files" button + expandable panel — list/upload/delete
  * attachments for one record. Works against any target the backend's
- * apps.documents.registry whitelists; the caller just names which
+ * apps.common.targeting whitelists; the caller just names which
  * record. Same generic-across-modules shape as RowActions. */
-export function DocumentsPanel({ target, canManage }: { target: DocumentTarget; canManage: boolean }) {
+export function DocumentsPanel({ target, canManage }: { target: RecordTarget; canManage: boolean }) {
   const [open, setOpen] = useState(false);
   const [docs, setDocs] = useState<Document[] | null>(null);
   const [error, setError] = useState<string | null>(null);

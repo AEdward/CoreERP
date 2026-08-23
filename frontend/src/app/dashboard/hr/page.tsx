@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
+import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type Branch, type Department, type Employee } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
@@ -280,10 +281,16 @@ export default function HrPage() {
                     <td style={{ padding: "6px 4px" }}>{branchName(emp.branch)}</td>
                     <td style={{ padding: "6px 4px" }}>{STATUS_LABELS[emp.status]}</td>
                     <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                      <DocumentsPanel
-                        target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
-                        canManage={canManage}
-                      />
+                      <span style={{ display: "inline-flex", gap: 6 }}>
+                        <DocumentsPanel
+                          target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
+                          canManage={canManage}
+                        />
+                        <NotesPanel
+                          target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
+                          canManage={canManage}
+                        />
+                      </span>
                     </td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>

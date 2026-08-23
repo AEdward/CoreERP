@@ -1,12 +1,15 @@
-"""Whitelist of models that documents can attach to, mapping
+"""Whitelist of models that "attach something generic to any record"
+features (Documents, Notes, ...) can point at, mapping
 "app_label.model" -> (permission_module, human label). A model has to be
-listed here on purpose — this is what stops a client from attaching a
-file to an arbitrary table (User, CompanyMembership, ...) it was never
-meant to be attached to, and it's what tells the API which module's
-`view`/`manage` permission governs a given attachment.
+listed here on purpose — this is what stops a client from attaching
+something to an arbitrary table (User, CompanyMembership, ...) it was
+never meant to be attached to, and it's what tells each feature which
+module's `view`/`manage` permission governs a given attachment.
 
-Add a line here when a new module wants attachments; nothing else in
-apps.documents needs to change.
+Started life as apps.documents.registry; moved here once apps.notes
+needed the identical mechanism — one shared whitelist rather than two
+that could quietly drift apart. Add a line here when a new module wants
+either feature; nothing else needs to change.
 """
 
 from django.contrib.contenttypes.models import ContentType
