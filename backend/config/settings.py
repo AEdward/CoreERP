@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "apps.common",
     "apps.auditlog",
+    "apps.approvals",
     "apps.users",
     "apps.companies",
     "apps.roles",

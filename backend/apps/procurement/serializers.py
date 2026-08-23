@@ -30,6 +30,25 @@ class PurchaseOrderSerializer(CompanyScopedSerializer):
             raise serializers.ValidationError("At least one line item is required.")
         return lines
 
+    def validate_status(self, value):
+        # Submitted/approved/rejected are set only by apps.approvals
+        # (POST /api/approvals/, then its approve/reject actions) — see
+        # apps/procurement/apps.py's hook registration. Draft/Received/
+        # Cancelled stay freely editable; they're ordinary record edits,
+        # not part of the approval chain. Only a *change* into one of the
+        # blocked values is rejected — leaving it as-is has to stay legal,
+        # since the order form always resends the current status
+        # alongside an unrelated edit (a line item fix, say) to an order
+        # that's already submitted/approved/rejected.
+        if self.instance and value == self.instance.status:
+            return value
+        blocked = {PurchaseOrder.Status.SUBMITTED, PurchaseOrder.Status.APPROVED, PurchaseOrder.Status.REJECTED}
+        if value in blocked:
+            raise serializers.ValidationError(
+                "Submitted/approved/rejected are set by the approval flow, not edited directly."
+            )
+        return value
+
     def _create_lines(self, order, company, lines_data):
         for line in lines_data:
             if line["item"].company_id != company.id:

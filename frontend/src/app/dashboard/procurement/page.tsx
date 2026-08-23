@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { ActivityPanel } from "@/components/ActivityPanel";
+import { ApprovalPanel } from "@/components/ApprovalPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
@@ -350,6 +351,10 @@ export default function ProcurementPage() {
                         <ActivityPanel
                           target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
                         />
+                        <ApprovalPanel
+                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                          canManage={canManage}
+                        />
                       </span>
                     </td>
                     {canManage && (
@@ -389,17 +394,21 @@ export default function ProcurementPage() {
                       </option>
                     ))}
                   </select>
-                  <select
-                    value={poStatus}
-                    onChange={(e) => setPoStatus(e.target.value as PurchaseOrder["status"])}
-                    style={{ padding: 8 }}
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="submitted">Submitted</option>
-                    <option value="approved">Approved</option>
-                    <option value="received">Received</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+                  {["submitted", "approved", "rejected"].includes(poStatus) ? (
+                    <span style={{ padding: 8, color: "#666", fontSize: 13 }}>
+                      Status: {poStatus} (set by the approval flow, not editable here)
+                    </span>
+                  ) : (
+                    <select
+                      value={poStatus}
+                      onChange={(e) => setPoStatus(e.target.value as PurchaseOrder["status"])}
+                      style={{ padding: 8 }}
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="received">Received</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  )}
                 </div>
                 <LineItemsEditor
                   items={items ?? []}

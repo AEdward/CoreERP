@@ -8,8 +8,13 @@ from apps.suppliers.models import Supplier
 class PurchaseOrder(TenantModel):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
+        # SUBMITTED/APPROVED/REJECTED are set only by apps.approvals now
+        # (see apps/procurement/apps.py's ready() hook registration) —
+        # PurchaseOrderSerializer.validate_status() blocks a client from
+        # setting them directly.
         SUBMITTED = "submitted", "Submitted"
         APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
         RECEIVED = "received", "Received"
         CANCELLED = "cancelled", "Cancelled"
 

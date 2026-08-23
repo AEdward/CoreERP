@@ -398,6 +398,20 @@ export interface Activity {
   created_at: string;
 }
 
+// --- Approvals ---
+
+export interface ApprovalRequestEntry {
+  id: number;
+  target_label: string;
+  status: "pending" | "approved" | "rejected";
+  note: string;
+  decision_note: string;
+  requested_by_name: string;
+  decided_by_name: string;
+  decided_at: string | null;
+  created_at: string;
+}
+
 // --- Audit log ---
 
 export interface AuditLogEntry {
@@ -747,6 +761,24 @@ export const api = {
     request<Activity[]>(
       `/api/activity/?app_label=${target.appLabel}&model=${target.model}&object_id=${target.objectId}`
     ),
+
+  // --- Approvals ---
+  listApprovals: (target: RecordTarget) =>
+    request<ApprovalRequestEntry[]>(
+      `/api/approvals/?app_label=${target.appLabel}&model=${target.model}&object_id=${target.objectId}`
+    ),
+  requestApproval: (target: RecordTarget, note: string) =>
+    request<ApprovalRequestEntry>("/api/approvals/", {
+      method: "POST",
+      body: JSON.stringify({ app_label: target.appLabel, model: target.model, object_id: target.objectId, note }),
+    }),
+  approveRequest: (id: number) =>
+    request<ApprovalRequestEntry>(`/api/approvals/${id}/approve/`, { method: "POST" }),
+  rejectRequest: (id: number, decision_note: string) =>
+    request<ApprovalRequestEntry>(`/api/approvals/${id}/reject/`, {
+      method: "POST",
+      body: JSON.stringify({ decision_note }),
+    }),
 
   // --- Global search ---
   globalSearch: (q: string) => request<SearchResult[]>(`/api/search/?q=${encodeURIComponent(q)}`),
