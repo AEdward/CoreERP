@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
+import { ActivityPanel } from "@/components/ActivityPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
@@ -607,6 +608,7 @@ export default function SalesPage() {
                           target={{ appLabel: "sales", model: "invoice", objectId: inv.id }}
                           canManage={canManage}
                         />
+                        <ActivityPanel target={{ appLabel: "sales", model: "invoice", objectId: inv.id }} />
                       </span>
                     </td>
                   </tr>

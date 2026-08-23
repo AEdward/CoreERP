@@ -1,5 +1,7 @@
 from django.db import connection
 
+from apps.common.current_user import set_current_user
+
 
 class CurrentCompanyMiddleware:
     """Resolves per-request tenant context and does two distinct jobs:
@@ -54,4 +56,8 @@ class CurrentCompanyMiddleware:
                 if membership:
                     request.company = membership.company
 
-        return self.get_response(request)
+        set_current_user(user if is_authenticated else None)
+        try:
+            return self.get_response(request)
+        finally:
+            set_current_user(None)

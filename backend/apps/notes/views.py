@@ -2,6 +2,8 @@ from rest_framework import viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
+from apps.activity.models import Activity
+from apps.activity.services import log_activity
 from apps.common.permissions import user_has_permission
 from apps.common.targeting import resolve_target
 
@@ -62,7 +64,15 @@ class NoteViewSet(viewsets.ModelViewSet):
         return resolved[1] if resolved else None
 
     def perform_create(self, serializer):
-        serializer.save(company=self.request.company)
+        instance = serializer.save(company=self.request.company)
+        log_activity(
+            company=self.request.company,
+            content_type=instance.content_type,
+            object_id=instance.object_id,
+            verb=Activity.Verb.NOTE_ADDED,
+            summary=f"{self.request.user.full_name} added a note",
+            actor=self.request.user,
+        )
 
     def perform_update(self, serializer):
         permission_module = self._target_permission_module(serializer.instance)

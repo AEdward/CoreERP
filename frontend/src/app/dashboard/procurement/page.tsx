@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
+import { ActivityPanel } from "@/components/ActivityPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
@@ -345,6 +346,9 @@ export default function ProcurementPage() {
                         <NotesPanel
                           target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
                           canManage={canManage}
+                        />
+                        <ActivityPanel
+                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
                         />
                       </span>
                     </td>

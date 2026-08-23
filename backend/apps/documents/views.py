@@ -4,6 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
+from apps.activity.models import Activity
+from apps.activity.services import log_activity
 from apps.common.permissions import user_has_permission
 from apps.common.targeting import resolve_target
 
@@ -69,7 +71,15 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        serializer.save(company=self.request.company)
+        instance = serializer.save(company=self.request.company)
+        log_activity(
+            company=self.request.company,
+            content_type=instance.content_type,
+            object_id=instance.object_id,
+            verb=Activity.Verb.DOCUMENT_ATTACHED,
+            summary=f"{self.request.user.full_name} attached {instance.original_name}",
+            actor=self.request.user,
+        )
 
     def _target_permission_module(self, instance):
         resolved = resolve_target(instance.content_type.app_label, instance.content_type.model)

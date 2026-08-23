@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { ActivityPanel } from "@/components/ActivityPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
@@ -290,6 +291,7 @@ export default function HrPage() {
                           target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
                           canManage={canManage}
                         />
+                        <ActivityPanel target={{ appLabel: "hr", model: "employee", objectId: emp.id }} />
                       </span>
                     </td>
                     {canManage && (

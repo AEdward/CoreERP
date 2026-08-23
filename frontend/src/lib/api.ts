@@ -378,6 +378,14 @@ export interface Note {
   created_at: string;
 }
 
+export interface Activity {
+  id: number;
+  verb: "created" | "note_added" | "document_attached";
+  summary: string;
+  actor_name: string;
+  created_at: string;
+}
+
 // --- Notifications ---
 
 export interface Notification {
@@ -691,6 +699,12 @@ export const api = {
   updateNote: (id: number, body: string) =>
     request<Note>(`/api/notes/${id}/`, { method: "PATCH", body: JSON.stringify({ body }) }),
   deleteNote: (id: number) => request<void>(`/api/notes/${id}/`, { method: "DELETE" }),
+
+  // --- Activity ---
+  listActivity: (target: RecordTarget) =>
+    request<Activity[]>(
+      `/api/activity/?app_label=${target.appLabel}&model=${target.model}&object_id=${target.objectId}`
+    ),
 
   // --- Notifications ---
   listNotifications: () => request<Notification[]>("/api/notifications/"),
