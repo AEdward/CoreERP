@@ -2,7 +2,7 @@
 
 A multi-tenant ERP platform: authentication, company/user/role management, HR, CRM, inventory, sales, and accounting under one roof, with industry-specific modules layered on later.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design — module map, multi-tenancy model, data model, role/permission system, tech stack, and phased roadmap. See [`TODO.md`](TODO.md) for build progress.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design — module map, multi-tenancy model, data model, role/permission system, tech stack, and phased roadmap. See [`TODO.md`](TODO.md) for build progress, and [`docs/MODULE_MAP.md`](docs/MODULE_MAP.md) for the full Universal ERP module inventory (Core + Finance + Sales + HR + every planned industry, each marked built/partial/not-built).
 
 ## Status
 

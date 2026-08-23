@@ -2,6 +2,8 @@
 
 Tracks work against the roadmap in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#10-development-roadmap). Checked items are done.
 
+For the full "Universal ERP" module inventory — every module across Core, Finance, Sales, HR, and every planned industry, each marked built/partial/not-built — see [`docs/MODULE_MAP.md`](docs/MODULE_MAP.md).
+
 ## Phase 1 — Foundation
 
 Goal: a user can sign up, create or join a company, and land on an empty but permission-gated dashboard. Nothing else is buildable without this.
