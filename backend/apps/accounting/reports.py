@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 from apps.common.permissions import user_has_permission
 
-from .models import Account
+from .models import Account, JournalLine, Payment
 
 
 class AccountingReportView(APIView):
@@ -123,6 +123,68 @@ class BalanceSheetView(AccountingReportView):
                     "not yet folded into a real Retained Earnings account — there's no period-close "
                     "mechanism yet. Assets = Liabilities + Equity + this figure, not Liabilities + "
                     "Equity alone."
+                ),
+            }
+        )
+
+
+class CashFlowView(AccountingReportView):
+    """Direct method, sourced from the Cash-role account's own journal
+    lines — not just Payment records — so nothing is missed if cash ever
+    moves through a manual Journal Entry (an opening balance, say)
+    rather than through Payment. The Payment-derived categories are a
+    human-readable breakdown of that same total, not a second source of
+    truth: any cash movement Payment doesn't account for shows up
+    honestly as `other_cash_movements_cents` instead of being silently
+    dropped.
+
+    Deliberately Operating-only, not the conventional three-section
+    Operating/Investing/Financing statement: nothing in CoreERP yet
+    generates an Investing or Financing cash movement (no Fixed Assets,
+    no loans, no equity contributions/draws), and a statement with two
+    permanently-empty sections would be more misleading than a single
+    section that's actually always accurate.
+    """
+
+    def get(self, request):
+        company = request.company
+
+        cash_lines = JournalLine.objects.filter(company=company, account__role=Account.Role.CASH)
+        total_cash_in = 0
+        total_cash_out = 0
+        for line in cash_lines:
+            total_cash_in += line.debit_cents
+            total_cash_out += line.credit_cents
+
+        payments = Payment.objects.filter(company=company)
+        received_from_customers = sum(
+            p.amount_cents for p in payments if p.direction == Payment.Direction.RECEIVED
+        )
+        paid_to_suppliers = sum(
+            p.amount_cents for p in payments if p.direction == Payment.Direction.PAID and p.bill_id
+        )
+        paid_to_employees = sum(
+            p.amount_cents for p in payments if p.direction == Payment.Direction.PAID and p.expense_id
+        )
+
+        other_cash_movements = (total_cash_in - received_from_customers) - (
+            total_cash_out - paid_to_suppliers - paid_to_employees
+        )
+
+        return Response(
+            {
+                "cash_received_from_customers_cents": received_from_customers,
+                "cash_paid_to_suppliers_cents": paid_to_suppliers,
+                "cash_paid_to_employees_cents": paid_to_employees,
+                "other_cash_movements_cents": other_cash_movements,
+                "net_change_in_cash_cents": total_cash_in - total_cash_out,
+                "note": (
+                    "Direct method, all-time (no date range yet, same limitation as the other "
+                    "reports). Operating activities only — CoreERP doesn't yet model Investing or "
+                    "Financing cash movements (Fixed Assets, loans, equity), so those sections "
+                    "aren't included rather than shown as permanently empty. "
+                    "other_cash_movements_cents captures anything touching the Cash account that "
+                    "didn't come through a recorded Payment, e.g. a manual journal entry."
                 ),
             }
         )

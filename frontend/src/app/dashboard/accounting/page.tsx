@@ -9,6 +9,7 @@ import {
   type Account,
   type BalanceSheet,
   type Bill,
+  type CashFlow,
   type Expense,
   type Invoice,
   type JournalEntry,
@@ -45,6 +46,7 @@ export default function AccountingPage() {
   const [trialBalance, setTrialBalance] = useState<TrialBalanceRow[] | null>(null);
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLoss | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
+  const [cashFlow, setCashFlow] = useState<CashFlow | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [accountForm, setAccountForm] = useState(EMPTY_ACCOUNT_FORM);
@@ -64,7 +66,7 @@ export default function AccountingPage() {
 
   async function loadAll() {
     try {
-      const [acc, je, pay, inv, bil, exp, tb, pl, bs] = await Promise.all([
+      const [acc, je, pay, inv, bil, exp, tb, pl, bs, cf] = await Promise.all([
         api.listAccounts(),
         api.listJournalEntries(),
         api.listPayments(),
@@ -74,6 +76,7 @@ export default function AccountingPage() {
         api.trialBalance(),
         api.profitAndLoss(),
         api.balanceSheet(),
+        api.cashFlow(),
       ]);
       setAccounts(acc);
       setEntries(je);
@@ -84,6 +87,7 @@ export default function AccountingPage() {
       setTrialBalance(tb);
       setProfitAndLoss(pl);
       setBalanceSheet(bs);
+      setCashFlow(cf);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load accounting data.");
     }
@@ -677,6 +681,51 @@ export default function AccountingPage() {
                   <p style={{ fontSize: 11, color: "#999", maxWidth: 320, marginTop: 8 }}>
                     {balanceSheet.note}
                   </p>
+                )}
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 13 }}>Cash flow</h3>
+                {cashFlow && (
+                  <table style={{ borderCollapse: "collapse", fontSize: 13 }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: "4px 12px 4px 0" }}>Received from customers</td>
+                        <td style={{ padding: "4px 0", textAlign: "right" }}>
+                          {formatCents(cashFlow.cash_received_from_customers_cents)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: "4px 12px 4px 0" }}>Paid to suppliers</td>
+                        <td style={{ padding: "4px 0", textAlign: "right" }}>
+                          {formatCents(cashFlow.cash_paid_to_suppliers_cents)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: "4px 12px 4px 0" }}>Paid to employees</td>
+                        <td style={{ padding: "4px 0", textAlign: "right" }}>
+                          {formatCents(cashFlow.cash_paid_to_employees_cents)}
+                        </td>
+                      </tr>
+                      {cashFlow.other_cash_movements_cents !== 0 && (
+                        <tr>
+                          <td style={{ padding: "4px 12px 4px 0" }}>Other cash movements</td>
+                          <td style={{ padding: "4px 0", textAlign: "right" }}>
+                            {formatCents(cashFlow.other_cash_movements_cents)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr style={{ borderTop: "1px solid #ddd", fontWeight: 700 }}>
+                        <td style={{ padding: "4px 12px 4px 0" }}>Net change in cash</td>
+                        <td style={{ padding: "4px 0", textAlign: "right" }}>
+                          {formatCents(cashFlow.net_change_in_cash_cents)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                )}
+                {cashFlow && (
+                  <p style={{ fontSize: 11, color: "#999", maxWidth: 320, marginTop: 8 }}>{cashFlow.note}</p>
                 )}
               </div>
             </div>

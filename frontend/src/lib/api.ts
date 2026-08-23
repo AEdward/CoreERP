@@ -376,6 +376,15 @@ export interface BalanceSheet {
   note: string;
 }
 
+export interface CashFlow {
+  cash_received_from_customers_cents: number;
+  cash_paid_to_suppliers_cents: number;
+  cash_paid_to_employees_cents: number;
+  other_cash_movements_cents: number;
+  net_change_in_cash_cents: number;
+  note: string;
+}
+
 // --- Documents & Notes ---
 // Both attach to any (app_label, model, object_id) named in the
 // backend's apps.common.targeting.ALLOWED_TARGETS — see that file for
@@ -754,6 +763,7 @@ export const api = {
   trialBalance: () => request<TrialBalanceRow[]>("/api/accounting/reports/trial-balance/"),
   profitAndLoss: () => request<ProfitAndLoss>("/api/accounting/reports/profit-and-loss/"),
   balanceSheet: () => request<BalanceSheet>("/api/accounting/reports/balance-sheet/"),
+  cashFlow: () => request<CashFlow>("/api/accounting/reports/cash-flow/"),
 
   // --- Documents ---
   listDocuments: (target: RecordTarget) =>
