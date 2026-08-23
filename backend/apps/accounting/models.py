@@ -118,6 +118,10 @@ class Payment(TenantModel):
     amount_cents = models.BigIntegerField()
     method = models.CharField(max_length=16, choices=Method.choices, default=Method.CASH)
     reference = models.CharField(max_length=255, blank=True)
+    # Set once, right after creation, from apps.common.numbering — same
+    # two-step-save pattern as Invoice.invoice_number/Bill.bill_number.
+    # Backs the printable receipt (/dashboard/accounting/receipts/[id]).
+    receipt_number = models.CharField(max_length=32, blank=True)
     invoice = models.ForeignKey(
         "sales.Invoice", on_delete=models.PROTECT, null=True, blank=True, related_name="payments"
     )

@@ -1,6 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 
+from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
 
 from .models import Account, JournalEntry, JournalLine, Payment
@@ -79,12 +80,13 @@ class PaymentSerializer(CompanyScopedSerializer):
             "amount_cents",
             "method",
             "reference",
+            "receipt_number",
             "invoice",
             "bill",
             "expense",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "receipt_number", "created_at"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -102,3 +104,10 @@ class PaymentSerializer(CompanyScopedSerializer):
                 {"direction": "Payments against a bill or expense must be 'paid'."}
             )
         return attrs
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            payment = Payment.objects.create(**validated_data)
+            payment.receipt_number = next_number(payment.company, "RCT")
+            payment.save(update_fields=["receipt_number"])
+        return payment

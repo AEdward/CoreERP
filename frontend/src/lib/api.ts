@@ -335,6 +335,7 @@ export interface Payment {
   amount_cents: number;
   method: "cash" | "bank_transfer" | "mobile_money" | "card";
   reference: string;
+  receipt_number: string;
   invoice: number | null;
   bill: number | null;
   expense: number | null;
@@ -751,6 +752,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   listPayments: () => request<Payment[]>("/api/accounting/payments/"),
+  getPayment: (id: number) => request<Payment>(`/api/accounting/payments/${id}/`),
   createPayment: (data: {
     direction: Payment["direction"];
     amount_cents: number;

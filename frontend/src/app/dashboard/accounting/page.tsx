@@ -439,6 +439,7 @@ export default function AccountingPage() {
                   <th style={{ padding: "6px 4px" }}>Method</th>
                   <th style={{ padding: "6px 4px" }}>Reference</th>
                   <th style={{ padding: "6px 4px" }}>Against</th>
+                  <th style={{ padding: "6px 4px" }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -458,11 +459,16 @@ export default function AccountingPage() {
                               return exp ? `Expense: ${exp.category}` : "—";
                             })()}
                     </td>
+                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <a href={`/dashboard/accounting/receipts/${p.id}`} target="_blank" rel="noopener noreferrer">
+                        Receipt
+                      </a>
+                    </td>
                   </tr>
                 ))}
                 {payments?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
                       No payments recorded yet.
                     </td>
                   </tr>
