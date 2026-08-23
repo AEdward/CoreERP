@@ -87,6 +87,32 @@ def post_bill_journal(bill):
 
 
 @transaction.atomic
+def post_expense_journal(expense):
+    """An approved employee expense claim books exactly like a supplier
+    Bill — Dr Default Expense, Cr Accounts Payable — since it's the same
+    kind of obligation (money owed to someone outside the cash account),
+    just owed to an employee instead of a supplier. Clearing it later
+    (a Payment with `expense` set) reuses post_payment_journal's existing
+    "paid" branch unchanged, which already just debits Accounts Payable
+    regardless of what it's against."""
+    company = expense.company
+    ap = _get_account(company, Account.Role.ACCOUNTS_PAYABLE)
+    expense_account = _get_account(company, Account.Role.DEFAULT_EXPENSE)
+
+    entry = JournalEntry.objects.create(
+        company=company,
+        reference=f"EXP-{expense.pk}",
+        memo=f"Expense: {expense.employee} — {expense.category}",
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=expense_account, debit_cents=expense.amount_cents
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=ap, credit_cents=expense.amount_cents
+    )
+
+
+@transaction.atomic
 def post_payment_journal(payment):
     """Cash actually moving clears the receivable/payable it's against:
     - received: Dr Cash, Cr Accounts Receivable

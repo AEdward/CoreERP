@@ -9,6 +9,7 @@ import {
   type Account,
   type BalanceSheet,
   type Bill,
+  type Expense,
   type Invoice,
   type JournalEntry,
   type Payment,
@@ -21,6 +22,7 @@ const EMPTY_ACCOUNT_FORM = { code: "", name: "", type: "asset" as Account["type"
 const EMPTY_JE_LINE = { account: "", debit: "", credit: "" };
 const EMPTY_PAYMENT_FORM = {
   direction: "received" as Payment["direction"],
+  targetType: "invoice" as "invoice" | "bill" | "expense",
   amount: "",
   method: "cash" as Payment["method"],
   reference: "",
@@ -39,6 +41,7 @@ export default function AccountingPage() {
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const [bills, setBills] = useState<Bill[] | null>(null);
+  const [expenses, setExpenses] = useState<Expense[] | null>(null);
   const [trialBalance, setTrialBalance] = useState<TrialBalanceRow[] | null>(null);
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLoss | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
@@ -61,12 +64,13 @@ export default function AccountingPage() {
 
   async function loadAll() {
     try {
-      const [acc, je, pay, inv, bil, tb, pl, bs] = await Promise.all([
+      const [acc, je, pay, inv, bil, exp, tb, pl, bs] = await Promise.all([
         api.listAccounts(),
         api.listJournalEntries(),
         api.listPayments(),
         api.listInvoices(),
         api.listBills(),
+        api.listExpenses(),
         api.trialBalance(),
         api.profitAndLoss(),
         api.balanceSheet(),
@@ -76,6 +80,7 @@ export default function AccountingPage() {
       setPayments(pay);
       setInvoices(inv);
       setBills(bil);
+      setExpenses(exp);
       setTrialBalance(tb);
       setProfitAndLoss(pl);
       setBalanceSheet(bs);
@@ -155,14 +160,14 @@ export default function AccountingPage() {
     setPaymentWorking(true);
     setPaymentError(null);
     try {
-      const isReceived = paymentForm.direction === "received";
       await api.createPayment({
         direction: paymentForm.direction,
         amount_cents: Math.round(Number(paymentForm.amount || 0) * 100),
         method: paymentForm.method,
         reference: paymentForm.reference,
-        invoice: isReceived ? Number(paymentForm.target) : null,
-        bill: isReceived ? null : Number(paymentForm.target),
+        invoice: paymentForm.targetType === "invoice" ? Number(paymentForm.target) : null,
+        bill: paymentForm.targetType === "bill" ? Number(paymentForm.target) : null,
+        expense: paymentForm.targetType === "expense" ? Number(paymentForm.target) : null,
       });
       setPaymentForm(EMPTY_PAYMENT_FORM);
       await loadAll();
@@ -183,6 +188,7 @@ export default function AccountingPage() {
   };
   const unpaidInvoices = invoices?.filter((i) => i.status !== "paid" && i.status !== "void") ?? [];
   const unpaidBills = bills?.filter((b) => b.status !== "paid" && b.status !== "void") ?? [];
+  const payableExpenses = expenses?.filter((e) => e.status === "approved") ?? [];
 
   return (
     <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
@@ -441,7 +447,12 @@ export default function AccountingPage() {
                     <td style={{ padding: "6px 4px" }}>
                       {p.invoice
                         ? invoices?.find((i) => i.id === p.invoice)?.invoice_number
-                        : bills?.find((b) => b.id === p.bill)?.bill_number}
+                        : p.bill
+                          ? bills?.find((b) => b.id === p.bill)?.bill_number
+                          : (() => {
+                              const exp = expenses?.find((e) => e.id === p.expense);
+                              return exp ? `Expense: ${exp.category}` : "—";
+                            })()}
                     </td>
                   </tr>
                 ))}
@@ -468,18 +479,36 @@ export default function AccountingPage() {
               >
                 <select
                   value={paymentForm.direction}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const direction = e.target.value as Payment["direction"];
                     setPaymentForm({
                       ...paymentForm,
-                      direction: e.target.value as Payment["direction"],
+                      direction,
+                      targetType: direction === "received" ? "invoice" : "bill",
                       target: "",
-                    })
-                  }
+                    });
+                  }}
                   style={{ padding: 8 }}
                 >
                   <option value="received">Received (from customer)</option>
-                  <option value="paid">Paid (to supplier)</option>
+                  <option value="paid">Paid (to supplier or employee)</option>
                 </select>
+                {paymentForm.direction === "paid" && (
+                  <select
+                    value={paymentForm.targetType}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        targetType: e.target.value as "bill" | "expense",
+                        target: "",
+                      })
+                    }
+                    style={{ padding: 8 }}
+                  >
+                    <option value="bill">Supplier bill</option>
+                    <option value="expense">Employee expense</option>
+                  </select>
+                )}
                 <select
                   required
                   value={paymentForm.target}
@@ -487,19 +516,30 @@ export default function AccountingPage() {
                   style={{ padding: 8 }}
                 >
                   <option value="">
-                    {paymentForm.direction === "received" ? "Invoice…" : "Bill…"}
+                    {paymentForm.targetType === "invoice"
+                      ? "Invoice…"
+                      : paymentForm.targetType === "bill"
+                        ? "Bill…"
+                        : "Expense…"}
                   </option>
-                  {paymentForm.direction === "received"
-                    ? unpaidInvoices.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.invoice_number} — {formatCents(i.amount_cents + i.tax_amount_cents)}
-                        </option>
-                      ))
-                    : unpaidBills.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.bill_number} — {formatCents(b.amount_cents + b.tax_amount_cents)}
-                        </option>
-                      ))}
+                  {paymentForm.targetType === "invoice" &&
+                    unpaidInvoices.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.invoice_number} — {formatCents(i.amount_cents + i.tax_amount_cents)}
+                      </option>
+                    ))}
+                  {paymentForm.targetType === "bill" &&
+                    unpaidBills.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.bill_number} — {formatCents(b.amount_cents + b.tax_amount_cents)}
+                      </option>
+                    ))}
+                  {paymentForm.targetType === "expense" &&
+                    payableExpenses.map((exp) => (
+                      <option key={exp.id} value={exp.id}>
+                        {exp.category} — {formatCents(exp.amount_cents)}
+                      </option>
+                    ))}
                 </select>
                 <input
                   placeholder="Amount"

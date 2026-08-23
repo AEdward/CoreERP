@@ -111,6 +111,17 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  expenses: {
+    a: "#0891b2",
+    b: "#f59e0b",
+    render: (a, b) => (
+      <>
+        <rect x="6" y="10" width="36" height="26" rx="5" fill={a} opacity="0.9" />
+        <rect x="26" y="19" width="16" height="16" rx="8" fill="white" />
+        <circle cx="34" cy="27" r="4" fill={b} />
+      </>
+    ),
+  },
 };
 
 export function ModuleIcon({ moduleKey, muted, size = 44 }: { moduleKey: string; muted?: boolean; size?: number }) {

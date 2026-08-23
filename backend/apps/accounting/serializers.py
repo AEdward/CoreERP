@@ -69,7 +69,7 @@ class JournalEntrySerializer(CompanyScopedSerializer):
 
 
 class PaymentSerializer(CompanyScopedSerializer):
-    same_company_fields = ["invoice", "bill"]
+    same_company_fields = ["invoice", "bill", "expense"]
 
     class Meta:
         model = Payment
@@ -81,6 +81,7 @@ class PaymentSerializer(CompanyScopedSerializer):
             "reference",
             "invoice",
             "bill",
+            "expense",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -89,12 +90,15 @@ class PaymentSerializer(CompanyScopedSerializer):
         attrs = super().validate(attrs)
         invoice = attrs.get("invoice")
         bill = attrs.get("bill")
-        if bool(invoice) == bool(bill):
-            raise serializers.ValidationError("Exactly one of invoice or bill must be set.")
+        expense = attrs.get("expense")
+        if sum(bool(x) for x in (invoice, bill, expense)) != 1:
+            raise serializers.ValidationError("Exactly one of invoice, bill, or expense must be set.")
         if invoice and attrs.get("direction") != Payment.Direction.RECEIVED:
             raise serializers.ValidationError(
                 {"direction": "Payments against an invoice must be 'received'."}
             )
-        if bill and attrs.get("direction") != Payment.Direction.PAID:
-            raise serializers.ValidationError({"direction": "Payments against a bill must be 'paid'."})
+        if (bill or expense) and attrs.get("direction") != Payment.Direction.PAID:
+            raise serializers.ValidationError(
+                {"direction": "Payments against a bill or expense must be 'paid'."}
+            )
         return attrs

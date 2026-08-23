@@ -99,14 +99,14 @@ class JournalLine(TenantModel):
 class Payment(TenantModel):
     """Actual cash movement — the one thing in accounting that isn't
     itself a journal entry, it *causes* one (see posting.py). Recording
-    a payment also updates the linked Invoice/Bill status once fully
-    paid (see signals.py) — full payment only for now, no partial-
-    payment tracking on Invoice/Bill yet.
+    a payment also updates the linked Invoice/Bill/Expense status once
+    fully paid (see signals.py) — full payment only for now, no partial-
+    payment tracking yet.
     """
 
     class Direction(models.TextChoices):
         RECEIVED = "received", "Received (from a customer)"
-        PAID = "paid", "Paid (to a supplier)"
+        PAID = "paid", "Paid (to a supplier or employee)"
 
     class Method(models.TextChoices):
         CASH = "cash", "Cash"
@@ -124,6 +124,13 @@ class Payment(TenantModel):
     bill = models.ForeignKey(
         "procurement.Bill", on_delete=models.PROTECT, null=True, blank=True, related_name="payments"
     )
+    # An approved Expense reimbursement clears through Payment exactly
+    # like a Bill does — same Accounts Payable account, same "paid"
+    # direction (see post_payment_journal, which doesn't even need to
+    # branch on which of the two it is).
+    expense = models.ForeignKey(
+        "expenses.Expense", on_delete=models.PROTECT, null=True, blank=True, related_name="payments"
+    )
 
     class Meta:
         db_table = "payments"
@@ -131,13 +138,19 @@ class Payment(TenantModel):
         constraints = [
             models.CheckConstraint(
                 check=(
-                    models.Q(invoice__isnull=False, bill__isnull=True)
-                    | models.Q(invoice__isnull=True, bill__isnull=False)
+                    models.Q(invoice__isnull=False, bill__isnull=True, expense__isnull=True)
+                    | models.Q(invoice__isnull=True, bill__isnull=False, expense__isnull=True)
+                    | models.Q(invoice__isnull=True, bill__isnull=True, expense__isnull=False)
                 ),
-                name="payment_exactly_one_of_invoice_or_bill",
+                name="payment_exactly_one_of_invoice_bill_expense",
             ),
         ]
 
     def __str__(self):
-        target = self.invoice_id and f"invoice {self.invoice_id}" or f"bill {self.bill_id}"
+        if self.invoice_id:
+            target = f"invoice {self.invoice_id}"
+        elif self.bill_id:
+            target = f"bill {self.bill_id}"
+        else:
+            target = f"expense {self.expense_id}"
         return f"{self.direction} {self.amount_cents} ({target})"

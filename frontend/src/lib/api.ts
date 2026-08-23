@@ -288,6 +288,19 @@ export interface Bill {
   created_at: string;
 }
 
+// --- Expenses ---
+
+export interface Expense {
+  id: number;
+  employee: number;
+  category: string;
+  description: string;
+  amount_cents: number;
+  expense_date: string;
+  status: "draft" | "submitted" | "approved" | "rejected" | "paid";
+  created_at: string;
+}
+
 // --- Accounting ---
 
 export interface Account {
@@ -324,6 +337,7 @@ export interface Payment {
   reference: string;
   invoice: number | null;
   bill: number | null;
+  expense: number | null;
   created_at: string;
 }
 
@@ -452,6 +466,11 @@ export interface CompanyMember {
   email: string;
 }
 
+export interface EmployeePickerEntry {
+  id: number;
+  name: string;
+}
+
 // --- Tasks ---
 
 export interface Task {
@@ -541,6 +560,7 @@ export const api = {
     request<Department>(`/api/hr/departments/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteDepartment: (id: number) => request<void>(`/api/hr/departments/${id}/`, { method: "DELETE" }),
   listEmployees: () => request<Employee[]>("/api/hr/employees/"),
+  listEmployeePicker: () => request<EmployeePickerEntry[]>("/api/hr/employee-picker/"),
   createEmployee: (data: Partial<Employee>) =>
     request<Employee>("/api/hr/employees/", { method: "POST", body: JSON.stringify(data) }),
   updateEmployee: (id: number, data: Partial<Employee>) =>
@@ -692,6 +712,14 @@ export const api = {
     due_date?: string | null;
   }) => request<Bill>("/api/procurement/bills/", { method: "POST", body: JSON.stringify(data) }),
 
+  // --- Expenses ---
+  listExpenses: () => request<Expense[]>("/api/expenses/"),
+  createExpense: (data: Partial<Expense>) =>
+    request<Expense>("/api/expenses/", { method: "POST", body: JSON.stringify(data) }),
+  updateExpense: (id: number, data: Partial<Expense>) =>
+    request<Expense>(`/api/expenses/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteExpense: (id: number) => request<void>(`/api/expenses/${id}/`, { method: "DELETE" }),
+
   // --- Accounting ---
   listAccounts: () => request<Account[]>("/api/accounting/accounts/"),
   createAccount: (data: Partial<Account>) =>
@@ -721,6 +749,7 @@ export const api = {
     reference?: string;
     invoice?: number | null;
     bill?: number | null;
+    expense?: number | null;
   }) => request<Payment>("/api/accounting/payments/", { method: "POST", body: JSON.stringify(data) }),
   trialBalance: () => request<TrialBalanceRow[]>("/api/accounting/reports/trial-balance/"),
   profitAndLoss: () => request<ProfitAndLoss>("/api/accounting/reports/profit-and-loss/"),

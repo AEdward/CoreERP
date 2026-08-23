@@ -29,6 +29,7 @@ const MODULE_TILES = [
     permission: "procurement.view",
     href: "/dashboard/procurement",
   },
+  { key: "expenses", label: "Expenses", permission: "expenses.view", href: "/dashboard/expenses" },
   { key: "tasks", label: "Tasks", permission: "tasks.view", href: "/dashboard/tasks" },
   { key: "calendar", label: "Calendar", permission: "calendar.view", href: "/dashboard/calendar" },
 ];

@@ -18,7 +18,7 @@ class JournalEntryViewSet(CompanyScopedViewSet):
 
 
 class PaymentViewSet(CompanyScopedViewSet):
-    queryset = Payment.objects.select_related("invoice", "bill")
+    queryset = Payment.objects.select_related("invoice", "bill", "expense")
     serializer_class = PaymentSerializer
     permission_module = "accounting"
     http_method_names = ["get", "post", "head", "options"]  # not edited after the fact either

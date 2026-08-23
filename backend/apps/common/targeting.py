@@ -28,6 +28,7 @@ ALLOWED_TARGETS = {
     "accounting.journalentry": ("accounting", "Journal Entry"),
     "accounting.payment": ("accounting", "Payment"),
     "branches.branch": ("settings", "Branch"),
+    "expenses.expense": ("expenses", "Expense"),
 }
 
 

@@ -62,4 +62,9 @@ SEARCH_TARGETS = {
         "title": lambda obj: obj.name,
         "url": "/dashboard/settings",
     },
+    "expenses.expense": {
+        "search_fields": ["category", "description", "employee__first_name", "employee__last_name"],
+        "title": lambda obj: f"{obj.employee} — {obj.category}",
+        "url": "/dashboard/expenses",
+    },
 }

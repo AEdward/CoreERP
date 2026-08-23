@@ -28,6 +28,8 @@ DEFAULT_PERMISSIONS = [
     ("tasks", "manage"),
     ("calendar", "view"),
     ("calendar", "manage"),
+    ("expenses", "view"),
+    ("expenses", "manage"),
 ]
 
 # Every role gets these automatically — shared productivity/platform
@@ -42,6 +44,15 @@ SHARED_PERMISSIONS = [
     "tasks.manage",
     "calendar.view",
     "calendar.manage",
+    # expenses.manage (not just .view) is deliberately here too: any
+    # employee needs to be able to submit their own expense claim, and
+    # the permission model has no per-row-ownership dimension to grant
+    # "create your own" without granting "manage everyone's" — see
+    # apps.expenses.models.Expense's docstring for the tradeoff this
+    # accepts (segregation of duties at approval time is the real
+    # control, not a role gate on who can approve).
+    "expenses.view",
+    "expenses.manage",
 ]
 
 # Per-role permissions beyond SHARED_PERMISSIONS — the actual job-function
