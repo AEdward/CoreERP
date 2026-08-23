@@ -269,6 +269,9 @@ export default function SalesPage() {
       ) : (
         <>
           <h1 style={{ fontSize: 20 }}>Sales & CRM — {activeMembership.company.name}</h1>
+          <p style={{ color: "#666", fontSize: 13 }}>
+            <a href="/dashboard/crm">Leads, opportunities & contacts &rarr;</a>
+          </p>
           {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
 
           {/* Customers */}

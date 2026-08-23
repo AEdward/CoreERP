@@ -18,6 +18,8 @@ ALLOWED_TARGETS = {
     "hr.employee": ("hr", "Employee"),
     "hr.department": ("hr", "Department"),
     "crm.customer": ("sales", "Customer"),
+    "crm.lead": ("sales", "Lead"),
+    "crm.opportunity": ("sales", "Opportunity"),
     "suppliers.supplier": ("procurement", "Supplier"),
     "catalog.item": ("inventory", "Item"),
     "procurement.purchaseorder": ("procurement", "Purchase Order"),

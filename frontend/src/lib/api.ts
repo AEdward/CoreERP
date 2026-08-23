@@ -205,6 +205,46 @@ export interface Customer {
   created_at: string;
 }
 
+export interface Contact {
+  id: number;
+  customer: number;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
+export interface Lead {
+  id: number;
+  name: string;
+  company_name: string;
+  email: string;
+  phone: string;
+  source: string;
+  status: "new" | "contacted" | "qualified" | "disqualified" | "converted";
+  notes: string;
+  assigned_to: number | null;
+  assigned_to_name: string;
+  converted_customer: number | null;
+  created_at: string;
+}
+
+export interface Opportunity {
+  id: number;
+  customer: number;
+  lead: number | null;
+  name: string;
+  stage: "prospecting" | "qualification" | "proposal" | "negotiation" | "won" | "lost";
+  amount_cents: number;
+  expected_close_date: string | null;
+  notes: string;
+  assigned_to: number | null;
+  assigned_to_name: string;
+  created_at: string;
+}
+
 // --- Suppliers ---
 
 export interface Supplier {
@@ -717,6 +757,28 @@ export const api = {
   updateCustomer: (id: number, data: Partial<Customer>) =>
     request<Customer>(`/api/crm/customers/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteCustomer: (id: number) => request<void>(`/api/crm/customers/${id}/`, { method: "DELETE" }),
+  listContacts: (customerId?: number) =>
+    request<Contact[]>(`/api/crm/contacts/${customerId ? `?customer=${customerId}` : ""}`),
+  createContact: (data: Partial<Contact>) =>
+    request<Contact>("/api/crm/contacts/", { method: "POST", body: JSON.stringify(data) }),
+  updateContact: (id: number, data: Partial<Contact>) =>
+    request<Contact>(`/api/crm/contacts/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteContact: (id: number) => request<void>(`/api/crm/contacts/${id}/`, { method: "DELETE" }),
+  listLeads: () => request<Lead[]>("/api/crm/leads/"),
+  createLead: (data: Partial<Lead>) =>
+    request<Lead>("/api/crm/leads/", { method: "POST", body: JSON.stringify(data) }),
+  updateLead: (id: number, data: Partial<Lead>) =>
+    request<Lead>(`/api/crm/leads/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteLead: (id: number) => request<void>(`/api/crm/leads/${id}/`, { method: "DELETE" }),
+  convertLead: (id: number) => request<Lead>(`/api/crm/leads/${id}/convert/`, { method: "POST" }),
+  listOpportunities: (customerId?: number) =>
+    request<Opportunity[]>(`/api/crm/opportunities/${customerId ? `?customer=${customerId}` : ""}`),
+  createOpportunity: (data: Partial<Opportunity>) =>
+    request<Opportunity>("/api/crm/opportunities/", { method: "POST", body: JSON.stringify(data) }),
+  updateOpportunity: (id: number, data: Partial<Opportunity>) =>
+    request<Opportunity>(`/api/crm/opportunities/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteOpportunity: (id: number) =>
+    request<void>(`/api/crm/opportunities/${id}/`, { method: "DELETE" }),
 
   // --- Suppliers ---
   listSuppliers: () => request<Supplier[]>("/api/suppliers/suppliers/"),

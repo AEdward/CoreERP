@@ -27,6 +27,16 @@ SEARCH_TARGETS = {
         "title": lambda obj: obj.name,
         "url": "/dashboard/sales",
     },
+    "crm.lead": {
+        "search_fields": ["name", "company_name", "email", "phone"],
+        "title": lambda obj: obj.name,
+        "url": "/dashboard/crm",
+    },
+    "crm.opportunity": {
+        "search_fields": ["name"],
+        "title": lambda obj: f"{obj.name} ({obj.customer})",
+        "url": "/dashboard/crm",
+    },
     "suppliers.supplier": {
         "search_fields": ["name", "email", "phone"],
         "title": lambda obj: obj.name,

@@ -73,13 +73,13 @@ Scope note: sections I onward (Manufacturing and every named industry) are Phase
 
 ## C. Sales & CRM
 
-- [ ] *(partial)* CRM — just `Customer` records today, no pipeline
-- [ ] Leads — not built
-- [ ] Opportunities — not built
+- [x] CRM — `apps.crm` now covers the full front-of-pipeline: Leads → convert → Customer + Opportunity, plus per-Customer Contacts. See the Leads/Opportunities/Contacts entries below for the detailed design.
+- [x] Leads — `apps.crm.Lead` (`name`, `company_name`, `email`, `phone`, `source`, `status` new/contacted/qualified/disqualified/converted, `notes`, `assigned_to`). Deliberately not a Customer subtype or an Opportunity with no customer attached — a Lead might not convert at all, and letting an unqualified prospect show up everywhere a real Customer does (invoicing, sales orders) would be wrong. `LeadViewSet.convert` (a `@action`) is the one bridge: creates a real `Customer` (type `business` if `company_name` was given, else `individual`) and a Prospecting-stage `Opportunity` linked back to the lead, in one atomic transaction; a lead can only convert once. Caught and avoided a repeat of the exact `PettyCashTransactionViewSet` audit-log bug from Section B while writing this: `convert` creates two new rows via `Customer.objects.create()`/`Opportunity.objects.create()` directly rather than through `perform_create`, which would silently skip the Audit Log write — added explicit `log_audit()` calls for both, verified by checking the Audit Log actually shows both new rows after a real convert. `assigned_to` reuses the existing `/api/companies/members/` picker (a second consumer, after Tasks) and the same "must be an active member of the active company" validator pattern as `apps.tasks.TaskSerializer`. Registered in `ALLOWED_TARGETS`/`SEARCH_TARGETS` (Notes/Documents/Activity/Search all work on a Lead). Verified end-to-end via Playwright: created a lead, converted it, confirmed the resulting Customer and Opportunity have the right fields and the right link back to the lead, confirmed a second convert attempt is rejected 400, and confirmed both new rows appear in the Audit Log.
+- [x] Opportunities — `apps.crm.Opportunity` (`customer` FK, optional `lead` FK, `name`, `stage` prospecting/qualification/proposal/negotiation/won/lost, `amount_cents`, `expected_close_date`, `notes`, `assigned_to`). Flat pipeline, not a configurable/branching one — no per-company custom stages yet, the same "wait for a real trigger before adding configurability nobody's asked for" call this project makes elsewhere. Also registered in `ALLOWED_TARGETS`/`SEARCH_TARGETS`. Verified end-to-end via Playwright: created an opportunity directly against a customer, updated its stage, confirmed it's findable via Global Search by name.
 - [x] Customers — `apps.crm.Customer`
-- [ ] *(partial)* Contacts — Customer has contact fields, no separate multi-contact-per-customer model
-- [ ] Sales Pipeline — not built
-- [ ] Activities — not built (see Tasks/Calendar)
+- [x] Contacts — `apps.crm.Contact` (`customer` FK `CASCADE`, `name`, `title`, `email`, `phone`, `is_primary`), closing the "Customer alone only has one phone/email" gap. Deliberately just a flat list per customer — no contact-level permissions or its own login, that's Customer Portal territory, a different and much bigger not-yet-triggered item. Verified end-to-end via Playwright: added a contact to a customer, confirmed the `?customer=` filter on list returns only that customer's contacts.
+- [x] Sales Pipeline — Leads + Opportunities together are the pipeline; see both entries above.
+- [ ] Activities — not built (see Tasks/Calendar; now that Lead/Opportunity are on the `ALLOWED_TARGETS` whitelist, Notes/Documents/Activity Timeline already attach to them, which covers most of what "Activities" would otherwise mean)
 - [x] Quotations — `apps.sales.Quotation`
 - [x] Sales Orders — `apps.sales.SalesOrder`
 - [x] Invoices — `apps.sales.Invoice`

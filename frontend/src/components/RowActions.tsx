@@ -8,20 +8,22 @@ export function RowActions({
   onDelete,
   disabled,
 }: {
-  onEdit: () => void;
+  onEdit?: () => void;
   onDelete: () => void;
   disabled?: boolean;
 }) {
   return (
     <span style={{ display: "inline-flex", gap: 6 }}>
-      <button
-        type="button"
-        onClick={onEdit}
-        disabled={disabled}
-        style={{ padding: "2px 8px", fontSize: 12 }}
-      >
-        Edit
-      </button>
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          disabled={disabled}
+          style={{ padding: "2px 8px", fontSize: 12 }}
+        >
+          Edit
+        </button>
+      )}
       <button
         type="button"
         onClick={() => {
