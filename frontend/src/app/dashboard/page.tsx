@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
+import { ModuleIcon } from "@/components/ModuleIcons";
 import { api, ApiError, type CompanySummary } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
@@ -205,36 +206,70 @@ export default function DashboardPage() {
             <h2 style={{ fontSize: 16, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
               {activeMembership.company.name} — modules
             </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-              {MODULE_TILES.map((tile) => {
-                const enabled = activeMembership.permissions.includes(tile.permission);
-                const clickable = enabled && tile.href;
-                const card = (
-                  <div
-                    style={{
-                      padding: 20,
-                      border: "1px solid #ddd",
-                      borderRadius: 8,
-                      opacity: enabled ? 1 : 0.4,
-                      background: enabled ? "white" : "#fafafa",
-                      cursor: clickable ? "pointer" : "default",
-                    }}
-                    title={enabled ? undefined : `Requires ${tile.permission}`}
-                  >
-                    <strong>{tile.label}</strong>
-                    <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
-                      {enabled ? (tile.href ? "Open →" : "Available") : "No access"}
+            <style>{`
+              .module-tile {
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+              }
+              .module-tile.clickable:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
+              }
+            `}</style>
+            <div
+              style={{
+                marginTop: 12,
+                padding: 24,
+                borderRadius: 20,
+                background: "linear-gradient(135deg, #f3f0ff 0%, #eef4ff 50%, #fdf4ff 100%)",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                  gap: 20,
+                }}
+              >
+                {MODULE_TILES.map((tile) => {
+                  const enabled = activeMembership.permissions.includes(tile.permission);
+                  const clickable = enabled && tile.href;
+                  const card = (
+                    <div
+                      className={`module-tile${clickable ? " clickable" : ""}`}
+                      style={{
+                        padding: "20px 12px",
+                        borderRadius: 18,
+                        background: "white",
+                        cursor: clickable ? "pointer" : "default",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 10,
+                        textAlign: "center",
+                      }}
+                      title={enabled ? undefined : `Requires ${tile.permission}`}
+                    >
+                      <ModuleIcon moduleKey={tile.key} muted={!enabled} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: enabled ? "#222" : "#999" }}>
+                          {tile.label}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>
+                          {enabled ? "" : "No access"}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                );
-                return clickable ? (
-                  <Link key={tile.key} href={tile.href!} style={{ display: "block" }}>
-                    {card}
-                  </Link>
-                ) : (
-                  <div key={tile.key}>{card}</div>
-                );
-              })}
+                  );
+                  return clickable ? (
+                    <Link key={tile.key} href={tile.href!} style={{ display: "block" }}>
+                      {card}
+                    </Link>
+                  ) : (
+                    <div key={tile.key}>{card}</div>
+                  );
+                })}
+              </div>
             </div>
             <p style={{ marginTop: 16, fontSize: 13, color: "#999" }}>
               Every module has a working screen now. See TODO.md.
