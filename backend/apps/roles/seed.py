@@ -26,12 +26,28 @@ DEFAULT_PERMISSIONS = [
     ("procurement", "manage"),
     ("tasks", "view"),
     ("tasks", "manage"),
+    ("calendar", "view"),
+    ("calendar", "manage"),
 ]
 
+# Every role gets these automatically — shared productivity/platform
+# infrastructure, not gated by job function the way business modules
+# are. Was hand-duplicated onto every DEFAULT_ROLES entry until this
+# was the third addition (settings.view, then tasks.*, now calendar.*);
+# past two, that's a real pattern, not premature abstraction.
+SHARED_PERMISSIONS = [
+    "dashboard.view",
+    "settings.view",
+    "tasks.view",
+    "tasks.manage",
+    "calendar.view",
+    "calendar.manage",
+]
+
+# Per-role permissions beyond SHARED_PERMISSIONS — the actual job-function
+# split.
 DEFAULT_ROLES = {
     "Owner": [
-        "dashboard.view",
-        "settings.view",
         "settings.manage",
         "accounting.view",
         "accounting.manage",
@@ -43,43 +59,11 @@ DEFAULT_ROLES = {
         "inventory.manage",
         "procurement.view",
         "procurement.manage",
-        "tasks.view",
-        "tasks.manage",
     ],
-    "Finance Manager": [
-        "dashboard.view",
-        "settings.view",
-        "accounting.view",
-        "accounting.manage",
-        "tasks.view",
-        "tasks.manage",
-    ],
-    "HR Manager": [
-        "dashboard.view",
-        "settings.view",
-        "hr.view",
-        "hr.manage",
-        "tasks.view",
-        "tasks.manage",
-    ],
-    "Sales Manager": [
-        "dashboard.view",
-        "settings.view",
-        "sales.view",
-        "sales.manage",
-        "tasks.view",
-        "tasks.manage",
-    ],
-    "Inventory Manager": [
-        "dashboard.view",
-        "settings.view",
-        "inventory.view",
-        "inventory.manage",
-        "procurement.view",
-        "procurement.manage",
-        "tasks.view",
-        "tasks.manage",
-    ],
+    "Finance Manager": ["accounting.view", "accounting.manage"],
+    "HR Manager": ["hr.view", "hr.manage"],
+    "Sales Manager": ["sales.view", "sales.manage"],
+    "Inventory Manager": ["inventory.view", "inventory.manage", "procurement.view", "procurement.manage"],
 }
 
 
@@ -98,6 +82,7 @@ def create_default_roles_for_company(company):
         role, _ = Role.objects.get_or_create(
             company=company, name=role_name, defaults={"is_system_role": True}
         )
-        role.permissions.set([permissions_by_key[key] for key in permission_keys])
+        all_keys = SHARED_PERMISSIONS + permission_keys
+        role.permissions.set([permissions_by_key[key] for key in all_keys])
         roles[role_name] = role
     return roles

@@ -75,6 +75,18 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  calendar: {
+    a: "#f43f5e",
+    b: "#6366f1",
+    render: (a, b) => (
+      <>
+        <rect x="6" y="10" width="36" height="30" rx="5" fill={b} opacity="0.9" />
+        <rect x="6" y="10" width="36" height="9" rx="5" fill={a} />
+        <rect x="14" y="24" width="8" height="8" rx="2" fill="white" opacity="0.9" />
+        <rect x="26" y="24" width="8" height="8" rx="2" fill="white" opacity="0.55" />
+      </>
+    ),
+  },
   procurement: {
     a: "#16a34a",
     b: "#0ea5e9",

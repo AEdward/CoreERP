@@ -30,6 +30,7 @@ const MODULE_TILES = [
     href: "/dashboard/procurement",
   },
   { key: "tasks", label: "Tasks", permission: "tasks.view", href: "/dashboard/tasks" },
+  { key: "calendar", label: "Calendar", permission: "calendar.view", href: "/dashboard/calendar" },
 ];
 
 function formatCents(cents: number) {

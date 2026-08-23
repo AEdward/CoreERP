@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "apps.documents",
     "apps.notifications",
     "apps.tasks",
+    "apps.calendar",
     "apps.dashboard",
 ]
 

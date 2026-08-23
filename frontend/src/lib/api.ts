@@ -403,6 +403,18 @@ export interface Task {
   created_at: string;
 }
 
+// --- Calendar ---
+
+export interface Event {
+  id: number;
+  title: string;
+  description: string;
+  start_at: string;
+  end_at: string | null;
+  all_day: boolean;
+  created_at: string;
+}
+
 // --- Company dashboard summary ---
 // Each section is present only if the user has that module's own view
 // permission — same per-module gating as everywhere else, so a
@@ -689,6 +701,16 @@ export const api = {
     }
   ) => request<Task>(`/api/tasks/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteTask: (id: number) => request<void>(`/api/tasks/${id}/`, { method: "DELETE" }),
+
+  // --- Calendar ---
+  listEvents: () => request<Event[]>("/api/calendar/events/"),
+  createEvent: (data: { title: string; description?: string; start_at: string; end_at?: string | null; all_day?: boolean }) =>
+    request<Event>("/api/calendar/events/", { method: "POST", body: JSON.stringify(data) }),
+  updateEvent: (
+    id: number,
+    data: { title: string; description?: string; start_at: string; end_at?: string | null; all_day?: boolean }
+  ) => request<Event>(`/api/calendar/events/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteEvent: (id: number) => request<void>(`/api/calendar/events/${id}/`, { method: "DELETE" }),
 
   // --- Company dashboard summary ---
   companySummary: () => request<CompanySummary>("/api/dashboard/summary/"),
