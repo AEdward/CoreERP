@@ -386,6 +386,17 @@ export interface Activity {
   created_at: string;
 }
 
+// --- Audit log ---
+
+export interface AuditLogEntry {
+  id: number;
+  action: "created" | "updated" | "deleted";
+  target_label: string;
+  changes: Record<string, [unknown, unknown]>;
+  actor_name: string;
+  created_at: string;
+}
+
 // --- Global search ---
 
 export interface SearchResult {
@@ -719,6 +730,9 @@ export const api = {
 
   // --- Global search ---
   globalSearch: (q: string) => request<SearchResult[]>(`/api/search/?q=${encodeURIComponent(q)}`),
+
+  // --- Audit log ---
+  listAuditLog: () => request<AuditLogEntry[]>("/api/audit-log/"),
 
   // --- Notifications ---
   listNotifications: () => request<Notification[]>("/api/notifications/"),

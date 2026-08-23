@@ -351,6 +351,18 @@ export default function SettingsPage() {
               </form>
             )}
           </section>
+
+          {/* Audit log */}
+          {canManage && (
+            <section style={{ marginTop: 40 }}>
+              <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+                Compliance
+              </h2>
+              <a href="/dashboard/audit-log" style={{ fontSize: 13 }}>
+                View the company-wide audit log →
+              </a>
+            </section>
+          )}
         </>
       )}
     </main>

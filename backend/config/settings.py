@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "apps.common",
+    "apps.auditlog",
     "apps.users",
     "apps.companies",
     "apps.roles",

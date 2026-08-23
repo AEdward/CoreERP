@@ -3,6 +3,9 @@ from rest_framework import viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
+from apps.auditlog.models import AuditLog
+from apps.auditlog.services import log_audit
+
 from .permissions import user_has_permission
 
 DUPLICATE_ERROR = {
@@ -64,13 +67,23 @@ class CompanyScopedMixin:
                 serializer.save(company=self.request.company)
         except IntegrityError as exc:
             raise ValidationError(DUPLICATE_ERROR) from exc
+        log_audit(self.request, serializer.instance, AuditLog.Action.CREATED)
 
     def perform_update(self, serializer):
+        # Diffed through the viewset's own serializer, before and after
+        # save, rather than raw model fields — so the diff is exactly what
+        # the API itself shows (FKs as ids, dates as ISO strings, ...) with
+        # no separate field-serialization logic to maintain here.
+        before = self.get_serializer(serializer.instance).data
         try:
             with transaction.atomic():
                 serializer.save()
         except IntegrityError as exc:
             raise ValidationError(DUPLICATE_ERROR) from exc
+        after = self.get_serializer(serializer.instance).data
+        changes = {k: [before.get(k), v] for k, v in after.items() if before.get(k) != v}
+        if changes:
+            log_audit(self.request, serializer.instance, AuditLog.Action.UPDATED, changes)
 
     def perform_destroy(self, instance):
         # Most reference/master data (Item, Customer, Supplier, Warehouse,
@@ -80,6 +93,10 @@ class CompanyScopedMixin:
         # normal 400 instead of a raw 500.
         try:
             with transaction.atomic():
+                # Logged before delete(), not after: Django resets the
+                # instance's pk attribute to None once the row is actually
+                # gone, so logging afterward would record object_id=None.
+                log_audit(self.request, instance, AuditLog.Action.DELETED)
                 instance.delete()
         except IntegrityError as exc:
             raise ValidationError(IN_USE_ERROR) from exc
