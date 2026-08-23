@@ -6,6 +6,7 @@ one place regardless of which module triggered the event.
 """
 
 from django.db import transaction
+from django.db.models import Sum
 
 from .models import Account, JournalEntry, JournalLine
 
@@ -142,3 +143,127 @@ def post_payment_journal(payment):
         JournalLine.objects.create(
             company=company, journal_entry=entry, account=cash, credit_cents=payment.amount_cents
         )
+
+
+def _account_balance(account):
+    totals = account.journal_lines.aggregate(debit=Sum("debit_cents"), credit=Sum("credit_cents"))
+    return totals["debit"] or 0, totals["credit"] or 0
+
+
+@transaction.atomic
+def post_period_close_journal(period):
+    """The standard closing-entry mechanism: zero every Revenue/Expense
+    account's current balance into Retained Earnings in one entry. Skips
+    an account with no activity — JournalLine's debit-xor-credit
+    constraint doesn't allow a zero/zero line — and skips the whole entry
+    if there's nothing to close at all (a brand new company's first
+    period, say). Returns the net income that was closed, so the caller
+    can snapshot it onto the period.
+    """
+    company = period.company
+    retained_earnings = _get_account(company, Account.Role.RETAINED_EARNINGS)
+
+    zeroing_lines = []
+    total_revenue = 0
+    total_expense = 0
+    for account in Account.objects.filter(
+        company=company, type__in=[Account.Type.REVENUE, Account.Type.EXPENSE]
+    ):
+        debit, credit = _account_balance(account)
+        if account.type == Account.Type.REVENUE:
+            balance = credit - debit
+            if balance:
+                total_revenue += balance
+                zeroing_lines.append((account, balance, 0))  # debit it down to zero
+        else:
+            balance = debit - credit
+            if balance:
+                total_expense += balance
+                zeroing_lines.append((account, 0, balance))  # credit it down to zero
+
+    net_income = total_revenue - total_expense
+    if not zeroing_lines:
+        return 0
+
+    entry = JournalEntry.objects.create(
+        company=company, reference=f"CLOSE-{period.pk}", memo=f"Period close: {period.label}"
+    )
+    for account, debit_cents, credit_cents in zeroing_lines:
+        JournalLine.objects.create(
+            company=company,
+            journal_entry=entry,
+            account=account,
+            debit_cents=debit_cents,
+            credit_cents=credit_cents,
+        )
+    if net_income > 0:
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=retained_earnings, credit_cents=net_income
+        )
+    elif net_income < 0:
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=retained_earnings, debit_cents=-net_income
+        )
+
+    return net_income
+
+
+@transaction.atomic
+def post_petty_cash_transaction_journal(txn):
+    """Disbursement: Dr Default Expense, Cr the fund's own account.
+    Replenishment: Dr the fund's account, Cr the company's main Cash
+    account — topping the float back up to its imprest amount."""
+    company = txn.company
+    fund_account = txn.fund.account
+
+    entry = JournalEntry.objects.create(
+        company=company, reference=f"PETTY-{txn.pk}", memo=f"{txn.get_type_display()}: {txn.fund.name}"
+    )
+    if txn.type == txn.Type.DISBURSEMENT:
+        expense = _get_account(company, Account.Role.DEFAULT_EXPENSE)
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=expense, debit_cents=txn.amount_cents
+        )
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=fund_account, credit_cents=txn.amount_cents
+        )
+    else:
+        cash = _get_account(company, Account.Role.CASH)
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=fund_account, debit_cents=txn.amount_cents
+        )
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=cash, credit_cents=txn.amount_cents
+        )
+
+
+@transaction.atomic
+def post_depreciation_journal(asset, *, on_date):
+    """One month's straight-line depreciation: Dr Depreciation Expense,
+    Cr Accumulated Depreciation, capped so accumulated depreciation never
+    runs past cost minus salvage value. The caller (FixedAssetViewSet's
+    `depreciate` action) is responsible for the once-per-calendar-month
+    guard via `last_depreciated_on` — this function just posts whatever
+    amount it's given room to post. Returns the amount actually posted
+    (0 if the asset is already fully depreciated)."""
+    company = asset.company
+    depreciation_expense = _get_account(company, Account.Role.DEPRECIATION_EXPENSE)
+    accumulated_depreciation = _get_account(company, Account.Role.ACCUMULATED_DEPRECIATION)
+
+    remaining = asset.cost_cents - asset.salvage_value_cents - asset.accumulated_depreciation_cents
+    amount = min(asset.monthly_depreciation_cents, remaining)
+    if amount <= 0:
+        return 0
+
+    entry = JournalEntry.objects.create(
+        company=company,
+        reference=f"DEPR-{asset.pk}-{on_date.strftime('%Y-%m')}",
+        memo=f"Depreciation: {asset.name}",
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=depreciation_expense, debit_cents=amount
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=accumulated_depreciation, credit_cents=amount
+    )
+    return amount

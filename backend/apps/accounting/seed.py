@@ -10,13 +10,16 @@ DEFAULT_ACCOUNTS = [
     ("1000", "Cash", Account.Type.ASSET, Account.Role.CASH),
     ("1010", "Accounts Receivable", Account.Type.ASSET, Account.Role.ACCOUNTS_RECEIVABLE),
     ("1020", "Inventory", Account.Type.ASSET, None),
+    ("1030", "Accumulated Depreciation", Account.Type.ASSET, Account.Role.ACCUMULATED_DEPRECIATION),
     ("2000", "Accounts Payable", Account.Type.LIABILITY, Account.Role.ACCOUNTS_PAYABLE),
     ("2010", "Tax Payable", Account.Type.LIABILITY, Account.Role.TAX_PAYABLE),
     ("3000", "Owner's Equity", Account.Type.EQUITY, None),
+    ("3010", "Retained Earnings", Account.Type.EQUITY, Account.Role.RETAINED_EARNINGS),
     ("4000", "Sales Revenue", Account.Type.REVENUE, Account.Role.SALES_REVENUE),
     ("5000", "Cost of Goods Sold", Account.Type.EXPENSE, None),
     ("5010", "Operating Expenses", Account.Type.EXPENSE, Account.Role.DEFAULT_EXPENSE),
     ("5020", "Salaries Expense", Account.Type.EXPENSE, None),
+    ("5030", "Depreciation Expense", Account.Type.EXPENSE, Account.Role.DEPRECIATION_EXPENSE),
 ]
 
 

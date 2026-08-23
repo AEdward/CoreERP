@@ -373,7 +373,7 @@ export interface BalanceSheet {
   total_liabilities_cents: number;
   equity: ReportLine[];
   total_equity_cents: number;
-  retained_earnings_current_period_cents: number;
+  unclosed_net_income_cents: number;
   note: string;
 }
 
@@ -384,6 +384,104 @@ export interface CashFlow {
   other_cash_movements_cents: number;
   net_change_in_cash_cents: number;
   note: string;
+}
+
+// --- Financial Periods ---
+
+export interface FinancialPeriod {
+  id: number;
+  label: string;
+  start_date: string;
+  end_date: string;
+  status: "open" | "closed";
+  closed_at: string | null;
+  net_income_cents: number | null;
+  created_at: string;
+}
+
+// --- Bank Accounts & Reconciliation ---
+
+export interface BankAccount {
+  id: number;
+  name: string;
+  bank_name: string;
+  account_number: string;
+  account: number;
+  is_active: boolean;
+  balance_cents: number;
+  created_at: string;
+}
+
+export interface BankStatementLine {
+  id: number;
+  bank_account: number;
+  date: string;
+  description: string;
+  amount_cents: number;
+  is_reconciled: boolean;
+  created_at: string;
+}
+
+// --- Petty Cash ---
+
+export interface PettyCashFund {
+  id: number;
+  name: string;
+  custodian: number;
+  account: number;
+  imprest_amount_cents: number;
+  is_active: boolean;
+  balance_cents: number;
+  created_at: string;
+}
+
+export interface PettyCashTransaction {
+  id: number;
+  fund: number;
+  type: "disbursement" | "replenishment";
+  category: string;
+  description: string;
+  amount_cents: number;
+  date: string;
+  created_at: string;
+}
+
+// --- Budgets ---
+
+export interface Budget {
+  id: number;
+  account: number;
+  period_label: string;
+  amount_cents: number;
+  created_at: string;
+}
+
+export interface BudgetVsActualRow {
+  budget_id: number;
+  account_code: string;
+  account_name: string;
+  period_label: string;
+  budget_cents: number;
+  actual_cents: number;
+  variance_cents: number;
+}
+
+// --- Fixed Assets ---
+
+export interface FixedAsset {
+  id: number;
+  name: string;
+  category: string;
+  purchase_date: string;
+  cost_cents: number;
+  salvage_value_cents: number;
+  useful_life_months: number;
+  accumulated_depreciation_cents: number;
+  last_depreciated_on: string | null;
+  status: "active" | "disposed";
+  book_value_cents: number;
+  monthly_depreciation_cents: number;
+  created_at: string;
 }
 
 // --- Documents & Notes ---
@@ -766,6 +864,108 @@ export const api = {
   profitAndLoss: () => request<ProfitAndLoss>("/api/accounting/reports/profit-and-loss/"),
   balanceSheet: () => request<BalanceSheet>("/api/accounting/reports/balance-sheet/"),
   cashFlow: () => request<CashFlow>("/api/accounting/reports/cash-flow/"),
+
+  // --- Financial Periods ---
+  listFinancialPeriods: () => request<FinancialPeriod[]>("/api/accounting/financial-periods/"),
+  createFinancialPeriod: (data: { label: string; start_date: string; end_date: string }) =>
+    request<FinancialPeriod>("/api/accounting/financial-periods/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  closeFinancialPeriod: (id: number) =>
+    request<FinancialPeriod>(`/api/accounting/financial-periods/${id}/close/`, { method: "POST" }),
+
+  // --- Bank Accounts & Reconciliation ---
+  listBankAccounts: () => request<BankAccount[]>("/api/accounting/bank-accounts/"),
+  createBankAccount: (data: Partial<BankAccount>) =>
+    request<BankAccount>("/api/accounting/bank-accounts/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateBankAccount: (id: number, data: Partial<BankAccount>) =>
+    request<BankAccount>(`/api/accounting/bank-accounts/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteBankAccount: (id: number) =>
+    request<void>(`/api/accounting/bank-accounts/${id}/`, { method: "DELETE" }),
+  listBankStatementLines: (bankAccount?: number) =>
+    request<BankStatementLine[]>(
+      `/api/accounting/bank-statement-lines/${bankAccount ? `?bank_account=${bankAccount}` : ""}`
+    ),
+  createBankStatementLine: (data: Partial<BankStatementLine>) =>
+    request<BankStatementLine>("/api/accounting/bank-statement-lines/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateBankStatementLine: (id: number, data: Partial<BankStatementLine>) =>
+    request<BankStatementLine>(`/api/accounting/bank-statement-lines/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteBankStatementLine: (id: number) =>
+    request<void>(`/api/accounting/bank-statement-lines/${id}/`, { method: "DELETE" }),
+
+  // --- Petty Cash ---
+  listPettyCashFunds: () => request<PettyCashFund[]>("/api/accounting/petty-cash-funds/"),
+  createPettyCashFund: (data: Partial<PettyCashFund>) =>
+    request<PettyCashFund>("/api/accounting/petty-cash-funds/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updatePettyCashFund: (id: number, data: Partial<PettyCashFund>) =>
+    request<PettyCashFund>(`/api/accounting/petty-cash-funds/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deletePettyCashFund: (id: number) =>
+    request<void>(`/api/accounting/petty-cash-funds/${id}/`, { method: "DELETE" }),
+  listPettyCashTransactions: (fund?: number) =>
+    request<PettyCashTransaction[]>(
+      `/api/accounting/petty-cash-transactions/${fund ? `?fund=${fund}` : ""}`
+    ),
+  createPettyCashTransaction: (data: {
+    fund: number;
+    type: PettyCashTransaction["type"];
+    category?: string;
+    description?: string;
+    amount_cents: number;
+    date: string;
+  }) =>
+    request<PettyCashTransaction>("/api/accounting/petty-cash-transactions/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // --- Budgets ---
+  listBudgets: () => request<Budget[]>("/api/accounting/budgets/"),
+  createBudget: (data: Partial<Budget>) =>
+    request<Budget>("/api/accounting/budgets/", { method: "POST", body: JSON.stringify(data) }),
+  updateBudget: (id: number, data: Partial<Budget>) =>
+    request<Budget>(`/api/accounting/budgets/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteBudget: (id: number) => request<void>(`/api/accounting/budgets/${id}/`, { method: "DELETE" }),
+  budgetVsActual: () =>
+    request<BudgetVsActualRow[]>("/api/accounting/reports/budget-vs-actual/"),
+
+  // --- Fixed Assets ---
+  listFixedAssets: () => request<FixedAsset[]>("/api/accounting/fixed-assets/"),
+  createFixedAsset: (data: Partial<FixedAsset>) =>
+    request<FixedAsset>("/api/accounting/fixed-assets/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateFixedAsset: (id: number, data: Partial<FixedAsset>) =>
+    request<FixedAsset>(`/api/accounting/fixed-assets/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteFixedAsset: (id: number) =>
+    request<void>(`/api/accounting/fixed-assets/${id}/`, { method: "DELETE" }),
+  depreciateFixedAsset: (id: number) =>
+    request<FixedAsset>(`/api/accounting/fixed-assets/${id}/depreciate/`, { method: "POST" }),
 
   // --- Documents ---
   listDocuments: (target: RecordTarget) =>

@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 from apps.common.permissions import user_has_permission
 
-from .models import Account, JournalLine, Payment
+from .models import Account, Budget, JournalLine, Payment
 
 
 class AccountingReportView(APIView):
@@ -117,12 +117,15 @@ class BalanceSheetView(AccountingReportView):
                 "total_liabilities_cents": total_liabilities,
                 "equity": equity_lines,
                 "total_equity_cents": total_equity,
-                "retained_earnings_current_period_cents": net_income,
+                "unclosed_net_income_cents": net_income,
                 "note": (
-                    "retained_earnings_current_period_cents is the current period's net income, "
-                    "not yet folded into a real Retained Earnings account — there's no period-close "
-                    "mechanism yet. Assets = Liabilities + Equity + this figure, not Liabilities + "
-                    "Equity alone."
+                    "unclosed_net_income_cents is net income earned since the last period close "
+                    "(apps.accounting.FinancialPeriod) that hasn't been swept into Retained Earnings "
+                    "yet — closing a period does that sweep for real now, so `equity` above already "
+                    "includes a genuine Retained Earnings line once at least one period has been "
+                    "closed. Assets = Liabilities + Equity + unclosed_net_income_cents; once a "
+                    "company closes periods regularly, that last figure stays small (just the "
+                    "current, still-open period) instead of representing the company's whole history."
                 ),
             }
         )
@@ -180,11 +183,49 @@ class CashFlowView(AccountingReportView):
                 "net_change_in_cash_cents": total_cash_in - total_cash_out,
                 "note": (
                     "Direct method, all-time (no date range yet, same limitation as the other "
-                    "reports). Operating activities only — CoreERP doesn't yet model Investing or "
-                    "Financing cash movements (Fixed Assets, loans, equity), so those sections "
+                    "reports). Operating activities only — Payment doesn't yet cover Investing "
+                    "movements (a Fixed Asset's cost_cents is recorded, not necessarily paid for "
+                    "through this system) or Financing ones (loans, equity), so those sections "
                     "aren't included rather than shown as permanently empty. "
                     "other_cash_movements_cents captures anything touching the Cash account that "
-                    "didn't come through a recorded Payment, e.g. a manual journal entry."
+                    "didn't come through a recorded Payment, e.g. a manual journal entry — an asset "
+                    "purchase recorded as a plain Journal Entry debiting Cash would show up there."
                 ),
             }
         )
+
+
+class BudgetVsActualView(AccountingReportView):
+    """Actual is all-time activity on the budgeted account, same "no date
+    range" limitation as every other report here — a Budget's
+    `period_label` is a free-text label, not something this query filters
+    by (there's nothing to filter *by* yet; see Trial Balance/P&L's own
+    docstring). Pairing budgets with real FinancialPeriod closes is left
+    to the user's own discipline: right after closing a period, "actual"
+    here means "since that close", the same reasoning the Balance Sheet's
+    unclosed_net_income_cents relies on."""
+
+    def get(self, request):
+        rows = []
+        for budget in Budget.objects.filter(company=request.company).select_related("account"):
+            account = budget.account
+            totals = account.journal_lines.aggregate(debit=Sum("debit_cents"), credit=Sum("credit_cents"))
+            debit, credit = totals["debit"] or 0, totals["credit"] or 0
+            if account.type == Account.Type.REVENUE:
+                actual = credit - debit
+            elif account.type == Account.Type.EXPENSE:
+                actual = debit - credit
+            else:
+                actual = debit - credit
+            rows.append(
+                {
+                    "budget_id": budget.id,
+                    "account_code": account.code,
+                    "account_name": account.name,
+                    "period_label": budget.period_label,
+                    "budget_cents": budget.amount_cents,
+                    "actual_cents": actual,
+                    "variance_cents": actual - budget.amount_cents,
+                }
+            )
+        return Response(rows)

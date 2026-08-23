@@ -11,6 +11,7 @@ import {
   type Bill,
   type CashFlow,
   type Expense,
+  type FinancialPeriod,
   type Invoice,
   type JournalEntry,
   type Payment,
@@ -47,7 +48,12 @@ export default function AccountingPage() {
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLoss | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
   const [cashFlow, setCashFlow] = useState<CashFlow | null>(null);
+  const [financialPeriods, setFinancialPeriods] = useState<FinancialPeriod[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [periodForm, setPeriodForm] = useState({ label: "", start_date: "", end_date: "" });
+  const [periodWorking, setPeriodWorking] = useState(false);
+  const [periodError, setPeriodError] = useState<string | null>(null);
 
   const [accountForm, setAccountForm] = useState(EMPTY_ACCOUNT_FORM);
   const [accountWorking, setAccountWorking] = useState(false);
@@ -66,7 +72,7 @@ export default function AccountingPage() {
 
   async function loadAll() {
     try {
-      const [acc, je, pay, inv, bil, exp, tb, pl, bs, cf] = await Promise.all([
+      const [acc, je, pay, inv, bil, exp, tb, pl, bs, cf, fp] = await Promise.all([
         api.listAccounts(),
         api.listJournalEntries(),
         api.listPayments(),
@@ -77,6 +83,7 @@ export default function AccountingPage() {
         api.profitAndLoss(),
         api.balanceSheet(),
         api.cashFlow(),
+        api.listFinancialPeriods(),
       ]);
       setAccounts(acc);
       setEntries(je);
@@ -88,6 +95,7 @@ export default function AccountingPage() {
       setProfitAndLoss(pl);
       setBalanceSheet(bs);
       setCashFlow(cf);
+      setFinancialPeriods(fp);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load accounting data.");
     }
@@ -179,6 +187,34 @@ export default function AccountingPage() {
       setPaymentError(err instanceof ApiError ? err.message : "Failed to record payment.");
     } finally {
       setPaymentWorking(false);
+    }
+  }
+
+  async function handleCreatePeriod(e: React.FormEvent) {
+    e.preventDefault();
+    setPeriodWorking(true);
+    setPeriodError(null);
+    try {
+      await api.createFinancialPeriod(periodForm);
+      setPeriodForm({ label: "", start_date: "", end_date: "" });
+      await loadAll();
+    } catch (err) {
+      setPeriodError(err instanceof ApiError ? err.message : "Failed to create period.");
+    } finally {
+      setPeriodWorking(false);
+    }
+  }
+
+  async function handleClosePeriod(id: number) {
+    setPeriodWorking(true);
+    setPeriodError(null);
+    try {
+      await api.closeFinancialPeriod(id);
+      await loadAll();
+    } catch (err) {
+      setPeriodError(err instanceof ApiError ? err.message : "Failed to close period.");
+    } finally {
+      setPeriodWorking(false);
     }
   }
 
@@ -675,9 +711,9 @@ export default function AccountingPage() {
                         </td>
                       </tr>
                       <tr style={{ borderTop: "1px solid #ddd" }}>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Retained earnings (this period)</td>
+                        <td style={{ padding: "4px 12px 4px 0" }}>Unclosed net income</td>
                         <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(balanceSheet.retained_earnings_current_period_cents)}
+                          {formatCents(balanceSheet.unclosed_net_income_cents)}
                         </td>
                       </tr>
                     </tbody>
@@ -734,6 +770,127 @@ export default function AccountingPage() {
                   <p style={{ fontSize: 11, color: "#999", maxWidth: 320, marginTop: 8 }}>{cashFlow.note}</p>
                 )}
               </div>
+            </div>
+          </section>
+
+          {/* Financial Periods */}
+          <section style={{ marginTop: 40, marginBottom: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Financial periods
+            </h2>
+            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+              Closing a period sweeps every Revenue/Expense account&apos;s balance into Retained
+              Earnings in one journal entry. Periods must be closed in order, and a closed period
+              can&apos;t be reopened.
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Label</th>
+                  <th style={{ padding: "6px 4px" }}>Start</th>
+                  <th style={{ padding: "6px 4px" }}>End</th>
+                  <th style={{ padding: "6px 4px" }}>Status</th>
+                  <th style={{ padding: "6px 4px" }}>Net income</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {financialPeriods?.map((p) => (
+                  <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{p.label}</td>
+                    <td style={{ padding: "6px 4px" }}>{p.start_date}</td>
+                    <td style={{ padding: "6px 4px" }}>{p.end_date}</td>
+                    <td style={{ padding: "6px 4px" }}>
+                      <span
+                        style={{
+                          color: p.status === "closed" ? "#1565c0" : "#2e7d32",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {p.status === "closed" ? "Closed" : "Open"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "6px 4px" }}>
+                      {p.net_income_cents !== null ? formatCents(p.net_income_cents) : "—"}
+                    </td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        {p.status === "open" && (
+                          <button
+                            type="button"
+                            disabled={periodWorking}
+                            onClick={() => handleClosePeriod(p.id)}
+                            style={{ padding: "4px 10px" }}
+                          >
+                            Close
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {financialPeriods?.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                      No financial periods yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {canManage && (
+              <form
+                onSubmit={handleCreatePeriod}
+                style={{
+                  marginTop: 16,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                  maxWidth: 700,
+                }}
+              >
+                <input
+                  placeholder="Label (e.g. FY2026 Q1)"
+                  required
+                  value={periodForm.label}
+                  onChange={(e) => setPeriodForm({ ...periodForm, label: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  type="date"
+                  required
+                  value={periodForm.start_date}
+                  onChange={(e) => setPeriodForm({ ...periodForm, start_date: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  type="date"
+                  required
+                  value={periodForm.end_date}
+                  onChange={(e) => setPeriodForm({ ...periodForm, end_date: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <button type="submit" disabled={periodWorking || !periodForm.label} style={{ padding: 8 }}>
+                  Add period
+                </button>
+                {periodError && (
+                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{periodError}</p>
+                )}
+              </form>
+            )}
+          </section>
+
+          {/* Links to dedicated accounting tools */}
+          <section style={{ marginTop: 40, marginBottom: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              More accounting tools
+            </h2>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8, fontSize: 14 }}>
+              <a href="/dashboard/accounting/banking">Bank accounts & reconciliation</a>
+              <a href="/dashboard/accounting/petty-cash">Petty cash</a>
+              <a href="/dashboard/accounting/budgets">Budgets</a>
+              <a href="/dashboard/accounting/fixed-assets">Fixed assets</a>
             </div>
           </section>
         </>
