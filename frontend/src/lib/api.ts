@@ -144,8 +144,20 @@ export interface Item {
   category: string;
   price_cents: number;
   cost_cents: number;
-  tax_rate: string;
+  tax_rate: number | null;
   status: "active" | "archived";
+  created_at: string;
+}
+
+// --- Tax ---
+
+export interface TaxRate {
+  id: number;
+  name: string;
+  code: string;
+  rate_percent: string;
+  is_default: boolean;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -528,6 +540,14 @@ export const api = {
   updateItem: (id: number, data: Partial<Item>) =>
     request<Item>(`/api/catalog/items/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteItem: (id: number) => request<void>(`/api/catalog/items/${id}/`, { method: "DELETE" }),
+
+  // --- Tax ---
+  listTaxRates: () => request<TaxRate[]>("/api/tax-rates/"),
+  createTaxRate: (data: Partial<TaxRate>) =>
+    request<TaxRate>("/api/tax-rates/", { method: "POST", body: JSON.stringify(data) }),
+  updateTaxRate: (id: number, data: Partial<TaxRate>) =>
+    request<TaxRate>(`/api/tax-rates/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteTaxRate: (id: number) => request<void>(`/api/tax-rates/${id}/`, { method: "DELETE" }),
 
   // --- Inventory ---
   listWarehouses: () => request<Warehouse[]>("/api/inventory/warehouses/"),

@@ -495,14 +495,16 @@ export default function ProcurementPage() {
                     style={{ padding: 8 }}
                   />
                 )}
-                <input
-                  placeholder="Tax amount"
-                  type="number"
-                  step="0.01"
-                  value={billTax}
-                  onChange={(e) => setBillTax(e.target.value)}
-                  style={{ padding: 8 }}
-                />
+                {!billPo && (
+                  <input
+                    placeholder="Tax amount"
+                    type="number"
+                    step="0.01"
+                    value={billTax}
+                    onChange={(e) => setBillTax(e.target.value)}
+                    style={{ padding: 8 }}
+                  />
+                )}
                 <input
                   type="date"
                   value={billDueDate}

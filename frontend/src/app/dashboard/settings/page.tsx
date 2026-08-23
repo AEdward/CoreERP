@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { RowActions } from "@/components/RowActions";
-import { api, ApiError, type Branch, type Company } from "@/lib/api";
+import { api, ApiError, type Branch, type Company, type TaxRate } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
 const EMPTY_BRANCH_FORM = { name: "", code: "", address: "", phone: "", is_active: true };
+const EMPTY_TAX_RATE_FORM = { name: "", code: "", rate_percent: "", is_default: false, is_active: true };
 
 export default function SettingsPage() {
   const { me, activeMembership, error: sessionError } = useSession();
@@ -24,9 +25,15 @@ export default function SettingsPage() {
   const [editingBranchId, setEditingBranchId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [taxRates, setTaxRates] = useState<TaxRate[] | null>(null);
+  const [taxRateForm, setTaxRateForm] = useState(EMPTY_TAX_RATE_FORM);
+  const [taxRateWorking, setTaxRateWorking] = useState(false);
+  const [taxRateError, setTaxRateError] = useState<string | null>(null);
+  const [editingTaxRateId, setEditingTaxRateId] = useState<number | null>(null);
+
   async function loadAll() {
     try {
-      const [c, b] = await Promise.all([api.listCompanies(), api.listBranches()]);
+      const [c, b, t] = await Promise.all([api.listCompanies(), api.listBranches(), api.listTaxRates()]);
       const current = c.find((x) => x.id === activeMembership?.company.id) ?? null;
       setCompany(current);
       if (current) {
@@ -43,6 +50,7 @@ export default function SettingsPage() {
         });
       }
       setBranches(b);
+      setTaxRates(t);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load settings.");
     }
@@ -110,6 +118,47 @@ export default function SettingsPage() {
       await loadAll();
     } catch (err) {
       setBranchError(err instanceof ApiError ? err.message : "Failed to delete branch.");
+    }
+  }
+
+  async function handleAddTaxRate(e: React.FormEvent) {
+    e.preventDefault();
+    setTaxRateWorking(true);
+    setTaxRateError(null);
+    try {
+      const payload = { ...taxRateForm, rate_percent: taxRateForm.rate_percent || "0" };
+      if (editingTaxRateId) {
+        await api.updateTaxRate(editingTaxRateId, payload);
+      } else {
+        await api.createTaxRate(payload);
+      }
+      setTaxRateForm(EMPTY_TAX_RATE_FORM);
+      setEditingTaxRateId(null);
+      await loadAll();
+    } catch (err) {
+      setTaxRateError(err instanceof ApiError ? err.message : "Failed to save tax rate.");
+    } finally {
+      setTaxRateWorking(false);
+    }
+  }
+
+  function startEditTaxRate(t: TaxRate) {
+    setEditingTaxRateId(t.id);
+    setTaxRateForm({
+      name: t.name,
+      code: t.code,
+      rate_percent: t.rate_percent,
+      is_default: t.is_default,
+      is_active: t.is_active,
+    });
+  }
+
+  async function handleDeleteTaxRate(id: number) {
+    try {
+      await api.deleteTaxRate(id);
+      await loadAll();
+    } catch (err) {
+      setTaxRateError(err instanceof ApiError ? err.message : "Failed to delete tax rate.");
     }
   }
 
@@ -347,6 +396,133 @@ export default function SettingsPage() {
                 </div>
                 {branchError && (
                   <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{branchError}</p>
+                )}
+              </form>
+            )}
+          </section>
+
+          {/* Tax rates */}
+          <section style={{ marginTop: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Tax rates
+            </h2>
+            <p style={{ fontSize: 13, color: "#999", marginTop: -4 }}>
+              Configured rates an Item can be assigned. Sales/Procurement automatically total tax from
+              whichever rate each line&apos;s item carries — nothing is applied company-wide.
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Name</th>
+                  <th style={{ padding: "6px 4px" }}>Code</th>
+                  <th style={{ padding: "6px 4px" }}>Rate</th>
+                  <th style={{ padding: "6px 4px" }}>Default</th>
+                  <th style={{ padding: "6px 4px" }}>Status</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {taxRates?.map((t) => (
+                  <tr key={t.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{t.name}</td>
+                    <td style={{ padding: "6px 4px" }}>{t.code}</td>
+                    <td style={{ padding: "6px 4px" }}>{t.rate_percent}%</td>
+                    <td style={{ padding: "6px 4px" }}>{t.is_default ? "Yes" : "—"}</td>
+                    <td style={{ padding: "6px 4px" }}>{t.is_active ? "Active" : "Inactive"}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onEdit={() => startEditTaxRate(t)}
+                          onDelete={() => handleDeleteTaxRate(t.id)}
+                          disabled={taxRateWorking}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {taxRates?.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                      No tax rates yet — items with no rate assigned contribute zero tax.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {canManage && (
+              <form
+                onSubmit={handleAddTaxRate}
+                style={{
+                  marginTop: 16,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                  maxWidth: 720,
+                }}
+              >
+                <input
+                  placeholder="Name (e.g. VAT)"
+                  required
+                  value={taxRateForm.name}
+                  onChange={(e) => setTaxRateForm({ ...taxRateForm, name: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Code (e.g. VAT)"
+                  required
+                  value={taxRateForm.code}
+                  onChange={(e) => setTaxRateForm({ ...taxRateForm, code: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Rate %"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={taxRateForm.rate_percent}
+                  onChange={(e) => setTaxRateForm({ ...taxRateForm, rate_percent: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <label style={{ display: "flex", alignItems: "center", gap: 6, padding: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={taxRateForm.is_default}
+                    onChange={(e) => setTaxRateForm({ ...taxRateForm, is_default: e.target.checked })}
+                  />
+                  Default for new items
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, padding: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={taxRateForm.is_active}
+                    onChange={(e) => setTaxRateForm({ ...taxRateForm, is_active: e.target.checked })}
+                  />
+                  Active
+                </label>
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                  <button
+                    type="submit"
+                    disabled={taxRateWorking || !taxRateForm.name || !taxRateForm.code}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    {editingTaxRateId ? "Save changes" : "Add tax rate"}
+                  </button>
+                  {editingTaxRateId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTaxRateId(null);
+                        setTaxRateForm(EMPTY_TAX_RATE_FORM);
+                      }}
+                      style={{ padding: "8px 16px" }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                {taxRateError && (
+                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{taxRateError}</p>
                 )}
               </form>
             )}

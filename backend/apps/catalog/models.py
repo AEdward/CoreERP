@@ -17,7 +17,13 @@ class Item(TenantModel):
     category = models.CharField(max_length=100, blank=True)
     price_cents = models.BigIntegerField(default=0)
     cost_cents = models.BigIntegerField(default=0)
-    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    # Was a decorative flat percentage nothing computed from; now a real
+    # link to a company-configured rate — see apps.tax.TaxRate and
+    # apps.tax.engine.compute_line_tax_cents, which is what actually reads
+    # this to total up Sales/Procurement line tax.
+    tax_rate = models.ForeignKey(
+        "tax.TaxRate", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
 
     class Meta:

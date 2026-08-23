@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
+from apps.tax.engine import compute_line_tax_cents
 
 from .models import Bill, PurchaseOrder, PurchaseOrderLine
 
@@ -82,6 +83,9 @@ class BillSerializer(CompanyScopedSerializer):
         purchase_order = validated_data.get("purchase_order")
         if purchase_order is not None:
             validated_data["amount_cents"] = purchase_order.total_cents
+            validated_data["tax_amount_cents"] = compute_line_tax_cents(
+                purchase_order.lines.select_related("item__tax_rate")
+            )
         elif "amount_cents" not in validated_data:
             raise serializers.ValidationError(
                 {"amount_cents": "Required when not billing against a purchase order."}

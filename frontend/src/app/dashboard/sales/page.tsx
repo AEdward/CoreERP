@@ -655,14 +655,16 @@ export default function SalesPage() {
                     style={{ padding: 8 }}
                   />
                 )}
-                <input
-                  placeholder="Tax amount"
-                  type="number"
-                  step="0.01"
-                  value={invTax}
-                  onChange={(e) => setInvTax(e.target.value)}
-                  style={{ padding: 8 }}
-                />
+                {!invSalesOrder && (
+                  <input
+                    placeholder="Tax amount"
+                    type="number"
+                    step="0.01"
+                    value={invTax}
+                    onChange={(e) => setInvTax(e.target.value)}
+                    style={{ padding: 8 }}
+                  />
+                )}
                 <input
                   type="date"
                   value={invDueDate}

@@ -10,6 +10,7 @@ import {
   type Item,
   type Stock,
   type StockMovement,
+  type TaxRate,
   type Warehouse,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
@@ -20,7 +21,7 @@ const EMPTY_ITEM_FORM = {
   category: "",
   price: "",
   cost: "",
-  tax_rate: "0",
+  tax_rate: "",
 };
 
 const EMPTY_WAREHOUSE_FORM = { name: "", location: "", branch: "" };
@@ -46,6 +47,7 @@ export default function InventoryPage() {
   const [branches, setBranches] = useState<Branch[] | null>(null);
   const [stock, setStock] = useState<Stock[] | null>(null);
   const [movements, setMovements] = useState<StockMovement[] | null>(null);
+  const [taxRates, setTaxRates] = useState<TaxRate[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
@@ -63,18 +65,20 @@ export default function InventoryPage() {
 
   async function loadAll() {
     try {
-      const [i, w, br, s, m] = await Promise.all([
+      const [i, w, br, s, m, tr] = await Promise.all([
         api.listItems(),
         api.listWarehouses(),
         api.listBranches(),
         api.listStock(),
         api.listStockMovements(),
+        api.listTaxRates(),
       ]);
       setItems(i);
       setWarehouses(w);
       setBranches(br);
       setStock(s);
       setMovements(m);
+      setTaxRates(tr);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load inventory data.");
     }
@@ -99,7 +103,7 @@ export default function InventoryPage() {
         category: itemForm.category,
         price_cents: Math.round(Number(itemForm.price || 0) * 100),
         cost_cents: Math.round(Number(itemForm.cost || 0) * 100),
-        tax_rate: itemForm.tax_rate,
+        tax_rate: itemForm.tax_rate ? Number(itemForm.tax_rate) : null,
       };
       if (editingItemId) {
         await api.updateItem(editingItemId, payload);
@@ -124,7 +128,7 @@ export default function InventoryPage() {
       category: item.category,
       price: (item.price_cents / 100).toString(),
       cost: (item.cost_cents / 100).toString(),
-      tax_rate: item.tax_rate,
+      tax_rate: item.tax_rate ? String(item.tax_rate) : "",
     });
   }
 
@@ -211,6 +215,11 @@ export default function InventoryPage() {
   const itemName = (id: number) => items?.find((i) => i.id === id)?.name ?? "—";
   const warehouseName = (id: number | null) => warehouses?.find((w) => w.id === id)?.name ?? "—";
   const branchName = (id: number | null) => branches?.find((b) => b.id === id)?.name ?? "—";
+  const taxRateLabel = (id: number | null) => {
+    if (!id) return "—";
+    const t = taxRates?.find((r) => r.id === id);
+    return t ? `${t.name} (${t.rate_percent}%)` : "—";
+  };
 
   return (
     <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
@@ -238,6 +247,7 @@ export default function InventoryPage() {
                   <th style={{ padding: "6px 4px" }}>Category</th>
                   <th style={{ padding: "6px 4px" }}>Price</th>
                   <th style={{ padding: "6px 4px" }}>Cost</th>
+                  <th style={{ padding: "6px 4px" }}>Tax</th>
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   {canManage && <th></th>}
                 </tr>
@@ -250,6 +260,7 @@ export default function InventoryPage() {
                     <td style={{ padding: "6px 4px" }}>{item.category || "—"}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(item.price_cents)}</td>
                     <td style={{ padding: "6px 4px" }}>{formatCents(item.cost_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{taxRateLabel(item.tax_rate)}</td>
                     <td style={{ padding: "6px 4px" }}>{item.status}</td>
                     {canManage && (
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
@@ -264,7 +275,7 @@ export default function InventoryPage() {
                 ))}
                 {items?.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={8} style={{ padding: "6px 4px", color: "#999" }}>
                       No items yet.
                     </td>
                   </tr>
@@ -320,14 +331,20 @@ export default function InventoryPage() {
                   onChange={(e) => setItemForm({ ...itemForm, cost: e.target.value })}
                   style={{ padding: 8 }}
                 />
-                <input
-                  placeholder="Tax rate %"
-                  type="number"
-                  step="0.01"
+                <select
                   value={itemForm.tax_rate}
                   onChange={(e) => setItemForm({ ...itemForm, tax_rate: e.target.value })}
                   style={{ padding: 8 }}
-                />
+                >
+                  <option value="">No tax</option>
+                  {taxRates
+                    ?.filter((t) => t.is_active)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.rate_percent}%)
+                      </option>
+                    ))}
+                </select>
                 <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
                   <button type="submit" disabled={itemWorking || !itemForm.name} style={{ padding: "8px 16px" }}>
                     {editingItemId ? "Save changes" : "Add item"}
