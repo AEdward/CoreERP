@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { NotificationBell } from "@/components/NotificationBell";
 import { api, type Membership } from "@/lib/api";
 
@@ -38,6 +39,7 @@ export function AppHeader({ activeMembership }: { activeMembership: Membership |
           )}
         </div>
         <div>
+          <GlobalSearch active={!!activeMembership} />
           <NotificationBell active={!!activeMembership} />
           <button onClick={handleLogout} style={{ padding: "6px 14px" }}>
             Log out

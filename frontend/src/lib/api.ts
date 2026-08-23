@@ -386,6 +386,17 @@ export interface Activity {
   created_at: string;
 }
 
+// --- Global search ---
+
+export interface SearchResult {
+  app_label: string;
+  model: string;
+  object_id: number;
+  module: string;
+  title: string;
+  url: string;
+}
+
 // --- Notifications ---
 
 export interface Notification {
@@ -705,6 +716,9 @@ export const api = {
     request<Activity[]>(
       `/api/activity/?app_label=${target.appLabel}&model=${target.model}&object_id=${target.objectId}`
     ),
+
+  // --- Global search ---
+  globalSearch: (q: string) => request<SearchResult[]>(`/api/search/?q=${encodeURIComponent(q)}`),
 
   // --- Notifications ---
   listNotifications: () => request<Notification[]>("/api/notifications/"),
