@@ -381,6 +381,28 @@ export interface Notification {
   created_at: string;
 }
 
+// --- Company members (for assignee/owner pickers) ---
+
+export interface CompanyMember {
+  user_id: number;
+  name: string;
+  email: string;
+}
+
+// --- Tasks ---
+
+export interface Task {
+  id: number;
+  title: string;
+  description: string;
+  assignee: number | null;
+  assignee_name: string;
+  due_date: string | null;
+  status: "todo" | "in_progress" | "done";
+  created_by_name: string;
+  created_at: string;
+}
+
 // --- Company dashboard summary ---
 // Each section is present only if the user has that module's own view
 // permission — same per-module gating as everywhere else, so a
@@ -426,6 +448,7 @@ export const api = {
     }),
   updateCompany: (id: number, data: Partial<Company>) =>
     request<Company>(`/api/companies/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  listCompanyMembers: () => request<CompanyMember[]>("/api/companies/members/"),
 
   // --- Branches ---
   listBranches: () => request<Branch[]>("/api/branches/"),
@@ -645,6 +668,27 @@ export const api = {
       body: JSON.stringify({ is_read: true }),
     }),
   markAllNotificationsRead: () => request<void>("/api/notifications/mark_all_read/", { method: "POST" }),
+
+  // --- Tasks ---
+  listTasks: () => request<Task[]>("/api/tasks/"),
+  createTask: (data: {
+    title: string;
+    description?: string;
+    assignee?: number | null;
+    due_date?: string | null;
+    status?: Task["status"];
+  }) => request<Task>("/api/tasks/", { method: "POST", body: JSON.stringify(data) }),
+  updateTask: (
+    id: number,
+    data: {
+      title: string;
+      description?: string;
+      assignee?: number | null;
+      due_date?: string | null;
+      status?: Task["status"];
+    }
+  ) => request<Task>(`/api/tasks/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteTask: (id: number) => request<void>(`/api/tasks/${id}/`, { method: "DELETE" }),
 
   // --- Company dashboard summary ---
   companySummary: () => request<CompanySummary>("/api/dashboard/summary/"),

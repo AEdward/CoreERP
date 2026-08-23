@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/dashboard/sales", label: "Sales & CRM" },
   { href: "/dashboard/procurement", label: "Procurement" },
   { href: "/dashboard/accounting", label: "Accounting" },
+  { href: "/dashboard/tasks", label: "Tasks" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
 

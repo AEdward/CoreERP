@@ -24,6 +24,8 @@ DEFAULT_PERMISSIONS = [
     ("inventory", "manage"),
     ("procurement", "view"),
     ("procurement", "manage"),
+    ("tasks", "view"),
+    ("tasks", "manage"),
 ]
 
 DEFAULT_ROLES = {
@@ -41,10 +43,33 @@ DEFAULT_ROLES = {
         "inventory.manage",
         "procurement.view",
         "procurement.manage",
+        "tasks.view",
+        "tasks.manage",
     ],
-    "Finance Manager": ["dashboard.view", "settings.view", "accounting.view", "accounting.manage"],
-    "HR Manager": ["dashboard.view", "settings.view", "hr.view", "hr.manage"],
-    "Sales Manager": ["dashboard.view", "settings.view", "sales.view", "sales.manage"],
+    "Finance Manager": [
+        "dashboard.view",
+        "settings.view",
+        "accounting.view",
+        "accounting.manage",
+        "tasks.view",
+        "tasks.manage",
+    ],
+    "HR Manager": [
+        "dashboard.view",
+        "settings.view",
+        "hr.view",
+        "hr.manage",
+        "tasks.view",
+        "tasks.manage",
+    ],
+    "Sales Manager": [
+        "dashboard.view",
+        "settings.view",
+        "sales.view",
+        "sales.manage",
+        "tasks.view",
+        "tasks.manage",
+    ],
     "Inventory Manager": [
         "dashboard.view",
         "settings.view",
@@ -52,6 +77,8 @@ DEFAULT_ROLES = {
         "inventory.manage",
         "procurement.view",
         "procurement.manage",
+        "tasks.view",
+        "tasks.manage",
     ],
 }
 

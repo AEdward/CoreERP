@@ -29,6 +29,7 @@ const MODULE_TILES = [
     permission: "procurement.view",
     href: "/dashboard/procurement",
   },
+  { key: "tasks", label: "Tasks", permission: "tasks.view", href: "/dashboard/tasks" },
 ];
 
 function formatCents(cents: number) {

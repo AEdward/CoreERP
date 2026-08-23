@@ -94,3 +94,22 @@ class SetActiveCompanyView(APIView):
             )
         request.session["active_company_id"] = membership.company_id
         return Response(CompanySerializer(membership.company).data)
+
+
+class CompanyMembersView(APIView):
+    """Who's on the active company — just enough (id, name, email) to
+    populate an assignee/owner picker elsewhere (Tasks today). Seeing
+    coworkers' names isn't sensitive the way editing settings is, so
+    this only requires being an active member, no extra permission."""
+
+    def get(self, request):
+        if not request.company:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        memberships = CompanyMembership.objects.filter(
+            company=request.company, status=CompanyMembership.Status.ACTIVE
+        ).select_related("user")
+        data = [
+            {"user_id": m.user_id, "name": m.user.full_name, "email": m.user.email}
+            for m in memberships
+        ]
+        return Response(data)

@@ -28,7 +28,7 @@ Scope note: sections I onward (Manufacturing and every named industry) are Phase
 - [x] Document Management — `apps.documents` (generic `Document` model via `content_type`/`object_id`, whitelisted target registry, permission derived from the target record's own module). Wired into HR Employee, Sales Invoice, Procurement Purchase Order as proof across different modules; adding a new target is one line in `apps/documents/registry.py`.
 - [x] File / Attachment Management — same module as above
 - [x] Notifications — `apps.notifications` (in-app; email/SMS deliberately not built — no real trigger for it yet). Recipient-scoped, not just company-scoped — RLS is the "member of this company" backstop, the viewset itself filters to `recipient=request.user`. `notify_permission(company, module, action, message, link)` messages every user holding that permission, without the caller needing to know which roles carry it. Two real triggers wired: a low-stock crossing on `StockMovement` (only on the movement that actually crosses into shortage, not every one after), and a new `Bill` (to whoever holds `accounting.manage`). Bell icon + polling badge + dropdown in `AppHeader`, mark-one/mark-all-read.
-- [ ] Tasks — not built
+- [x] Tasks — `apps.tasks` (standalone company-wide task list: title, description, assignee, due date, status; no generic content_type/object_id link to other records the way Documents has — nothing's needed that yet). New `tasks.view`/`tasks.manage` permission, granted to every default role (unlike most modules, no role is task-locked-out — it's shared productivity infrastructure). New `GET /api/companies/members/` endpoint backs the assignee picker.
 - [ ] Calendar — not built
 - [ ] Notes & Comments — not built
 - [ ] Activity Timeline — not built (MiranErp's `auditlog` is adjacent but narrower — see Audit Logs below)
@@ -179,7 +179,7 @@ Scope note: sections I onward (Manufacturing and every named industry) are Phase
 
 - [ ] Projects — not built
 - [ ] Project Planning — not built
-- [ ] Tasks — not built (same item as A)
+- [x] Tasks — same `apps.tasks` module as A
 - [ ] Milestones — not built
 - [ ] Project Teams — not built
 - [ ] Time Tracking — not built

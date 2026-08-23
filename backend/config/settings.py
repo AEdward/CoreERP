@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.accounting",
     "apps.documents",
     "apps.notifications",
+    "apps.tasks",
     "apps.dashboard",
 ]
 

@@ -58,6 +58,23 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  tasks: {
+    a: "#4f46e5",
+    b: "#10b981",
+    render: (a, b) => (
+      <>
+        <rect x="8" y="6" width="26" height="34" rx="5" fill={a} opacity="0.9" />
+        <path
+          d="M15 24 l6 6 12 -14"
+          stroke={b}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </>
+    ),
+  },
   procurement: {
     a: "#16a34a",
     b: "#0ea5e9",
