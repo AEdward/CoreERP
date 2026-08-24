@@ -18,10 +18,31 @@ from django.dispatch import receiver
 from apps.expenses.models import Expense
 from apps.notifications.services import notify_permission
 from apps.procurement.models import Bill
-from apps.sales.models import Invoice
+from apps.sales.models import CreditNote, Invoice
 
 from .models import JournalEntry, Payment
-from .posting import post_bill_journal, post_expense_journal, post_invoice_journal, post_payment_journal
+from .posting import (
+    post_bill_journal,
+    post_credit_note_journal,
+    post_expense_journal,
+    post_invoice_journal,
+    post_payment_journal,
+)
+
+
+def _maybe_mark_invoice_paid(invoice):
+    """A Credit Note settles what's owed on an Invoice exactly like a
+    Payment does, just without cash moving — reusing Invoice.Status.PAID
+    for "nothing more owed, however that happened" rather than adding a
+    separate "credited"/"written off" status is a documented known
+    simplification, not an oversight."""
+    total_due = invoice.amount_cents + invoice.tax_amount_cents
+    total_settled = sum(p.amount_cents for p in invoice.payments.all()) + sum(
+        cn.amount_cents + cn.tax_amount_cents for cn in invoice.credit_notes.all()
+    )
+    if total_settled >= total_due:
+        invoice.status = invoice.Status.PAID
+        invoice.save(update_fields=["status"])
 
 
 @receiver(post_save, sender=Invoice)
@@ -31,6 +52,18 @@ def handle_invoice_saved(sender, instance, **kwargs):
     if JournalEntry.objects.filter(company=instance.company, reference=instance.invoice_number).exists():
         return
     post_invoice_journal(instance)
+
+
+@receiver(post_save, sender=CreditNote)
+def handle_credit_note_saved(sender, instance, **kwargs):
+    if not instance.credit_note_number:
+        return
+    if JournalEntry.objects.filter(
+        company=instance.company, reference=instance.credit_note_number
+    ).exists():
+        return
+    post_credit_note_journal(instance)
+    _maybe_mark_invoice_paid(instance.invoice)
 
 
 @receiver(post_save, sender=Bill)
@@ -80,6 +113,9 @@ def handle_payment_created(sender, instance, created, **kwargs):
     # Full-payment-only status flip — no partial-payment tracking on
     # Invoice/Bill/Expense yet (see Payment's docstring).
     target = instance.invoice or instance.bill or instance.expense
+    if isinstance(target, Invoice):
+        _maybe_mark_invoice_paid(target)
+        return
     total_due = target.amount_cents + getattr(target, "tax_amount_cents", 0)
     total_paid = sum(p.amount_cents for p in target.payments.all())
     if total_paid >= total_due:

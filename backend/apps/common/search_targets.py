@@ -57,6 +57,11 @@ SEARCH_TARGETS = {
         "title": lambda obj: obj.invoice_number or f"Invoice #{obj.pk}",
         "url": "/dashboard/sales",
     },
+    "sales.creditnote": {
+        "search_fields": ["credit_note_number", "reason"],
+        "title": lambda obj: obj.credit_note_number or f"Credit Note #{obj.pk}",
+        "url": "/dashboard/sales",
+    },
     "accounting.journalentry": {
         "search_fields": ["reference", "memo"],
         "title": lambda obj: obj.reference or f"Journal Entry #{obj.pk}",

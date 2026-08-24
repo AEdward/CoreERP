@@ -61,6 +61,39 @@ def post_invoice_journal(invoice):
 
 
 @transaction.atomic
+def post_credit_note_journal(credit_note):
+    """A Credit Note is the exact reverse of the Invoice entry it's
+    against: Dr Sales Revenue, Dr Tax Payable (if any), Cr Accounts
+    Receivable — the sale is partly un-booked and what's owed drops."""
+    company = credit_note.company
+    ar = _get_account(company, Account.Role.ACCOUNTS_RECEIVABLE)
+    revenue = _get_account(company, Account.Role.SALES_REVENUE)
+
+    entry = JournalEntry.objects.create(
+        company=company,
+        reference=credit_note.credit_note_number,
+        memo=f"Credit Note {credit_note.credit_note_number} (against {credit_note.invoice})",
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=revenue, debit_cents=credit_note.amount_cents
+    )
+    if credit_note.tax_amount_cents:
+        tax_payable = _get_account(company, Account.Role.TAX_PAYABLE)
+        JournalLine.objects.create(
+            company=company,
+            journal_entry=entry,
+            account=tax_payable,
+            debit_cents=credit_note.tax_amount_cents,
+        )
+    JournalLine.objects.create(
+        company=company,
+        journal_entry=entry,
+        account=ar,
+        credit_cents=credit_note.amount_cents + credit_note.tax_amount_cents,
+    )
+
+
+@transaction.atomic
 def post_bill_journal(bill):
     """Receiving a supplier bill books the expense and the payable:
     Dr Default Expense (amount + tax — MVP simplification, doesn't

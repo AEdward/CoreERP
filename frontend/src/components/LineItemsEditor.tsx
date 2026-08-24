@@ -6,25 +6,31 @@ export interface LineItemRow {
   item: string;
   quantity: string;
   unitPrice: string;
+  discountPercent?: string;
 }
 
-export const EMPTY_LINE: LineItemRow = { item: "", quantity: "1", unitPrice: "" };
+export const EMPTY_LINE: LineItemRow = { item: "", quantity: "1", unitPrice: "", discountPercent: "0" };
 
 /** Shared by Purchase Orders, Quotations, and Sales Orders — all three
  * need the identical "pick an item, quantity, unit price, add/remove
  * line" interaction, just against a different backend field name for
  * the price (unit_cost_cents vs unit_price_cents), which the caller
- * handles when it builds the request body. */
+ * handles when it builds the request body. `showDiscount` is Sales-only
+ * (Quotation/SalesOrder lines have a discount_percent field, Purchase
+ * Order lines don't) — omitted, the discount input just doesn't render,
+ * and discountPercent stays unused for that caller's payload. */
 export function LineItemsEditor({
   items,
   rows,
   onChange,
   priceLabel,
+  showDiscount,
 }: {
   items: Item[];
   rows: LineItemRow[];
   onChange: (rows: LineItemRow[]) => void;
   priceLabel: string;
+  showDiscount?: boolean;
 }) {
   function updateRow(index: number, patch: Partial<LineItemRow>) {
     const next = rows.slice();
@@ -63,6 +69,17 @@ export function LineItemsEditor({
             onChange={(e) => updateRow(i, { unitPrice: e.target.value })}
             style={{ padding: 6, width: 120 }}
           />
+          {showDiscount && (
+            <input
+              type="number"
+              min="0"
+              max="100"
+              placeholder="Disc %"
+              value={row.discountPercent ?? "0"}
+              onChange={(e) => updateRow(i, { discountPercent: e.target.value })}
+              style={{ padding: 6, width: 80 }}
+            />
+          )}
           <button
             type="button"
             onClick={() => onChange(rows.filter((_, idx) => idx !== i))}

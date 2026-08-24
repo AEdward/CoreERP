@@ -282,6 +282,8 @@ export interface OrderLine {
   item: number;
   quantity: number;
   unit_price_cents: number;
+  discount_percent: number;
+  line_total_cents: number;
 }
 
 export interface Quotation {
@@ -312,6 +314,16 @@ export interface Invoice {
   tax_amount_cents: number;
   due_date: string | null;
   status: "draft" | "sent" | "paid" | "overdue" | "void";
+  created_at: string;
+}
+
+export interface CreditNote {
+  id: number;
+  invoice: number;
+  credit_note_number: string;
+  amount_cents: number;
+  tax_amount_cents: number;
+  reason: string;
   created_at: string;
 }
 
@@ -823,7 +835,7 @@ export const api = {
   createQuotation: (data: {
     customer: number;
     status: string;
-    lines: { item: number; quantity: number; unit_price_cents: number }[];
+    lines: { item: number; quantity: number; unit_price_cents: number; discount_percent?: number }[];
   }) =>
     request<Quotation>("/api/sales/quotations/", { method: "POST", body: JSON.stringify(data) }),
   updateQuotation: (
@@ -831,7 +843,7 @@ export const api = {
     data: {
       customer: number;
       status: string;
-      lines: { item: number; quantity: number; unit_price_cents: number }[];
+      lines: { item: number; quantity: number; unit_price_cents: number; discount_percent?: number }[];
     }
   ) =>
     request<Quotation>(`/api/sales/quotations/${id}/`, {
@@ -846,7 +858,7 @@ export const api = {
     quotation?: number | null;
     status: string;
     payment_status: string;
-    lines: { item: number; quantity: number; unit_price_cents: number }[];
+    lines: { item: number; quantity: number; unit_price_cents: number; discount_percent?: number }[];
   }) =>
     request<SalesOrder>("/api/sales/sales-orders/", { method: "POST", body: JSON.stringify(data) }),
   updateSalesOrder: (
@@ -856,7 +868,7 @@ export const api = {
       quotation?: number | null;
       status: string;
       payment_status: string;
-      lines: { item: number; quantity: number; unit_price_cents: number }[];
+      lines: { item: number; quantity: number; unit_price_cents: number; discount_percent?: number }[];
     }
   ) =>
     request<SalesOrder>(`/api/sales/sales-orders/${id}/`, {
@@ -872,6 +884,10 @@ export const api = {
     tax_amount_cents?: number;
     due_date?: string | null;
   }) => request<Invoice>("/api/sales/invoices/", { method: "POST", body: JSON.stringify(data) }),
+  listCreditNotes: (invoiceId?: number) =>
+    request<CreditNote[]>(`/api/sales/credit-notes/${invoiceId ? `?invoice=${invoiceId}` : ""}`),
+  createCreditNote: (data: { invoice: number; amount_cents: number; tax_amount_cents?: number; reason?: string }) =>
+    request<CreditNote>("/api/sales/credit-notes/", { method: "POST", body: JSON.stringify(data) }),
 
   // --- Procurement: Bills ---
   listBills: () => request<Bill[]>("/api/procurement/bills/"),

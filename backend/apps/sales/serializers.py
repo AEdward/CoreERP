@@ -5,13 +5,15 @@ from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
 from apps.tax.engine import compute_line_tax_cents
 
-from .models import Invoice, Quotation, QuotationLine, SalesOrder, SalesOrderLine
+from .models import CreditNote, Invoice, Quotation, QuotationLine, SalesOrder, SalesOrderLine
 
 
 class QuotationLineSerializer(serializers.ModelSerializer):
+    line_total_cents = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = QuotationLine
-        fields = ["id", "item", "quantity", "unit_price_cents"]
+        fields = ["id", "item", "quantity", "unit_price_cents", "discount_percent", "line_total_cents"]
         read_only_fields = ["id"]
 
 
@@ -59,9 +61,11 @@ class QuotationSerializer(CompanyScopedSerializer):
 
 
 class SalesOrderLineSerializer(serializers.ModelSerializer):
+    line_total_cents = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = SalesOrderLine
-        fields = ["id", "item", "quantity", "unit_price_cents"]
+        fields = ["id", "item", "quantity", "unit_price_cents", "discount_percent", "line_total_cents"]
         read_only_fields = ["id"]
 
 
@@ -154,3 +158,43 @@ class InvoiceSerializer(CompanyScopedSerializer):
             invoice.invoice_number = next_number(invoice.company, "INV")
             invoice.save(update_fields=["invoice_number"])
         return invoice
+
+
+class CreditNoteSerializer(CompanyScopedSerializer):
+    same_company_fields = ["invoice"]
+
+    class Meta:
+        model = CreditNote
+        fields = [
+            "id",
+            "invoice",
+            "credit_note_number",
+            "amount_cents",
+            "tax_amount_cents",
+            "reason",
+            "created_at",
+        ]
+        read_only_fields = ["id", "credit_note_number", "created_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        invoice = attrs.get("invoice")
+        if invoice is not None:
+            total_due = invoice.amount_cents + invoice.tax_amount_cents
+            already_credited = sum(
+                cn.amount_cents + cn.tax_amount_cents for cn in invoice.credit_notes.all()
+            )
+            requested = attrs.get("amount_cents", 0) + attrs.get("tax_amount_cents", 0)
+            if already_credited + requested > total_due:
+                remaining = total_due - already_credited
+                raise serializers.ValidationError(
+                    {"amount_cents": f"Exceeds the invoice's remaining balance ({remaining} cents)."}
+                )
+        return attrs
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            credit_note = CreditNote.objects.create(**validated_data)
+            credit_note.credit_note_number = next_number(credit_note.company, "CRN")
+            credit_note.save(update_fields=["credit_note_number"])
+        return credit_note

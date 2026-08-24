@@ -27,6 +27,7 @@ ALLOWED_TARGETS = {
     "sales.quotation": ("sales", "Quotation"),
     "sales.salesorder": ("sales", "Sales Order"),
     "sales.invoice": ("sales", "Invoice"),
+    "sales.creditnote": ("sales", "Credit Note"),
     "accounting.journalentry": ("accounting", "Journal Entry"),
     "accounting.payment": ("accounting", "Payment"),
     "branches.branch": ("settings", "Branch"),

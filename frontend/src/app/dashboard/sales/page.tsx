@@ -10,6 +10,7 @@ import { RowActions } from "@/components/RowActions";
 import {
   api,
   ApiError,
+  type CreditNote,
   type Customer,
   type Invoice,
   type Item,
@@ -38,6 +39,7 @@ function linesToPayload(rows: LineItemRow[]) {
       item: Number(l.item),
       quantity: Number(l.quantity),
       unit_price_cents: Math.round(Number(l.unitPrice || 0) * 100),
+      discount_percent: Number(l.discountPercent || 0),
     }));
 }
 
@@ -46,6 +48,7 @@ function linesToRows(lines: OrderLine[]): LineItemRow[] {
     item: String(l.item),
     quantity: String(l.quantity),
     unitPrice: (l.unit_price_cents / 100).toString(),
+    discountPercent: String(l.discount_percent),
   }));
 }
 
@@ -57,6 +60,7 @@ export default function SalesPage() {
   const [quotations, setQuotations] = useState<Quotation[] | null>(null);
   const [orders, setOrders] = useState<SalesOrder[] | null>(null);
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
+  const [creditNotes, setCreditNotes] = useState<CreditNote[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [customerForm, setCustomerForm] = useState(EMPTY_CUSTOMER_FORM);
@@ -83,20 +87,29 @@ export default function SalesPage() {
   const [invWorking, setInvWorking] = useState(false);
   const [invError, setInvError] = useState<string | null>(null);
 
+  const [cnInvoice, setCnInvoice] = useState("");
+  const [cnAmount, setCnAmount] = useState("");
+  const [cnTax, setCnTax] = useState("0");
+  const [cnReason, setCnReason] = useState("");
+  const [cnWorking, setCnWorking] = useState(false);
+  const [cnError, setCnError] = useState<string | null>(null);
+
   async function loadAll() {
     try {
-      const [c, i, q, so, inv] = await Promise.all([
+      const [c, i, q, so, inv, cn] = await Promise.all([
         api.listCustomers(),
         api.listItems(),
         api.listQuotations(),
         api.listSalesOrders(),
         api.listInvoices(),
+        api.listCreditNotes(),
       ]);
       setCustomers(c);
       setItems(i);
       setQuotations(q);
       setOrders(so);
       setInvoices(inv);
+      setCreditNotes(cn);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load sales data.");
     }
@@ -249,6 +262,29 @@ export default function SalesPage() {
       setInvError(err instanceof ApiError ? err.message : "Failed to create invoice.");
     } finally {
       setInvWorking(false);
+    }
+  }
+
+  async function handleAddCreditNote(e: React.FormEvent) {
+    e.preventDefault();
+    setCnWorking(true);
+    setCnError(null);
+    try {
+      await api.createCreditNote({
+        invoice: Number(cnInvoice),
+        amount_cents: Math.round(Number(cnAmount || 0) * 100),
+        tax_amount_cents: Math.round(Number(cnTax || 0) * 100),
+        reason: cnReason,
+      });
+      setCnInvoice("");
+      setCnAmount("");
+      setCnTax("0");
+      setCnReason("");
+      await loadAll();
+    } catch (err) {
+      setCnError(err instanceof ApiError ? err.message : "Failed to create credit note.");
+    } finally {
+      setCnWorking(false);
     }
   }
 
@@ -452,6 +488,7 @@ export default function SalesPage() {
                   rows={qLines}
                   onChange={setQLines}
                   priceLabel="Unit price"
+                  showDiscount
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                   <button type="submit" disabled={qWorking || !qCustomer} style={{ padding: "8px 16px" }}>
@@ -552,6 +589,7 @@ export default function SalesPage() {
                   rows={soLines}
                   onChange={setSoLines}
                   priceLabel="Unit price"
+                  showDiscount
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                   <button type="submit" disabled={soWorking || !soCustomer} style={{ padding: "8px 16px" }}>
@@ -683,6 +721,108 @@ export default function SalesPage() {
                 </button>
                 {invError && (
                   <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{invError}</p>
+                )}
+              </form>
+            )}
+          </section>
+
+          {/* Credit Notes */}
+          <section style={{ marginTop: 40, marginBottom: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Credit notes
+            </h2>
+            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+              Reduces an already-issued invoice — a refund, a pricing error, a partial return.
+              Can&apos;t exceed what&apos;s still owed on the invoice.
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Number</th>
+                  <th style={{ padding: "6px 4px" }}>Invoice</th>
+                  <th style={{ padding: "6px 4px" }}>Amount</th>
+                  <th style={{ padding: "6px 4px" }}>Tax</th>
+                  <th style={{ padding: "6px 4px" }}>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {creditNotes?.map((cn) => (
+                  <tr key={cn.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{cn.credit_note_number}</td>
+                    <td style={{ padding: "6px 4px" }}>
+                      {invoices?.find((inv) => inv.id === cn.invoice)?.invoice_number ?? "—"}
+                    </td>
+                    <td style={{ padding: "6px 4px" }}>{formatCents(cn.amount_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{formatCents(cn.tax_amount_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{cn.reason}</td>
+                  </tr>
+                ))}
+                {creditNotes?.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                      No credit notes yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {canManage && (
+              <form
+                onSubmit={handleAddCreditNote}
+                style={{
+                  marginTop: 12,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                  maxWidth: 800,
+                }}
+              >
+                <select
+                  required
+                  value={cnInvoice}
+                  onChange={(e) => setCnInvoice(e.target.value)}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">Invoice…</option>
+                  {invoices?.map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.invoice_number} ({formatCents(inv.amount_cents + inv.tax_amount_cents)})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  placeholder="Amount"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={cnAmount}
+                  onChange={(e) => setCnAmount(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Tax amount"
+                  type="number"
+                  step="0.01"
+                  value={cnTax}
+                  onChange={(e) => setCnTax(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Reason"
+                  value={cnReason}
+                  onChange={(e) => setCnReason(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <button
+                  type="submit"
+                  disabled={cnWorking || !cnInvoice || !cnAmount}
+                  style={{ padding: "8px 16px" }}
+                >
+                  Issue credit note
+                </button>
+                {cnError && (
+                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{cnError}</p>
                 )}
               </form>
             )}
