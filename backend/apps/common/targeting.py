@@ -36,6 +36,7 @@ ALLOWED_TARGETS = {
     "expenses.expense": ("expenses", "Expense"),
     "hr.employeecontract": ("hr", "Employee Contract"),
     "hr.leaverequest": ("hr", "Leave Request"),
+    "payroll.payrollrun": ("hr", "Payroll Run"),
 }
 
 

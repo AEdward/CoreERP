@@ -262,6 +262,8 @@ export default function HrPage() {
           <h1 style={{ fontSize: 20 }}>HR — {activeMembership.company.name}</h1>
           <p style={{ color: "#666", fontSize: 13 }}>
             <a href="/dashboard/hr/leave-and-contracts">Leave requests & employee contracts &rarr;</a>
+            {" · "}
+            <a href="/dashboard/hr/payroll">Payroll &rarr;</a>
           </p>
           {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
 

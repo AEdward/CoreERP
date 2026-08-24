@@ -31,6 +31,11 @@ class Account(TenantModel):
         RETAINED_EARNINGS = "retained_earnings", "Retained Earnings"
         DEPRECIATION_EXPENSE = "depreciation_expense", "Depreciation Expense"
         ACCUMULATED_DEPRECIATION = "accumulated_depreciation", "Accumulated Depreciation"
+        SALARY_EXPENSE = "salary_expense", "Salary Expense"
+        PENSION_EXPENSE = "pension_expense", "Pension Expense (Employer)"
+        PAYROLL_PAYABLE = "payroll_payable", "Payroll Payable"
+        PAYE_PAYABLE = "paye_payable", "PAYE Payable"
+        PENSION_PAYABLE = "pension_payable", "Pension Payable"
 
     code = models.CharField(max_length=20)
     name = models.CharField(max_length=100)

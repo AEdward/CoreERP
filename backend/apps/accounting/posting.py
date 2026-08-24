@@ -321,3 +321,85 @@ def post_depreciation_journal(asset, *, on_date):
         company=company, journal_entry=entry, account=accumulated_depreciation, credit_cents=amount
     )
     return amount
+
+
+@transaction.atomic
+def post_payroll_run_journal(run):
+    """Processing a payroll run books the whole cycle's obligation in
+    one entry, aggregated across every employee's Payslip rather than
+    one entry per employee (same "one entry for the whole sweep"
+    reasoning post_period_close_journal uses): Dr Salary Expense (total
+    gross), Dr Pension Expense (total employer 11% — a real additional
+    cost to the company, not deducted from anyone's pay), Cr Payroll
+    Payable (total net pay — what's actually owed to employees until
+    paid), Cr PAYE Payable (withheld income tax owed to the tax
+    authority), Cr Pension Payable (both employee 7% and employer 11%,
+    owed to the pension fund). Any custom SalaryComponent deductions
+    (e.g. a company-defined recovery/deduction) reduce net pay but have
+    no dedicated GL destination of their own in this first version — they
+    stay folded into Payroll Payable, the same simplification Bill's
+    amount+tax-together posting already makes rather than splitting out
+    every possible sub-liability."""
+    company = run.company
+    salary_expense = _get_account(company, Account.Role.SALARY_EXPENSE)
+    pension_expense = _get_account(company, Account.Role.PENSION_EXPENSE)
+    payroll_payable = _get_account(company, Account.Role.PAYROLL_PAYABLE)
+    paye_payable = _get_account(company, Account.Role.PAYE_PAYABLE)
+    pension_payable = _get_account(company, Account.Role.PENSION_PAYABLE)
+
+    totals = run.payslips.aggregate(
+        gross=Sum("gross_cents"),
+        paye=Sum("paye_tax_cents"),
+        pension_employee=Sum("pension_employee_cents"),
+        pension_employer=Sum("pension_employer_cents"),
+        net_pay=Sum("net_pay_cents"),
+    )
+    gross = totals["gross"] or 0
+    paye = totals["paye"] or 0
+    pension_employee = totals["pension_employee"] or 0
+    pension_employer = totals["pension_employer"] or 0
+    net_pay = totals["net_pay"] or 0
+    total_pension = pension_employee + pension_employer
+
+    entry = JournalEntry.objects.create(
+        company=company, reference=f"PAYROLL-{run.pk}", memo=f"Payroll run: {run.label}"
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=salary_expense, debit_cents=gross
+    )
+    if pension_employer:
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=pension_expense, debit_cents=pension_employer
+        )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=payroll_payable, credit_cents=net_pay
+    )
+    if paye:
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=paye_payable, credit_cents=paye
+        )
+    if total_pension:
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=pension_payable, credit_cents=total_pension
+        )
+
+
+@transaction.atomic
+def post_payroll_payment_journal(run):
+    """Paying out a processed run's net wages: Dr Payroll Payable, Cr
+    Cash — the same "clear the obligation, move cash" shape a Payment
+    against a Bill already uses, just for the payroll run's aggregate net
+    pay instead of one supplier's balance."""
+    company = run.company
+    payroll_payable = _get_account(company, Account.Role.PAYROLL_PAYABLE)
+    cash = _get_account(company, Account.Role.CASH)
+
+    net_pay = run.payslips.aggregate(net_pay=Sum("net_pay_cents"))["net_pay"] or 0
+
+    entry = JournalEntry.objects.create(
+        company=company, reference=f"PAYROLL-PAY-{run.pk}", memo=f"Payroll payment: {run.label}"
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=payroll_payable, debit_cents=net_pay
+    )
+    JournalLine.objects.create(company=company, journal_entry=entry, account=cash, credit_cents=net_pay)

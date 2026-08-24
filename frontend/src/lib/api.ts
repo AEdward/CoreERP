@@ -167,6 +167,60 @@ export interface AttendanceRecord {
   created_at: string;
 }
 
+// --- Payroll ---
+
+export interface SalaryComponent {
+  id: number;
+  name: string;
+  category: "earning" | "deduction";
+  is_taxable: boolean;
+  created_at: string;
+}
+
+export interface EmployeeSalaryComponent {
+  id: number;
+  employee: number;
+  component: number;
+  component_name: string;
+  component_category: "earning" | "deduction";
+  amount_cents: number;
+  created_at: string;
+}
+
+export interface PayrollRun {
+  id: number;
+  label: string;
+  start_date: string;
+  end_date: string;
+  status: "draft" | "processed" | "paid";
+  processed_at: string | null;
+  paid_at: string | null;
+  total_net_pay_cents: number;
+  created_at: string;
+}
+
+export interface PayslipLine {
+  id: number;
+  label: string;
+  line_type: "earning" | "deduction";
+  amount_cents: number;
+}
+
+export interface Payslip {
+  id: number;
+  payroll_run: number;
+  employee: number;
+  gross_cents: number;
+  taxable_income_cents: number;
+  paye_tax_cents: number;
+  pension_employee_cents: number;
+  pension_employer_cents: number;
+  other_deductions_cents: number;
+  net_pay_cents: number;
+  lines: PayslipLine[];
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -918,6 +972,42 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ records }),
     }),
+
+  // --- Payroll ---
+  listSalaryComponents: () => request<SalaryComponent[]>("/api/payroll/salary-components/"),
+  createSalaryComponent: (data: { name: string; category: SalaryComponent["category"]; is_taxable?: boolean }) =>
+    request<SalaryComponent>("/api/payroll/salary-components/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteSalaryComponent: (id: number) =>
+    request<void>(`/api/payroll/salary-components/${id}/`, { method: "DELETE" }),
+  listEmployeeSalaryComponents: (employeeId?: number) =>
+    request<EmployeeSalaryComponent[]>(
+      `/api/payroll/employee-salary-components/${employeeId ? `?employee=${employeeId}` : ""}`
+    ),
+  createEmployeeSalaryComponent: (data: { employee: number; component: number; amount_cents: number }) =>
+    request<EmployeeSalaryComponent>("/api/payroll/employee-salary-components/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteEmployeeSalaryComponent: (id: number) =>
+    request<void>(`/api/payroll/employee-salary-components/${id}/`, { method: "DELETE" }),
+  listPayrollRuns: () => request<PayrollRun[]>("/api/payroll/runs/"),
+  createPayrollRun: (data: { label: string; start_date: string; end_date: string }) =>
+    request<PayrollRun>("/api/payroll/runs/", { method: "POST", body: JSON.stringify(data) }),
+  deletePayrollRun: (id: number) => request<void>(`/api/payroll/runs/${id}/`, { method: "DELETE" }),
+  processPayrollRun: (id: number) =>
+    request<PayrollRun>(`/api/payroll/runs/${id}/process/`, { method: "POST" }),
+  markPayrollRunPaid: (id: number) =>
+    request<PayrollRun>(`/api/payroll/runs/${id}/mark_paid/`, { method: "POST" }),
+  listPayslips: (params?: { payroll_run?: number; employee?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.payroll_run) qs.set("payroll_run", String(params.payroll_run));
+    if (params?.employee) qs.set("employee", String(params.employee));
+    const query = qs.toString();
+    return request<Payslip[]>(`/api/payroll/payslips/${query ? `?${query}` : ""}`);
+  },
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),
