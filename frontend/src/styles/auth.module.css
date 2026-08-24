@@ -1,0 +1,155 @@
+/* Shared look for Login and Signup — same gradient as the app launcher,
+   a centered white card. See docs/FRONTEND_DESIGN.md §2. */
+
+.shell {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--launcher-gradient);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  padding: var(--space-6);
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-8) var(--space-6);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--gray-900);
+  margin-bottom: var(--space-1);
+}
+
+.brandMark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 15px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.subtitle {
+  color: var(--gray-500);
+  font-size: 13px;
+  margin-bottom: var(--space-6);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.input {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-300);
+  font-size: 14px;
+  color: var(--gray-800);
+  width: 100%;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.error {
+  color: var(--status-danger);
+  font-size: 13px;
+  background: #fdecea;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.submit {
+  padding: 11px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--brand-600);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--brand-700);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.footer {
+  margin-top: var(--space-6);
+  text-align: center;
+  font-size: 13px;
+  color: var(--gray-600);
+}
+
+.footer a {
+  color: var(--brand-600);
+  font-weight: 600;
+}
+
+.demoHint {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--gray-100);
+  color: var(--gray-400);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.demoHint code {
+  background: var(--gray-100);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--gray-600);
+}

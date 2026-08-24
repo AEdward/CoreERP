@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import styles from "@/styles/auth.module.css";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -30,33 +32,56 @@ export default function SignupPage() {
   }
 
   return (
-    <main style={{ maxWidth: 360, margin: "80px auto", fontFamily: "sans-serif" }}>
-      <h1>Create your account</h1>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <label>
-          First name
-          <input value={form.first_name} onChange={update("first_name")} style={{ display: "block", width: "100%", padding: 8 }} />
-        </label>
-        <label>
-          Last name
-          <input value={form.last_name} onChange={update("last_name")} style={{ display: "block", width: "100%", padding: 8 }} />
-        </label>
-        <label>
-          Email
-          <input type="email" required value={form.email} onChange={update("email")} style={{ display: "block", width: "100%", padding: 8 }} />
-        </label>
-        <label>
-          Password
-          <input type="password" required minLength={8} value={form.password} onChange={update("password")} style={{ display: "block", width: "100%", padding: 8 }} />
-        </label>
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <button type="submit" disabled={submitting} style={{ padding: 10 }}>
-          {submitting ? "Creating…" : "Sign up"}
-        </button>
-      </form>
-      <p style={{ marginTop: 16 }}>
-        Already have an account? <a href="/login">Sign in</a>
-      </p>
-    </main>
+    <div className={styles.shell}>
+      <div className={styles.card}>
+        <div className={styles.brand}>
+          <span className={styles.brandMark}>C</span>
+          CoreERP
+        </div>
+        <p className={styles.subtitle}>Create your account.</p>
+
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.row2}>
+            <label className={styles.field}>
+              <span className={styles.label}>First name</span>
+              <input value={form.first_name} onChange={update("first_name")} className={styles.input} />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>Last name</span>
+              <input value={form.last_name} onChange={update("last_name")} className={styles.input} />
+            </label>
+          </div>
+          <label className={styles.field}>
+            <span className={styles.label}>Email</span>
+            <input
+              type="email"
+              required
+              value={form.email}
+              onChange={update("email")}
+              className={styles.input}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Password</span>
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={form.password}
+              onChange={update("password")}
+              className={styles.input}
+            />
+          </label>
+          {error && <p className={styles.error}>{error}</p>}
+          <button type="submit" disabled={submitting} className={styles.submit}>
+            {submitting ? "Creating…" : "Sign up"}
+          </button>
+        </form>
+
+        <p className={styles.footer}>
+          Already have an account? <Link href="/login">Sign in</Link>
+        </p>
+      </div>
+    </div>
   );
 }
