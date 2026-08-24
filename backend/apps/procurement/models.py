@@ -1,8 +1,60 @@
+from django.conf import settings
 from django.db import models
 
 from apps.catalog.models import Item
 from apps.common.models import TenantModel
 from apps.suppliers.models import Supplier
+
+
+class PurchaseRequest(TenantModel):
+    """The internal "we need to buy this" step before a PurchaseOrder
+    exists — no supplier yet, just what's needed and why. Goes through
+    apps.approvals the identical way PurchaseOrder does (a third real
+    consumer, after PurchaseOrder and Expense — see that registry's own
+    docstring), and `convert()` is the one bridge from an approved
+    request into a real Draft PurchaseOrder against a chosen supplier,
+    the same "convert" shape apps.crm.Lead uses for prospect -> Customer.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SUBMITTED = "submitted", "Submitted"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        CONVERTED = "converted", "Converted"
+
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    justification = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
+    converted_purchase_order = models.ForeignKey(
+        "PurchaseOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        db_table = "purchase_requests"
+        ordering = ["-created_at"]
+
+    @property
+    def total_cents(self):
+        return sum(line.quantity * line.estimated_unit_cost_cents for line in self.lines.all())
+
+    def __str__(self):
+        return f"PR-{self.id}"
+
+
+class PurchaseRequestLine(TenantModel):
+    purchase_request = models.ForeignKey(PurchaseRequest, on_delete=models.CASCADE, related_name="lines")
+    item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name="+")
+    quantity = models.PositiveIntegerField()
+    estimated_unit_cost_cents = models.BigIntegerField(default=0)
+
+    class Meta:
+        db_table = "purchase_request_lines"
+
+    def __str__(self):
+        return f"{self.quantity} x {self.item}"
 
 
 class PurchaseOrder(TenantModel):
@@ -38,6 +90,12 @@ class PurchaseOrderLine(TenantModel):
     item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name="+")
     quantity = models.PositiveIntegerField()
     unit_cost_cents = models.BigIntegerField()
+    # Closes the "(partial) Goods Receipt" gap — cumulative quantity
+    # actually received against this line, via PurchaseOrderViewSet.receive.
+    # Partial receipts are allowed (a delivery can arrive in batches);
+    # the PO as a whole flips to RECEIVED once every line's outstanding
+    # quantity reaches zero.
+    received_quantity = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = "purchase_order_lines"
@@ -45,6 +103,10 @@ class PurchaseOrderLine(TenantModel):
     @property
     def line_total_cents(self):
         return self.quantity * self.unit_cost_cents
+
+    @property
+    def outstanding_quantity(self):
+        return self.quantity - self.received_quantity
 
     def __str__(self):
         return f"{self.quantity} x {self.item}"

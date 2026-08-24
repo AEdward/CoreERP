@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { ActivityPanel } from "@/components/ActivityPanel";
@@ -8,7 +8,17 @@ import { ApprovalPanel } from "@/components/ApprovalPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
-import { api, ApiError, type Bill, type Item, type PurchaseOrder, type Supplier } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type Bill,
+  type CompanyMember,
+  type Item,
+  type PurchaseOrder,
+  type PurchaseRequest,
+  type Supplier,
+  type Warehouse,
+} from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
 function poLinesToRows(lines: PurchaseOrder["lines"]): LineItemRow[] {
@@ -30,6 +40,9 @@ export default function ProcurementPage() {
 
   const [suppliers, setSuppliers] = useState<Supplier[] | null>(null);
   const [items, setItems] = useState<Item[] | null>(null);
+  const [warehouses, setWarehouses] = useState<Warehouse[] | null>(null);
+  const [members, setMembers] = useState<CompanyMember[] | null>(null);
+  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[] | null>(null);
   const [orders, setOrders] = useState<PurchaseOrder[] | null>(null);
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -38,12 +51,26 @@ export default function ProcurementPage() {
   const [supplierWorking, setSupplierWorking] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<number | null>(null);
 
+  const [prRequestedBy, setPrRequestedBy] = useState("");
+  const [prJustification, setPrJustification] = useState("");
+  const [prLines, setPrLines] = useState<LineItemRow[]>([{ ...EMPTY_LINE }]);
+  const [prWorking, setPrWorking] = useState(false);
+  const [prError, setPrError] = useState<string | null>(null);
+  const [convertingPrId, setConvertingPrId] = useState<number | null>(null);
+  const [convertSupplier, setConvertSupplier] = useState("");
+
   const [poSupplier, setPoSupplier] = useState("");
   const [poStatus, setPoStatus] = useState<PurchaseOrder["status"]>("draft");
   const [poLines, setPoLines] = useState<LineItemRow[]>([{ ...EMPTY_LINE }]);
   const [poWorking, setPoWorking] = useState(false);
   const [poError, setPoError] = useState<string | null>(null);
   const [editingPoId, setEditingPoId] = useState<number | null>(null);
+
+  const [receivingOrderId, setReceivingOrderId] = useState<number | null>(null);
+  const [receiveWarehouse, setReceiveWarehouse] = useState("");
+  const [receiveQuantities, setReceiveQuantities] = useState<Record<number, string>>({});
+  const [receiveWorking, setReceiveWorking] = useState(false);
+  const [receiveError, setReceiveError] = useState<string | null>(null);
 
   const [billPo, setBillPo] = useState("");
   const [billAmount, setBillAmount] = useState("");
@@ -54,14 +81,20 @@ export default function ProcurementPage() {
 
   async function loadAll() {
     try {
-      const [s, i, o, b] = await Promise.all([
+      const [s, i, w, m, pr, o, b] = await Promise.all([
         api.listSuppliers(),
         api.listItems(),
+        api.listWarehouses(),
+        api.listCompanyMembers(),
+        api.listPurchaseRequests(),
         api.listPurchaseOrders(),
         api.listBills(),
       ]);
       setSuppliers(s);
       setItems(i);
+      setWarehouses(w);
+      setMembers(m);
+      setPurchaseRequests(pr);
       setOrders(o);
       setBills(b);
     } catch (err) {
@@ -113,6 +146,84 @@ export default function ProcurementPage() {
       await loadAll();
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to delete supplier.");
+    }
+  }
+
+  async function handleAddPurchaseRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setPrWorking(true);
+    setPrError(null);
+    try {
+      const lines = prLines
+        .filter((l) => l.item && l.quantity)
+        .map((l) => ({
+          item: Number(l.item),
+          quantity: Number(l.quantity),
+          estimated_unit_cost_cents: Math.round(Number(l.unitPrice || 0) * 100),
+        }));
+      await api.createPurchaseRequest({
+        requested_by: prRequestedBy ? Number(prRequestedBy) : null,
+        justification: prJustification,
+        lines,
+      });
+      setPrRequestedBy("");
+      setPrJustification("");
+      setPrLines([{ ...EMPTY_LINE }]);
+      await loadAll();
+    } catch (err) {
+      setPrError(err instanceof ApiError ? err.message : "Failed to save purchase request.");
+    } finally {
+      setPrWorking(false);
+    }
+  }
+
+  async function handleDeletePurchaseRequest(id: number) {
+    try {
+      await api.deletePurchaseRequest(id);
+      await loadAll();
+    } catch (err) {
+      setPrError(err instanceof ApiError ? err.message : "Failed to delete purchase request.");
+    }
+  }
+
+  async function handleConvertPurchaseRequest(id: number) {
+    if (!convertSupplier) return;
+    setPrWorking(true);
+    setPrError(null);
+    try {
+      await api.convertPurchaseRequest(id, Number(convertSupplier));
+      setConvertingPrId(null);
+      setConvertSupplier("");
+      await loadAll();
+    } catch (err) {
+      setPrError(err instanceof ApiError ? err.message : "Failed to convert purchase request.");
+    } finally {
+      setPrWorking(false);
+    }
+  }
+
+  async function handleReceive(order: PurchaseOrder) {
+    if (!receiveWarehouse) return;
+    setReceiveWorking(true);
+    setReceiveError(null);
+    try {
+      const lines = order.lines
+        .filter((l) => Number(receiveQuantities[l.id] || 0) > 0)
+        .map((l) => ({ line: l.id, quantity: Number(receiveQuantities[l.id]) }));
+      if (lines.length === 0) {
+        setReceiveError("Enter a quantity for at least one line.");
+        setReceiveWorking(false);
+        return;
+      }
+      await api.receivePurchaseOrder(order.id, { warehouse: Number(receiveWarehouse), lines });
+      setReceivingOrderId(null);
+      setReceiveWarehouse("");
+      setReceiveQuantities({});
+      await loadAll();
+    } catch (err) {
+      setReceiveError(err instanceof ApiError ? err.message : "Failed to receive stock.");
+    } finally {
+      setReceiveWorking(false);
     }
   }
 
@@ -315,6 +426,140 @@ export default function ProcurementPage() {
             )}
           </section>
 
+          {/* Purchase Requests */}
+          <section style={{ marginTop: 40, marginBottom: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Purchase requests
+            </h2>
+            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+              The internal &quot;we need to buy this&quot; step before a supplier is chosen. Request
+              approval from the panel on each row; once approved, convert it into a real draft
+              purchase order against a supplier.
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Requested by</th>
+                  <th style={{ padding: "6px 4px" }}>Justification</th>
+                  <th style={{ padding: "6px 4px" }}>Lines</th>
+                  <th style={{ padding: "6px 4px" }}>Est. total</th>
+                  <th style={{ padding: "6px 4px" }}>Status</th>
+                  <th></th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {purchaseRequests?.map((pr) => (
+                  <tr key={pr.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{pr.requested_by_name || "—"}</td>
+                    <td style={{ padding: "6px 4px" }}>{pr.justification}</td>
+                    <td style={{ padding: "6px 4px" }}>{pr.lines.length}</td>
+                    <td style={{ padding: "6px 4px" }}>{formatCents(pr.total_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{pr.status}</td>
+                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                        <ApprovalPanel
+                          target={{ appLabel: "procurement", model: "purchaserequest", objectId: pr.id }}
+                          canManage={canManage}
+                        />
+                        {canManage && pr.status === "approved" && convertingPrId !== pr.id && (
+                          <button
+                            type="button"
+                            onClick={() => setConvertingPrId(pr.id)}
+                            style={{ padding: "4px 10px" }}
+                          >
+                            Convert to PO
+                          </button>
+                        )}
+                        {canManage && convertingPrId === pr.id && (
+                          <>
+                            <select
+                              value={convertSupplier}
+                              onChange={(e) => setConvertSupplier(e.target.value)}
+                              style={{ padding: 4 }}
+                            >
+                              <option value="">Supplier…</option>
+                              {suppliers?.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              disabled={prWorking || !convertSupplier}
+                              onClick={() => handleConvertPurchaseRequest(pr.id)}
+                              style={{ padding: "4px 10px" }}
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConvertingPrId(null);
+                                setConvertSupplier("");
+                              }}
+                              style={{ padding: "4px 10px" }}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions onDelete={() => handleDeletePurchaseRequest(pr.id)} disabled={prWorking} />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {purchaseRequests?.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
+                      No purchase requests yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {canManage && (
+              <form onSubmit={handleAddPurchaseRequest} style={{ marginTop: 16, maxWidth: 640 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <select
+                    value={prRequestedBy}
+                    onChange={(e) => setPrRequestedBy(e.target.value)}
+                    style={{ padding: 8, flex: 1 }}
+                  >
+                    <option value="">Requested by…</option>
+                    {members?.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    placeholder="Justification"
+                    value={prJustification}
+                    onChange={(e) => setPrJustification(e.target.value)}
+                    style={{ padding: 8, flex: 2 }}
+                  />
+                </div>
+                <LineItemsEditor
+                  items={items ?? []}
+                  rows={prLines}
+                  onChange={setPrLines}
+                  priceLabel="Est. unit cost"
+                />
+                <button type="submit" disabled={prWorking} style={{ padding: "8px 16px", marginTop: 8 }}>
+                  Add purchase request
+                </button>
+                {prError && <p style={{ color: "crimson" }}>{prError}</p>}
+              </form>
+            )}
+          </section>
+
           {/* Purchase Orders */}
           <section style={{ marginTop: 40, marginBottom: 40 }}>
             <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
@@ -333,40 +578,121 @@ export default function ProcurementPage() {
               </thead>
               <tbody>
                 {orders?.map((o) => (
-                  <tr key={o.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{supplierName(o.supplier)}</td>
-                    <td style={{ padding: "6px 4px" }}>{o.status}</td>
-                    <td style={{ padding: "6px 4px" }}>{o.lines.length}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                      <span style={{ display: "inline-flex", gap: 6 }}>
-                        <DocumentsPanel
-                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
-                          canManage={canManage}
-                        />
-                        <NotesPanel
-                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
-                          canManage={canManage}
-                        />
-                        <ActivityPanel
-                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
-                        />
-                        <ApprovalPanel
-                          target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
-                          canManage={canManage}
-                        />
-                      </span>
-                    </td>
-                    {canManage && (
+                  <Fragment key={o.id}>
+                    <tr style={{ borderBottom: "1px solid #eee" }}>
+                      <td style={{ padding: "6px 4px" }}>{supplierName(o.supplier)}</td>
+                      <td style={{ padding: "6px 4px" }}>{o.status}</td>
+                      <td style={{ padding: "6px 4px" }}>{o.lines.length}</td>
+                      <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions
-                          onEdit={() => startEditPurchaseOrder(o)}
-                          onDelete={() => handleDeletePurchaseOrder(o.id)}
-                          disabled={poWorking}
-                        />
+                        <span style={{ display: "inline-flex", gap: 6 }}>
+                          <DocumentsPanel
+                            target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                            canManage={canManage}
+                          />
+                          <NotesPanel
+                            target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                            canManage={canManage}
+                          />
+                          <ActivityPanel
+                            target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                          />
+                          <ApprovalPanel
+                            target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
+                            canManage={canManage}
+                          />
+                          {canManage && o.status === "approved" && receivingOrderId !== o.id && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReceivingOrderId(o.id);
+                                setReceiveError(null);
+                              }}
+                              style={{ padding: "2px 8px", fontSize: 12 }}
+                            >
+                              Receive
+                            </button>
+                          )}
+                        </span>
                       </td>
+                      {canManage && (
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                          <RowActions
+                            onEdit={() => startEditPurchaseOrder(o)}
+                            onDelete={() => handleDeletePurchaseOrder(o.id)}
+                            disabled={poWorking}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                    {receivingOrderId === o.id && (
+                      <tr style={{ borderBottom: "1px solid #eee", background: "#fafafa" }}>
+                        <td colSpan={6} style={{ padding: "10px 4px" }}>
+                          <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                            <select
+                              value={receiveWarehouse}
+                              onChange={(e) => setReceiveWarehouse(e.target.value)}
+                              style={{ padding: 6 }}
+                            >
+                              <option value="">Warehouse…</option>
+                              {warehouses?.map((w) => (
+                                <option key={w.id} value={w.id}>
+                                  {w.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {o.lines.map((line) => (
+                            <div
+                              key={line.id}
+                              style={{ display: "flex", gap: 8, marginBottom: 4, alignItems: "center" }}
+                            >
+                              <span style={{ fontSize: 13, width: 220 }}>
+                                {items?.find((it) => it.id === line.item)?.name ?? `Item #${line.item}`}
+                                {" — outstanding "}
+                                {line.outstanding_quantity}
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={line.outstanding_quantity}
+                                placeholder="Qty to receive"
+                                value={receiveQuantities[line.id] ?? ""}
+                                onChange={(e) =>
+                                  setReceiveQuantities({ ...receiveQuantities, [line.id]: e.target.value })
+                                }
+                                disabled={line.outstanding_quantity === 0}
+                                style={{ padding: 6, width: 140 }}
+                              />
+                            </div>
+                          ))}
+                          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button
+                              type="button"
+                              disabled={receiveWorking || !receiveWarehouse}
+                              onClick={() => handleReceive(o)}
+                              style={{ padding: "6px 12px" }}
+                            >
+                              Confirm receipt
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReceivingOrderId(null);
+                                setReceiveWarehouse("");
+                                setReceiveQuantities({});
+                                setReceiveError(null);
+                              }}
+                              style={{ padding: "6px 12px" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {receiveError && <p style={{ color: "crimson" }}>{receiveError}</p>}
+                        </td>
+                      </tr>
                     )}
-                  </tr>
+                  </Fragment>
                 ))}
                 {orders?.length === 0 && (
                   <tr>

@@ -42,6 +42,11 @@ SEARCH_TARGETS = {
         "title": lambda obj: obj.name,
         "url": "/dashboard/procurement",
     },
+    "procurement.purchaserequest": {
+        "search_fields": ["justification"],
+        "title": lambda obj: f"PR-{obj.pk}",
+        "url": "/dashboard/procurement",
+    },
     "catalog.item": {
         "search_fields": ["name", "category"],
         "title": lambda obj: obj.name,

@@ -24,6 +24,11 @@ APPROVABLE_TARGETS = {
         "label": "Purchase Order",
         "url": "/dashboard/procurement",
     },
+    "procurement.purchaserequest": {
+        "permission_module": "procurement",
+        "label": "Purchase Request",
+        "url": "/dashboard/procurement",
+    },
     "expenses.expense": {
         "permission_module": "expenses",
         "label": "Expense",

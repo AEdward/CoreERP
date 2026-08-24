@@ -264,6 +264,8 @@ export interface PurchaseOrderLine {
   item: number;
   quantity: number;
   unit_cost_cents: number;
+  received_quantity: number;
+  outstanding_quantity: number;
 }
 
 export interface PurchaseOrder {
@@ -272,6 +274,25 @@ export interface PurchaseOrder {
   status: "draft" | "submitted" | "approved" | "received" | "cancelled";
   lines: PurchaseOrderLine[];
   total_cents: number;
+  created_at: string;
+}
+
+export interface PurchaseRequestLine {
+  id: number;
+  item: number;
+  quantity: number;
+  estimated_unit_cost_cents: number;
+}
+
+export interface PurchaseRequest {
+  id: number;
+  requested_by: number | null;
+  requested_by_name: string;
+  justification: string;
+  status: "draft" | "submitted" | "approved" | "rejected" | "converted";
+  lines: PurchaseRequestLine[];
+  total_cents: number;
+  converted_purchase_order: number | null;
   created_at: string;
 }
 
@@ -829,6 +850,28 @@ export const api = {
     }),
   deletePurchaseOrder: (id: number) =>
     request<void>(`/api/procurement/purchase-orders/${id}/`, { method: "DELETE" }),
+  receivePurchaseOrder: (id: number, data: { warehouse: number; lines: { line: number; quantity: number }[] }) =>
+    request<PurchaseOrder>(`/api/procurement/purchase-orders/${id}/receive/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  listPurchaseRequests: () => request<PurchaseRequest[]>("/api/procurement/purchase-requests/"),
+  createPurchaseRequest: (data: {
+    requested_by?: number | null;
+    justification?: string;
+    lines: { item: number; quantity: number; estimated_unit_cost_cents: number }[];
+  }) =>
+    request<PurchaseRequest>("/api/procurement/purchase-requests/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deletePurchaseRequest: (id: number) =>
+    request<void>(`/api/procurement/purchase-requests/${id}/`, { method: "DELETE" }),
+  convertPurchaseRequest: (id: number, supplier: number) =>
+    request<PurchaseRequest>(`/api/procurement/purchase-requests/${id}/convert/`, {
+      method: "POST",
+      body: JSON.stringify({ supplier }),
+    }),
 
   // --- Sales ---
   listQuotations: () => request<Quotation[]>("/api/sales/quotations/"),

@@ -3,16 +3,26 @@ from rest_framework import serializers
 
 from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
+from apps.companies.models import CompanyMembership
 from apps.tax.engine import compute_line_tax_cents
 
-from .models import Bill, PurchaseOrder, PurchaseOrderLine
+from .models import Bill, PurchaseOrder, PurchaseOrderLine, PurchaseRequest, PurchaseRequestLine
 
 
 class PurchaseOrderLineSerializer(serializers.ModelSerializer):
+    outstanding_quantity = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = PurchaseOrderLine
-        fields = ["id", "item", "quantity", "unit_cost_cents"]
-        read_only_fields = ["id"]
+        fields = [
+            "id",
+            "item",
+            "quantity",
+            "unit_cost_cents",
+            "received_quantity",
+            "outstanding_quantity",
+        ]
+        read_only_fields = ["id", "received_quantity"]
 
 
 class PurchaseOrderSerializer(CompanyScopedSerializer):
@@ -115,3 +125,99 @@ class BillSerializer(CompanyScopedSerializer):
             bill.bill_number = next_number(bill.company, "BILL")
             bill.save(update_fields=["bill_number"])
         return bill
+
+
+class PurchaseRequestLineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseRequestLine
+        fields = ["id", "item", "quantity", "estimated_unit_cost_cents"]
+        read_only_fields = ["id"]
+
+
+class PurchaseRequestSerializer(CompanyScopedSerializer):
+    lines = PurchaseRequestLineSerializer(many=True)
+    total_cents = serializers.IntegerField(read_only=True)
+    requested_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseRequest
+        fields = [
+            "id",
+            "requested_by",
+            "requested_by_name",
+            "justification",
+            "status",
+            "lines",
+            "total_cents",
+            "converted_purchase_order",
+            "created_at",
+        ]
+        read_only_fields = ["id", "status", "converted_purchase_order", "created_at"]
+
+    def get_requested_by_name(self, obj):
+        return obj.requested_by.full_name if obj.requested_by_id else ""
+
+    def validate_requested_by(self, requested_by):
+        # requested_by is a User, not a TenantModel, so same_company_fields
+        # (which checks .company_id) can't cover it — same pattern as
+        # apps.tasks.TaskSerializer.validate_assignee.
+        request = self.context.get("request")
+        company = getattr(request, "company", None)
+        if requested_by is not None and company is not None:
+            is_member = CompanyMembership.objects.filter(
+                user=requested_by, company=company, status=CompanyMembership.Status.ACTIVE
+            ).exists()
+            if not is_member:
+                raise serializers.ValidationError("Must be an active member of the active company.")
+        return requested_by
+
+    def validate_lines(self, lines):
+        if not lines:
+            raise serializers.ValidationError("At least one line item is required.")
+        return lines
+
+    def validate_status(self, value):
+        # Same reasoning as PurchaseOrderSerializer.validate_status —
+        # submitted/approved/rejected/converted are set by the approval
+        # flow and PurchaseRequestViewSet.convert, not edited directly.
+        if self.instance and value == self.instance.status:
+            return value
+        blocked = {
+            PurchaseRequest.Status.SUBMITTED,
+            PurchaseRequest.Status.APPROVED,
+            PurchaseRequest.Status.REJECTED,
+            PurchaseRequest.Status.CONVERTED,
+        }
+        if value in blocked:
+            raise serializers.ValidationError(
+                "Submitted/approved/rejected/converted are set by the approval flow, not edited directly."
+            )
+        return value
+
+    def _create_lines(self, purchase_request, company, lines_data):
+        for line in lines_data:
+            if line["item"].company_id != company.id:
+                raise serializers.ValidationError(
+                    {"lines": "All line items must belong to the active company."}
+                )
+            PurchaseRequestLine.objects.create(company=company, purchase_request=purchase_request, **line)
+
+    def create(self, validated_data):
+        lines_data = validated_data.pop("lines")
+        company = validated_data["company"]
+        with transaction.atomic():
+            purchase_request = PurchaseRequest.objects.create(**validated_data)
+            self._create_lines(purchase_request, company, lines_data)
+        return purchase_request
+
+    def update(self, instance, validated_data):
+        lines_data = validated_data.pop("lines", None)
+        with transaction.atomic():
+            instance.requested_by = validated_data.get("requested_by", instance.requested_by)
+            instance.justification = validated_data.get("justification", instance.justification)
+            instance.status = validated_data.get("status", instance.status)
+            instance.save()
+            if lines_data is not None:
+                instance.lines.all().delete()
+                self._create_lines(instance, instance.company, lines_data)
+        return instance

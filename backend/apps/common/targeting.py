@@ -22,6 +22,7 @@ ALLOWED_TARGETS = {
     "crm.opportunity": ("sales", "Opportunity"),
     "suppliers.supplier": ("procurement", "Supplier"),
     "catalog.item": ("inventory", "Item"),
+    "procurement.purchaserequest": ("procurement", "Purchase Request"),
     "procurement.purchaseorder": ("procurement", "Purchase Order"),
     "procurement.bill": ("procurement", "Bill"),
     "sales.quotation": ("sales", "Quotation"),
