@@ -193,6 +193,25 @@ export interface StockMovement {
   created_at: string;
 }
 
+export interface StockCountLine {
+  id: number;
+  item: number;
+  item_name: string;
+  system_quantity: number;
+  counted_quantity: number | null;
+  variance: number | null;
+}
+
+export interface StockCount {
+  id: number;
+  warehouse: number;
+  warehouse_name: string;
+  status: "open" | "completed";
+  lines: StockCountLine[];
+  completed_at: string | null;
+  created_at: string;
+}
+
 // --- CRM ---
 
 export interface Customer {
@@ -792,6 +811,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  listStockCounts: () => request<StockCount[]>("/api/inventory/stock-counts/"),
+  createStockCount: (warehouse: number) =>
+    request<StockCount>("/api/inventory/stock-counts/", {
+      method: "POST",
+      body: JSON.stringify({ warehouse }),
+    }),
+  recordStockCounts: (id: number, lines: { id: number; counted_quantity: number | null }[]) =>
+    request<StockCount>(`/api/inventory/stock-counts/${id}/record_counts/`, {
+      method: "POST",
+      body: JSON.stringify({ lines }),
+    }),
+  finalizeStockCount: (id: number) =>
+    request<StockCount>(`/api/inventory/stock-counts/${id}/finalize/`, { method: "POST" }),
 
   // --- CRM ---
   listCustomers: () => request<Customer[]>("/api/crm/customers/"),

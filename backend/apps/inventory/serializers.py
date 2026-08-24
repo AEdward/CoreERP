@@ -4,7 +4,7 @@ from rest_framework import serializers
 from apps.common.serializers import CompanyScopedSerializer
 from apps.notifications.services import notify_permission
 
-from .models import Stock, StockMovement, Warehouse
+from .models import Stock, StockCount, StockCountLine, StockMovement, Warehouse
 
 
 class WarehouseSerializer(CompanyScopedSerializer):
@@ -121,3 +121,43 @@ class StockMovementSerializer(CompanyScopedSerializer):
                     link="/dashboard/inventory",
                 )
         return movement
+
+
+class StockCountLineSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    variance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StockCountLine
+        fields = ["id", "item", "item_name", "system_quantity", "counted_quantity", "variance"]
+        read_only_fields = ["id", "item", "item_name", "system_quantity", "variance"]
+
+    def get_variance(self, obj):
+        return obj.variance
+
+
+class StockCountSerializer(CompanyScopedSerializer):
+    same_company_fields = ["warehouse"]
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+    lines = StockCountLineSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = StockCount
+        fields = ["id", "warehouse", "warehouse_name", "status", "lines", "completed_at", "created_at"]
+        read_only_fields = ["id", "status", "lines", "completed_at", "created_at"]
+
+    def create(self, validated_data):
+        company = validated_data["company"]
+        warehouse = validated_data["warehouse"]
+        with transaction.atomic():
+            count = StockCount.objects.create(**validated_data)
+            stock_rows = Stock.objects.filter(company=company, warehouse=warehouse)
+            StockCountLine.objects.bulk_create(
+                [
+                    StockCountLine(
+                        company=company, stock_count=count, item=s.item, system_quantity=s.quantity
+                    )
+                    for s in stock_rows
+                ]
+            )
+        return count

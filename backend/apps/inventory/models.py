@@ -73,3 +73,50 @@ class StockMovement(TenantModel):
 
     def __str__(self):
         return f"{self.type} {self.quantity} x {self.item} @ {self.warehouse}"
+
+
+class StockCount(TenantModel):
+    """A physical/cycle count session for one warehouse. Created with a
+    snapshot of every current Stock row for that warehouse as a
+    StockCountLine (system_quantity); staff fill in counted_quantity per
+    line, then `finalize` (StockCountViewSet) posts one adjustment
+    StockMovement per line that differs, through the same
+    StockMovementSerializer every other stock-moving feature goes
+    through — so a count's corrections show up in the same audit trail
+    and low-stock notifications as any other movement."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        COMPLETED = "completed", "Completed"
+
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="stock_counts")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "stock_counts"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Count #{self.pk} — {self.warehouse}"
+
+
+class StockCountLine(TenantModel):
+    stock_count = models.ForeignKey(StockCount, on_delete=models.CASCADE, related_name="lines")
+    item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name="+")
+    system_quantity = models.IntegerField()
+    counted_quantity = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "stock_count_lines"
+        constraints = [
+            models.UniqueConstraint(fields=["stock_count", "item"], name="unique_stock_count_item")
+        ]
+        ordering = ["item__name"]
+
+    @property
+    def variance(self):
+        return None if self.counted_quantity is None else self.counted_quantity - self.system_quantity
+
+    def __str__(self):
+        return f"{self.item} — system {self.system_quantity}, counted {self.counted_quantity}"

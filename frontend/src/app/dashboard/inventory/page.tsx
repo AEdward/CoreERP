@@ -232,6 +232,9 @@ export default function InventoryPage() {
       ) : (
         <>
           <h1 style={{ fontSize: 20 }}>Inventory & Catalog — {activeMembership.company.name}</h1>
+          <p style={{ color: "#666", fontSize: 13 }}>
+            <a href="/dashboard/inventory/stock-counts">Stock counts &rarr;</a>
+          </p>
           {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
 
           {/* Items */}
