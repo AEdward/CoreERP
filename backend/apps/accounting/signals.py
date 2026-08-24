@@ -17,7 +17,7 @@ from django.dispatch import receiver
 
 from apps.expenses.models import Expense
 from apps.notifications.services import notify_permission
-from apps.procurement.models import Bill
+from apps.procurement.models import Bill, PurchaseReturn
 from apps.sales.models import CreditNote, Invoice
 
 from .models import JournalEntry, Payment
@@ -27,6 +27,7 @@ from .posting import (
     post_expense_journal,
     post_invoice_journal,
     post_payment_journal,
+    post_purchase_return_journal,
 )
 
 
@@ -43,6 +44,19 @@ def _maybe_mark_invoice_paid(invoice):
     if total_settled >= total_due:
         invoice.status = invoice.Status.PAID
         invoice.save(update_fields=["status"])
+
+
+def _maybe_mark_bill_paid(bill):
+    """The Accounts Payable mirror of _maybe_mark_invoice_paid — a
+    Purchase Return settles what's owed on a Bill exactly like a Payment
+    does, just without cash moving."""
+    total_due = bill.amount_cents + bill.tax_amount_cents
+    total_settled = sum(p.amount_cents for p in bill.payments.all()) + sum(
+        pr.amount_cents + pr.tax_amount_cents for pr in bill.purchase_returns.all()
+    )
+    if total_settled >= total_due:
+        bill.status = bill.Status.PAID
+        bill.save(update_fields=["status"])
 
 
 @receiver(post_save, sender=Invoice)
@@ -83,6 +97,18 @@ def handle_bill_saved(sender, instance, **kwargs):
     )
 
 
+@receiver(post_save, sender=PurchaseReturn)
+def handle_purchase_return_saved(sender, instance, **kwargs):
+    if not instance.debit_note_number:
+        return
+    if JournalEntry.objects.filter(
+        company=instance.company, reference=instance.debit_note_number
+    ).exists():
+        return
+    post_purchase_return_journal(instance)
+    _maybe_mark_bill_paid(instance.bill)
+
+
 @receiver(post_save, sender=Expense)
 def handle_expense_saved(sender, instance, **kwargs):
     # No generated number to key idempotency on the way Invoice/Bill do
@@ -115,6 +141,9 @@ def handle_payment_created(sender, instance, created, **kwargs):
     target = instance.invoice or instance.bill or instance.expense
     if isinstance(target, Invoice):
         _maybe_mark_invoice_paid(target)
+        return
+    if isinstance(target, Bill):
+        _maybe_mark_bill_paid(target)
         return
     total_due = target.amount_cents + getattr(target, "tax_amount_cents", 0)
     total_paid = sum(p.amount_cents for p in target.payments.all())

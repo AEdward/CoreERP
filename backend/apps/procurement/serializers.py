@@ -6,7 +6,14 @@ from apps.common.serializers import CompanyScopedSerializer
 from apps.companies.models import CompanyMembership
 from apps.tax.engine import compute_line_tax_cents
 
-from .models import Bill, PurchaseOrder, PurchaseOrderLine, PurchaseRequest, PurchaseRequestLine
+from .models import (
+    Bill,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseRequest,
+    PurchaseRequestLine,
+    PurchaseReturn,
+)
 
 
 class PurchaseOrderLineSerializer(serializers.ModelSerializer):
@@ -221,3 +228,43 @@ class PurchaseRequestSerializer(CompanyScopedSerializer):
                 instance.lines.all().delete()
                 self._create_lines(instance, instance.company, lines_data)
         return instance
+
+
+class PurchaseReturnSerializer(CompanyScopedSerializer):
+    same_company_fields = ["bill"]
+
+    class Meta:
+        model = PurchaseReturn
+        fields = [
+            "id",
+            "bill",
+            "debit_note_number",
+            "amount_cents",
+            "tax_amount_cents",
+            "reason",
+            "created_at",
+        ]
+        read_only_fields = ["id", "debit_note_number", "created_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        bill = attrs.get("bill")
+        if bill is not None:
+            total_due = bill.amount_cents + bill.tax_amount_cents
+            already_returned = sum(
+                pr.amount_cents + pr.tax_amount_cents for pr in bill.purchase_returns.all()
+            )
+            requested = attrs.get("amount_cents", 0) + attrs.get("tax_amount_cents", 0)
+            if already_returned + requested > total_due:
+                remaining = total_due - already_returned
+                raise serializers.ValidationError(
+                    {"amount_cents": f"Exceeds the bill's remaining balance ({remaining} cents)."}
+                )
+        return attrs
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            purchase_return = PurchaseReturn.objects.create(**validated_data)
+            purchase_return.debit_note_number = next_number(purchase_return.company, "DBN")
+            purchase_return.save(update_fields=["debit_note_number"])
+        return purchase_return

@@ -361,6 +361,16 @@ export interface Bill {
   created_at: string;
 }
 
+export interface PurchaseReturn {
+  id: number;
+  bill: number;
+  debit_note_number: string;
+  amount_cents: number;
+  tax_amount_cents: number;
+  reason: string;
+  created_at: string;
+}
+
 // --- Expenses ---
 
 export interface Expense {
@@ -940,6 +950,13 @@ export const api = {
     tax_amount_cents?: number;
     due_date?: string | null;
   }) => request<Bill>("/api/procurement/bills/", { method: "POST", body: JSON.stringify(data) }),
+  listPurchaseReturns: (billId?: number) =>
+    request<PurchaseReturn[]>(`/api/procurement/purchase-returns/${billId ? `?bill=${billId}` : ""}`),
+  createPurchaseReturn: (data: { bill: number; amount_cents: number; tax_amount_cents?: number; reason?: string }) =>
+    request<PurchaseReturn>("/api/procurement/purchase-returns/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // --- Expenses ---
   listExpenses: () => request<Expense[]>("/api/expenses/"),

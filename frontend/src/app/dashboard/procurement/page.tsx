@@ -16,6 +16,7 @@ import {
   type Item,
   type PurchaseOrder,
   type PurchaseRequest,
+  type PurchaseReturn,
   type Supplier,
   type Warehouse,
 } from "@/lib/api";
@@ -45,6 +46,7 @@ export default function ProcurementPage() {
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[] | null>(null);
   const [orders, setOrders] = useState<PurchaseOrder[] | null>(null);
   const [bills, setBills] = useState<Bill[] | null>(null);
+  const [purchaseReturns, setPurchaseReturns] = useState<PurchaseReturn[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
@@ -79,9 +81,16 @@ export default function ProcurementPage() {
   const [billWorking, setBillWorking] = useState(false);
   const [billError, setBillError] = useState<string | null>(null);
 
+  const [prtBill, setPrtBill] = useState("");
+  const [prtAmount, setPrtAmount] = useState("");
+  const [prtTax, setPrtTax] = useState("0");
+  const [prtReason, setPrtReason] = useState("");
+  const [prtWorking, setPrtWorking] = useState(false);
+  const [prtError, setPrtError] = useState<string | null>(null);
+
   async function loadAll() {
     try {
-      const [s, i, w, m, pr, o, b] = await Promise.all([
+      const [s, i, w, m, pr, o, b, prt] = await Promise.all([
         api.listSuppliers(),
         api.listItems(),
         api.listWarehouses(),
@@ -89,6 +98,7 @@ export default function ProcurementPage() {
         api.listPurchaseRequests(),
         api.listPurchaseOrders(),
         api.listBills(),
+        api.listPurchaseReturns(),
       ]);
       setSuppliers(s);
       setItems(i);
@@ -97,6 +107,7 @@ export default function ProcurementPage() {
       setPurchaseRequests(pr);
       setOrders(o);
       setBills(b);
+      setPurchaseReturns(prt);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load procurement data.");
     }
@@ -293,6 +304,29 @@ export default function ProcurementPage() {
       setBillError(err instanceof ApiError ? err.message : "Failed to create bill.");
     } finally {
       setBillWorking(false);
+    }
+  }
+
+  async function handleAddPurchaseReturn(e: React.FormEvent) {
+    e.preventDefault();
+    setPrtWorking(true);
+    setPrtError(null);
+    try {
+      await api.createPurchaseReturn({
+        bill: Number(prtBill),
+        amount_cents: Math.round(Number(prtAmount || 0) * 100),
+        tax_amount_cents: Math.round(Number(prtTax || 0) * 100),
+        reason: prtReason,
+      });
+      setPrtBill("");
+      setPrtAmount("");
+      setPrtTax("0");
+      setPrtReason("");
+      await loadAll();
+    } catch (err) {
+      setPrtError(err instanceof ApiError ? err.message : "Failed to create purchase return.");
+    } finally {
+      setPrtWorking(false);
     }
   }
 
@@ -855,6 +889,109 @@ export default function ProcurementPage() {
                 </button>
                 {billError && (
                   <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{billError}</p>
+                )}
+              </form>
+            )}
+          </section>
+
+          {/* Purchase Returns (Debit Notes) */}
+          <section style={{ marginTop: 40, marginBottom: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Purchase returns (debit notes)
+            </h2>
+            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+              Reduces an already-received bill — a refund, a pricing error, a return to the
+              supplier. Financial only; doesn&apos;t reverse physical stock. Can&apos;t exceed
+              what&apos;s still owed on the bill.
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Number</th>
+                  <th style={{ padding: "6px 4px" }}>Bill</th>
+                  <th style={{ padding: "6px 4px" }}>Amount</th>
+                  <th style={{ padding: "6px 4px" }}>Tax</th>
+                  <th style={{ padding: "6px 4px" }}>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchaseReturns?.map((prt) => (
+                  <tr key={prt.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{prt.debit_note_number}</td>
+                    <td style={{ padding: "6px 4px" }}>
+                      {bills?.find((b) => b.id === prt.bill)?.bill_number ?? "—"}
+                    </td>
+                    <td style={{ padding: "6px 4px" }}>{formatCents(prt.amount_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{formatCents(prt.tax_amount_cents)}</td>
+                    <td style={{ padding: "6px 4px" }}>{prt.reason}</td>
+                  </tr>
+                ))}
+                {purchaseReturns?.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                      No purchase returns yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {canManage && (
+              <form
+                onSubmit={handleAddPurchaseReturn}
+                style={{
+                  marginTop: 12,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 8,
+                  maxWidth: 800,
+                }}
+              >
+                <select
+                  required
+                  value={prtBill}
+                  onChange={(e) => setPrtBill(e.target.value)}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">Bill…</option>
+                  {bills?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.bill_number} ({formatCents(b.amount_cents + b.tax_amount_cents)})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  placeholder="Amount"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={prtAmount}
+                  onChange={(e) => setPrtAmount(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Tax amount"
+                  type="number"
+                  step="0.01"
+                  value={prtTax}
+                  onChange={(e) => setPrtTax(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Reason"
+                  value={prtReason}
+                  onChange={(e) => setPrtReason(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <button
+                  type="submit"
+                  disabled={prtWorking || !prtBill || !prtAmount}
+                  style={{ padding: "8px 16px" }}
+                >
+                  Issue debit note
+                </button>
+                {prtError && (
+                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{prtError}</p>
                 )}
               </form>
             )}

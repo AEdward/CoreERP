@@ -57,6 +57,11 @@ SEARCH_TARGETS = {
         "title": lambda obj: obj.bill_number or f"Bill #{obj.pk}",
         "url": "/dashboard/procurement",
     },
+    "procurement.purchasereturn": {
+        "search_fields": ["debit_note_number", "reason"],
+        "title": lambda obj: obj.debit_note_number or f"Debit Note #{obj.pk}",
+        "url": "/dashboard/procurement",
+    },
     "sales.invoice": {
         "search_fields": ["invoice_number"],
         "title": lambda obj: obj.invoice_number or f"Invoice #{obj.pk}",

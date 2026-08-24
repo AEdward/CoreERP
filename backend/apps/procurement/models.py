@@ -144,3 +144,34 @@ class Bill(TenantModel):
 
     def __str__(self):
         return self.bill_number or f"Bill #{self.pk}"
+
+
+class PurchaseReturn(TenantModel):
+    """Reduces an already-received Bill — the Accounts Payable mirror of
+    apps.sales.CreditNote (a "Debit Note"). Financial-only, the same
+    scope CreditNote has: doesn't reverse physical stock, even though
+    Goods Receipt above now gives Procurement a real PO<->Stock link
+    Sales still lacks. Wiring an actual StockMovement(type=out) reversal
+    in against a specific received line is a reasonable next increment
+    once there's a real case to shape it around — not bundled into this
+    one, to keep the pattern identical (and identically low-risk) to
+    CreditNote's.
+    """
+
+    bill = models.ForeignKey(Bill, on_delete=models.PROTECT, related_name="purchase_returns")
+    debit_note_number = models.CharField(max_length=32, blank=True)
+    amount_cents = models.BigIntegerField()
+    tax_amount_cents = models.BigIntegerField(default=0)
+    reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "purchase_returns"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "debit_note_number"], name="unique_company_debit_note_number"
+            )
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.debit_note_number or f"Debit Note #{self.pk}"

@@ -25,6 +25,7 @@ ALLOWED_TARGETS = {
     "procurement.purchaserequest": ("procurement", "Purchase Request"),
     "procurement.purchaseorder": ("procurement", "Purchase Order"),
     "procurement.bill": ("procurement", "Bill"),
+    "procurement.purchasereturn": ("procurement", "Purchase Return"),
     "sales.quotation": ("sales", "Quotation"),
     "sales.salesorder": ("sales", "Sales Order"),
     "sales.invoice": ("sales", "Invoice"),

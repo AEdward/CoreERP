@@ -9,8 +9,13 @@ from apps.common.views import CompanyScopedViewSet
 from apps.inventory.serializers import StockMovementSerializer
 from apps.suppliers.models import Supplier
 
-from .models import Bill, PurchaseOrder, PurchaseOrderLine, PurchaseRequest
-from .serializers import BillSerializer, PurchaseOrderSerializer, PurchaseRequestSerializer
+from .models import Bill, PurchaseOrder, PurchaseOrderLine, PurchaseRequest, PurchaseReturn
+from .serializers import (
+    BillSerializer,
+    PurchaseOrderSerializer,
+    PurchaseRequestSerializer,
+    PurchaseReturnSerializer,
+)
 
 
 class PurchaseRequestViewSet(CompanyScopedViewSet):
@@ -125,3 +130,19 @@ class BillViewSet(CompanyScopedViewSet):
     # journal entry, so it's append-only to keep the ledger and the
     # document in sync.
     http_method_names = ["get", "post", "head", "options"]
+
+
+class PurchaseReturnViewSet(CompanyScopedViewSet):
+    queryset = PurchaseReturn.objects.select_related("bill")
+    serializer_class = PurchaseReturnSerializer
+    permission_module = "procurement"
+    # Same reasoning as CreditNoteViewSet: posts a journal entry on
+    # creation, so it's append-only to keep the ledger in sync.
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        bill_id = self.request.query_params.get("bill")
+        if bill_id:
+            qs = qs.filter(bill_id=bill_id)
+        return qs

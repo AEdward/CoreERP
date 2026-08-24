@@ -121,6 +121,27 @@ def post_bill_journal(bill):
 
 
 @transaction.atomic
+def post_purchase_return_journal(purchase_return):
+    """A Purchase Return (Debit Note) is the exact reverse of the Bill
+    entry it's against: Dr Accounts Payable, Cr Default Expense — the
+    same combined amount+tax treatment post_bill_journal uses (no
+    separate input-tax split), so the reversal matches it line for
+    line."""
+    company = purchase_return.company
+    ap = _get_account(company, Account.Role.ACCOUNTS_PAYABLE)
+    expense = _get_account(company, Account.Role.DEFAULT_EXPENSE)
+    total = purchase_return.amount_cents + purchase_return.tax_amount_cents
+
+    entry = JournalEntry.objects.create(
+        company=company,
+        reference=purchase_return.debit_note_number,
+        memo=f"Debit Note {purchase_return.debit_note_number} (against {purchase_return.bill})",
+    )
+    JournalLine.objects.create(company=company, journal_entry=entry, account=ap, debit_cents=total)
+    JournalLine.objects.create(company=company, journal_entry=entry, account=expense, credit_cents=total)
+
+
+@transaction.atomic
 def post_expense_journal(expense):
     """An approved employee expense claim books exactly like a supplier
     Bill — Dr Default Expense, Cr Accounts Payable — since it's the same
