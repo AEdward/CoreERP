@@ -127,6 +127,16 @@ export interface Position {
   created_at: string;
 }
 
+export interface ShiftTemplate {
+  id: number;
+  name: string;
+  start_time: string;
+  end_time: string;
+  break_minutes: number;
+  scheduled_hours: number;
+  created_at: string;
+}
+
 export interface Employee {
   id: number;
   first_name: string;
@@ -136,9 +146,24 @@ export interface Employee {
   position: number | null;
   department: number | null;
   branch: number | null;
+  shift: number | null;
   salary_cents: number;
   joining_date: string | null;
   status: "active" | "on_leave" | "terminated";
+  created_at: string;
+}
+
+export interface AttendanceRecord {
+  id: number;
+  employee: number;
+  date: string;
+  clock_in: string | null;
+  clock_out: string | null;
+  status: "present" | "absent" | "late" | "half_day";
+  source: "manual" | "device_import";
+  notes: string;
+  worked_hours: number;
+  overtime_hours: number;
   created_at: string;
 }
 
@@ -866,6 +891,33 @@ export const api = {
   }) => request<LeaveRequest>("/api/hr/leave-requests/", { method: "POST", body: JSON.stringify(data) }),
   deleteLeaveRequest: (id: number) =>
     request<void>(`/api/hr/leave-requests/${id}/`, { method: "DELETE" }),
+  listShifts: () => request<ShiftTemplate[]>("/api/hr/shifts/"),
+  createShift: (data: { name: string; start_time: string; end_time: string; break_minutes?: number }) =>
+    request<ShiftTemplate>("/api/hr/shifts/", { method: "POST", body: JSON.stringify(data) }),
+  deleteShift: (id: number) => request<void>(`/api/hr/shifts/${id}/`, { method: "DELETE" }),
+  listAttendance: (params?: { employee?: number; date?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.employee) qs.set("employee", String(params.employee));
+    if (params?.date) qs.set("date", params.date);
+    const query = qs.toString();
+    return request<AttendanceRecord[]>(`/api/hr/attendance/${query ? `?${query}` : ""}`);
+  },
+  createAttendance: (data: {
+    employee: number;
+    date: string;
+    clock_in?: string | null;
+    clock_out?: string | null;
+    status?: AttendanceRecord["status"];
+    notes?: string;
+  }) => request<AttendanceRecord>("/api/hr/attendance/", { method: "POST", body: JSON.stringify(data) }),
+  deleteAttendance: (id: number) => request<void>(`/api/hr/attendance/${id}/`, { method: "DELETE" }),
+  importAttendance: (
+    records: { employee: number; date: string; clock_in?: string; clock_out?: string; status?: string }[]
+  ) =>
+    request<AttendanceRecord[]>("/api/hr/attendance/import_records/", {
+      method: "POST",
+      body: JSON.stringify({ records }),
+    }),
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),

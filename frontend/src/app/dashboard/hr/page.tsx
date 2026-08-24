@@ -6,7 +6,15 @@ import { ActivityPanel } from "@/components/ActivityPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
-import { api, ApiError, type Branch, type Department, type Employee, type Position } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type Branch,
+  type Department,
+  type Employee,
+  type Position,
+  type ShiftTemplate,
+} from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
 const STATUS_LABELS: Record<Employee["status"], string> = {
@@ -23,6 +31,7 @@ const EMPTY_EMPLOYEE_FORM = {
   position: "",
   department: "",
   branch: "",
+  shift: "",
   salary_cents: "",
   joining_date: "",
   status: "active" as Employee["status"],
@@ -32,6 +41,7 @@ export default function HrPage() {
   const { me, activeMembership, error: sessionError } = useSession();
   const [departments, setDepartments] = useState<Department[] | null>(null);
   const [positions, setPositions] = useState<Position[] | null>(null);
+  const [shifts, setShifts] = useState<ShiftTemplate[] | null>(null);
   const [employees, setEmployees] = useState<Employee[] | null>(null);
   const [branches, setBranches] = useState<Branch[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -45,6 +55,9 @@ export default function HrPage() {
   const [positionDept, setPositionDept] = useState("");
   const [positionWorking, setPositionWorking] = useState(false);
 
+  const [shiftForm, setShiftForm] = useState({ name: "", start_time: "", end_time: "", break_minutes: "0" });
+  const [shiftWorking, setShiftWorking] = useState(false);
+
   const [empForm, setEmpForm] = useState(EMPTY_EMPLOYEE_FORM);
   const [empWorking, setEmpWorking] = useState(false);
   const [empError, setEmpError] = useState<string | null>(null);
@@ -52,14 +65,16 @@ export default function HrPage() {
 
   async function loadAll() {
     try {
-      const [depts, poss, emps, brs] = await Promise.all([
+      const [depts, poss, shs, emps, brs] = await Promise.all([
         api.listDepartments(),
         api.listPositions(),
+        api.listShifts(),
         api.listEmployees(),
         api.listBranches(),
       ]);
       setDepartments(depts);
       setPositions(poss);
+      setShifts(shs);
       setEmployees(emps);
       setBranches(brs);
     } catch (err) {
@@ -138,6 +153,34 @@ export default function HrPage() {
     }
   }
 
+  async function handleAddShift(e: React.FormEvent) {
+    e.preventDefault();
+    setShiftWorking(true);
+    try {
+      await api.createShift({
+        name: shiftForm.name,
+        start_time: shiftForm.start_time,
+        end_time: shiftForm.end_time,
+        break_minutes: shiftForm.break_minutes ? Number(shiftForm.break_minutes) : 0,
+      });
+      setShiftForm({ name: "", start_time: "", end_time: "", break_minutes: "0" });
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to save shift.");
+    } finally {
+      setShiftWorking(false);
+    }
+  }
+
+  async function handleDeleteShift(id: number) {
+    try {
+      await api.deleteShift(id);
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete shift.");
+    }
+  }
+
   async function handleAddEmployee(e: React.FormEvent) {
     e.preventDefault();
     setEmpWorking(true);
@@ -151,6 +194,7 @@ export default function HrPage() {
         position: empForm.position ? Number(empForm.position) : null,
         department: empForm.department ? Number(empForm.department) : null,
         branch: empForm.branch ? Number(empForm.branch) : null,
+        shift: empForm.shift ? Number(empForm.shift) : null,
         salary_cents: empForm.salary_cents ? Math.round(Number(empForm.salary_cents) * 100) : 0,
         joining_date: empForm.joining_date || null,
         status: empForm.status,
@@ -180,6 +224,7 @@ export default function HrPage() {
       position: emp.position ? String(emp.position) : "",
       department: emp.department ? String(emp.department) : "",
       branch: emp.branch ? String(emp.branch) : "",
+      shift: emp.shift ? String(emp.shift) : "",
       salary_cents: emp.salary_cents ? String(emp.salary_cents / 100) : "",
       joining_date: emp.joining_date ?? "",
       status: emp.status,
@@ -202,6 +247,7 @@ export default function HrPage() {
   const departmentName = (id: number | null) => departments?.find((d) => d.id === id)?.name ?? "—";
   const branchName = (id: number | null) => branches?.find((b) => b.id === id)?.name ?? "—";
   const positionTitle = (id: number | null) => positions?.find((p) => p.id === id)?.title ?? "—";
+  const shiftName = (id: number | null) => shifts?.find((s) => s.id === id)?.name ?? "—";
 
   return (
     <main style={{ maxWidth: 960, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
@@ -355,6 +401,88 @@ export default function HrPage() {
 
           <section style={{ marginTop: 40 }}>
             <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Shifts
+            </h2>
+            <p style={{ color: "#666", fontSize: 13 }}>
+              <a href="/dashboard/hr/attendance">Attendance records &rarr;</a>
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Name</th>
+                  <th style={{ padding: "6px 4px" }}>Hours</th>
+                  <th style={{ padding: "6px 4px" }}>Break</th>
+                  <th style={{ padding: "6px 4px" }}>Scheduled</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {shifts?.map((s) => (
+                  <tr key={s.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{s.name}</td>
+                    <td style={{ padding: "6px 4px" }}>
+                      {s.start_time}–{s.end_time}
+                    </td>
+                    <td style={{ padding: "6px 4px" }}>{s.break_minutes} min</td>
+                    <td style={{ padding: "6px 4px" }}>{s.scheduled_hours}h</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions onDelete={() => handleDeleteShift(s.id)} disabled={shiftWorking} />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {shifts?.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                      No shifts yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleAddShift} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <input
+                  placeholder="Shift name (e.g. Day Shift)"
+                  value={shiftForm.name}
+                  onChange={(e) => setShiftForm({ ...shiftForm, name: e.target.value })}
+                  style={{ padding: 8, flex: 1, maxWidth: 200 }}
+                />
+                <input
+                  type="time"
+                  required
+                  value={shiftForm.start_time}
+                  onChange={(e) => setShiftForm({ ...shiftForm, start_time: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  type="time"
+                  required
+                  value={shiftForm.end_time}
+                  onChange={(e) => setShiftForm({ ...shiftForm, end_time: e.target.value })}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Break (min)"
+                  type="number"
+                  value={shiftForm.break_minutes}
+                  onChange={(e) => setShiftForm({ ...shiftForm, break_minutes: e.target.value })}
+                  style={{ padding: 8, width: 100 }}
+                />
+                <button
+                  type="submit"
+                  disabled={shiftWorking || !shiftForm.name || !shiftForm.start_time || !shiftForm.end_time}
+                  style={{ padding: "8px 16px" }}
+                >
+                  Add shift
+                </button>
+              </form>
+            )}
+          </section>
+
+          <section style={{ marginTop: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
               Employees
             </h2>
             <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
@@ -364,6 +492,7 @@ export default function HrPage() {
                   <th style={{ padding: "6px 4px" }}>Position</th>
                   <th style={{ padding: "6px 4px" }}>Department</th>
                   <th style={{ padding: "6px 4px" }}>Branch</th>
+                  <th style={{ padding: "6px 4px" }}>Shift</th>
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   <th></th>
                   {canManage && <th></th>}
@@ -378,6 +507,7 @@ export default function HrPage() {
                     <td style={{ padding: "6px 4px" }}>{positionTitle(emp.position)}</td>
                     <td style={{ padding: "6px 4px" }}>{departmentName(emp.department)}</td>
                     <td style={{ padding: "6px 4px" }}>{branchName(emp.branch)}</td>
+                    <td style={{ padding: "6px 4px" }}>{shiftName(emp.shift)}</td>
                     <td style={{ padding: "6px 4px" }}>{STATUS_LABELS[emp.status]}</td>
                     <td style={{ padding: "6px 4px", textAlign: "right" }}>
                       <span style={{ display: "inline-flex", gap: 6 }}>
@@ -405,7 +535,7 @@ export default function HrPage() {
                 ))}
                 {employees?.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={8} style={{ padding: "6px 4px", color: "#999" }}>
                       No employees yet.
                     </td>
                   </tr>
@@ -484,6 +614,18 @@ export default function HrPage() {
                   {branches?.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={empForm.shift}
+                  onChange={(e) => setEmpForm({ ...empForm, shift: e.target.value })}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">No shift</option>
+                  {shifts?.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
                     </option>
                   ))}
                 </select>

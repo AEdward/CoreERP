@@ -43,6 +43,36 @@ class Position(TenantModel):
         return self.title
 
 
+class ShiftTemplate(TenantModel):
+    """A named work schedule (e.g. "Day Shift" 08:00-17:00) an Employee
+    can be assigned to. Deliberately just one shift per employee at a
+    time (Employee.shift below), not a rotation/roster system — a real
+    shift-rotation scheduler is a substantially bigger feature than what
+    "Shift Management" needs to unblock Attendance/Overtime math."""
+
+    name = models.CharField(max_length=100)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    break_minutes = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "shift_templates"
+        constraints = [
+            models.UniqueConstraint(fields=["company", "name"], name="unique_company_shift_name")
+        ]
+        ordering = ["name"]
+
+    @property
+    def scheduled_hours(self):
+        start = self.start_time.hour * 60 + self.start_time.minute
+        end = self.end_time.hour * 60 + self.end_time.minute
+        minutes = (end - start) if end > start else (end + 24 * 60 - start)
+        return max(minutes - self.break_minutes, 0) / 60
+
+    def __str__(self):
+        return f"{self.name} ({self.start_time}–{self.end_time})"
+
+
 class Employee(TenantModel):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
@@ -62,6 +92,9 @@ class Employee(TenantModel):
     branch = models.ForeignKey(
         Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name="employees"
     )
+    shift = models.ForeignKey(
+        ShiftTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name="employees"
+    )
     salary_cents = models.BigIntegerField(default=0)
     joining_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
@@ -72,6 +105,63 @@ class Employee(TenantModel):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class AttendanceRecord(TenantModel):
+    """One employee's clock-in/out for one date. `source` distinguishes
+    a manually-entered record from one that arrived via the bulk
+    `/import/` endpoint — the realistic "software side" of Biometric
+    Attendance: this project has no fingerprint/face-recognition hardware
+    of its own (nor could it — that's a physical device + vendor SDK
+    concern, not a code-completeness one), but real biometric devices
+    universally export a log of clock events that HR imports in bulk,
+    which this endpoint accepts. Overnight shifts (clock_out past
+    midnight) aren't handled — a known simplification, same spirit as
+    this project's other "correct and simple over sophisticated" calls."""
+
+    class Status(models.TextChoices):
+        PRESENT = "present", "Present"
+        ABSENT = "absent", "Absent"
+        LATE = "late", "Late"
+        HALF_DAY = "half_day", "Half day"
+
+    class Source(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        DEVICE_IMPORT = "device_import", "Device import"
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="attendance_records")
+    date = models.DateField()
+    clock_in = models.TimeField(null=True, blank=True)
+    clock_out = models.TimeField(null=True, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PRESENT)
+    source = models.CharField(max_length=16, choices=Source.choices, default=Source.MANUAL)
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "attendance_records"
+        ordering = ["-date"]
+        constraints = [
+            models.UniqueConstraint(fields=["employee", "date"], name="unique_employee_attendance_date")
+        ]
+
+    @property
+    def worked_hours(self):
+        if not self.clock_in or not self.clock_out:
+            return 0
+        start = self.clock_in.hour * 60 + self.clock_in.minute
+        end = self.clock_out.hour * 60 + self.clock_out.minute
+        minutes = (end - start) if end > start else 0
+        return round(minutes / 60, 2)
+
+    @property
+    def overtime_hours(self):
+        shift = self.employee.shift
+        if not shift:
+            return 0
+        return round(max(self.worked_hours - shift.scheduled_hours, 0), 2)
+
+    def __str__(self):
+        return f"{self.employee} — {self.date} ({self.get_status_display()})"
 
 
 class EmployeeContract(TenantModel):

@@ -2,7 +2,16 @@ from rest_framework import serializers
 
 from apps.common.serializers import CompanyScopedSerializer
 
-from .models import Department, Employee, EmployeeContract, LeaveRequest, LeaveType, Position
+from .models import (
+    AttendanceRecord,
+    Department,
+    Employee,
+    EmployeeContract,
+    LeaveRequest,
+    LeaveType,
+    Position,
+    ShiftTemplate,
+)
 
 
 class DepartmentSerializer(CompanyScopedSerializer):
@@ -23,8 +32,17 @@ class PositionSerializer(CompanyScopedSerializer):
         read_only_fields = ["id", "created_at"]
 
 
+class ShiftTemplateSerializer(CompanyScopedSerializer):
+    scheduled_hours = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = ShiftTemplate
+        fields = ["id", "name", "start_time", "end_time", "break_minutes", "scheduled_hours", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
 class EmployeeSerializer(CompanyScopedSerializer):
-    same_company_fields = ["department", "branch", "position"]
+    same_company_fields = ["department", "branch", "position", "shift"]
 
     class Meta:
         model = Employee
@@ -37,6 +55,7 @@ class EmployeeSerializer(CompanyScopedSerializer):
             "position",
             "department",
             "branch",
+            "shift",
             "salary_cents",
             "joining_date",
             "status",
@@ -107,3 +126,26 @@ class LeaveRequestSerializer(CompanyScopedSerializer):
                     "This employee already has an approved leave request overlapping these dates."
                 )
         return attrs
+
+
+class AttendanceRecordSerializer(CompanyScopedSerializer):
+    same_company_fields = ["employee"]
+    worked_hours = serializers.FloatField(read_only=True)
+    overtime_hours = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = AttendanceRecord
+        fields = [
+            "id",
+            "employee",
+            "date",
+            "clock_in",
+            "clock_out",
+            "status",
+            "source",
+            "notes",
+            "worked_hours",
+            "overtime_hours",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
