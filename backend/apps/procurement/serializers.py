@@ -85,13 +85,23 @@ class PurchaseOrderSerializer(CompanyScopedSerializer):
     def update(self, instance, validated_data):
         # Full replace on update rather than per-line diffing — simplest
         # correct semantics for an MVP order form that resubmits the
-        # whole line list each time.
+        # whole line list each time. But a full replace deletes and
+        # recreates every line, which would silently reset
+        # received_quantity to 0 (a new row, not the one PurchaseOrderViewSet.receive
+        # incremented) — letting the same physical delivery be received
+        # twice. Once any line has real receiving progress, the line
+        # list is locked; only the header (supplier/status) stays
+        # editable.
         lines_data = validated_data.pop("lines", None)
         with transaction.atomic():
             instance.supplier = validated_data.get("supplier", instance.supplier)
             instance.status = validated_data.get("status", instance.status)
             instance.save()
             if lines_data is not None:
+                if any(line.received_quantity > 0 for line in instance.lines.all()):
+                    raise serializers.ValidationError(
+                        {"lines": "Can't edit line items once receiving has started on this order."}
+                    )
                 instance.lines.all().delete()
                 self._create_lines(instance, instance.company, lines_data)
         return instance

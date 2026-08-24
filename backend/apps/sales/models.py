@@ -95,6 +95,11 @@ class SalesOrderLine(TenantModel):
     quantity = models.PositiveIntegerField()
     unit_price_cents = models.BigIntegerField()
     discount_percent = models.PositiveIntegerField(default=0, validators=[MaxValueValidator(100)])
+    # Closes the module map's "(partial) Goods Dispatch" gap — the Sales
+    # mirror of apps.procurement.PurchaseOrderLine.received_quantity.
+    # Cumulative, so partial shipments are supported; see
+    # SalesOrderViewSet.dispatch.
+    dispatched_quantity = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = "sales_order_lines"
@@ -103,6 +108,10 @@ class SalesOrderLine(TenantModel):
                 condition=models.Q(discount_percent__lte=100), name="sales_order_line_discount_max_100"
             )
         ]
+
+    @property
+    def outstanding_quantity(self):
+        return self.quantity - self.dispatched_quantity
 
     @property
     def line_total_cents(self):

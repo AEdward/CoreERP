@@ -171,6 +171,14 @@ export interface Warehouse {
   created_at: string;
 }
 
+export interface StorageLocation {
+  id: number;
+  warehouse: number;
+  name: string;
+  code: string;
+  created_at: string;
+}
+
 export interface Stock {
   id: number;
   item: number;
@@ -187,10 +195,21 @@ export interface StockMovement {
   item: number;
   warehouse: number;
   to_warehouse: number | null;
+  location: number | null;
   type: "in" | "out" | "transfer" | "adjustment";
   quantity: number;
   reference: string;
   created_at: string;
+}
+
+export interface ReorderSuggestion {
+  item_id: number;
+  item_name: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  quantity: number;
+  minimum_stock: number;
+  suggested_quantity: number;
 }
 
 export interface StockCountLine {
@@ -324,6 +343,9 @@ export interface OrderLine {
   unit_price_cents: number;
   discount_percent: number;
   line_total_cents: number;
+  // SalesOrder lines only (not Quotation) — see SalesOrderLine.dispatched_quantity.
+  dispatched_quantity?: number;
+  outstanding_quantity?: number;
 }
 
 export interface Quotation {
@@ -804,6 +826,18 @@ export const api = {
     }),
   deleteWarehouse: (id: number) =>
     request<void>(`/api/inventory/warehouses/${id}/`, { method: "DELETE" }),
+  listStorageLocations: (warehouseId?: number) =>
+    request<StorageLocation[]>(
+      `/api/inventory/storage-locations/${warehouseId ? `?warehouse=${warehouseId}` : ""}`
+    ),
+  createStorageLocation: (data: { warehouse: number; name: string; code?: string }) =>
+    request<StorageLocation>("/api/inventory/storage-locations/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteStorageLocation: (id: number) =>
+    request<void>(`/api/inventory/storage-locations/${id}/`, { method: "DELETE" }),
+  reorderSuggestions: () => request<ReorderSuggestion[]>("/api/inventory/reports/reorder-suggestions/"),
   listStock: () => request<Stock[]>("/api/inventory/stock/"),
   listStockMovements: () => request<StockMovement[]>("/api/inventory/stock-movements/"),
   createStockMovement: (data: Partial<StockMovement>) =>
@@ -962,6 +996,11 @@ export const api = {
     }),
   deleteSalesOrder: (id: number) =>
     request<void>(`/api/sales/sales-orders/${id}/`, { method: "DELETE" }),
+  dispatchSalesOrder: (id: number, data: { warehouse: number; lines: { line: number; quantity: number }[] }) =>
+    request<SalesOrder>(`/api/sales/sales-orders/${id}/dispatch/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   listInvoices: () => request<Invoice[]>("/api/sales/invoices/"),
   createInvoice: (data: {
     sales_order?: number | null;

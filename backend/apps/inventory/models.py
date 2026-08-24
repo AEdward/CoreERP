@@ -23,6 +23,32 @@ class Warehouse(TenantModel):
         return self.name
 
 
+class StorageLocation(TenantModel):
+    """A sub-warehouse bin/aisle — an addressable list scoped to one
+    Warehouse. Deliberately doesn't make Stock itself location-granular
+    (the same item split across several bins within a warehouse is a
+    bigger design decision — changing Stock's (item, warehouse)
+    uniqueness to include location, and rethinking every place that
+    reads/writes Stock.quantity). This is the safe, additive version:
+    StockMovement can optionally note which location goods came
+    from/went to, for locating things within a warehouse, without
+    redesigning how quantities are tracked."""
+
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name="storage_locations")
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=50, blank=True)
+
+    class Meta:
+        db_table = "storage_locations"
+        constraints = [
+            models.UniqueConstraint(fields=["warehouse", "name"], name="unique_warehouse_location_name")
+        ]
+        ordering = ["warehouse_id", "name"]
+
+    def __str__(self):
+        return f"{self.name} @ {self.warehouse}"
+
+
 class Stock(TenantModel):
     """Live materialized quantity per (item, warehouse) — mutated only
     through StockMovement.apply(), never edited directly, so every
@@ -66,6 +92,12 @@ class StockMovement(TenantModel):
     # adjustment (positive or negative, never zero) — see serializer.
     quantity = models.IntegerField()
     reference = models.CharField(max_length=255, blank=True)
+    # Optional — which bin within `warehouse` this movement is against.
+    # Purely descriptive metadata (see StorageLocation's docstring);
+    # Stock quantities stay tracked per-warehouse, not per-location.
+    location = models.ForeignKey(
+        StorageLocation, on_delete=models.SET_NULL, null=True, blank=True, related_name="movements"
+    )
 
     class Meta:
         db_table = "stock_movements"

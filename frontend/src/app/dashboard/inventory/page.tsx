@@ -8,8 +8,10 @@ import {
   ApiError,
   type Branch,
   type Item,
+  type ReorderSuggestion,
   type Stock,
   type StockMovement,
+  type StorageLocation,
   type TaxRate,
   type Warehouse,
 } from "@/lib/api";
@@ -48,6 +50,8 @@ export default function InventoryPage() {
   const [stock, setStock] = useState<Stock[] | null>(null);
   const [movements, setMovements] = useState<StockMovement[] | null>(null);
   const [taxRates, setTaxRates] = useState<TaxRate[] | null>(null);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[] | null>(null);
+  const [reorderSuggestions, setReorderSuggestions] = useState<ReorderSuggestion[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
@@ -63,15 +67,28 @@ export default function InventoryPage() {
   const [movementWorking, setMovementWorking] = useState(false);
   const [movementError, setMovementError] = useState<string | null>(null);
 
+  const [locationWarehouse, setLocationWarehouse] = useState("");
+  const [locationName, setLocationName] = useState("");
+  const [locationCode, setLocationCode] = useState("");
+  const [locationWorking, setLocationWorking] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
+  const [prWorking, setPrWorking] = useState(false);
+  const [prError, setPrError] = useState<string | null>(null);
+  const [prSuccess, setPrSuccess] = useState<string | null>(null);
+
   async function loadAll() {
     try {
-      const [i, w, br, s, m, tr] = await Promise.all([
+      const [i, w, br, s, m, tr, sl, rs] = await Promise.all([
         api.listItems(),
         api.listWarehouses(),
         api.listBranches(),
         api.listStock(),
         api.listStockMovements(),
         api.listTaxRates(),
+        api.listStorageLocations(),
+        api.reorderSuggestions(),
       ]);
       setItems(i);
       setWarehouses(w);
@@ -79,6 +96,8 @@ export default function InventoryPage() {
       setStock(s);
       setMovements(m);
       setTaxRates(tr);
+      setStorageLocations(sl);
+      setReorderSuggestions(rs);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load inventory data.");
     }
@@ -180,6 +199,71 @@ export default function InventoryPage() {
       await loadAll();
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to delete warehouse.");
+    }
+  }
+
+  async function handleAddLocation(e: React.FormEvent) {
+    e.preventDefault();
+    if (!locationWarehouse) return;
+    setLocationWorking(true);
+    setLocationError(null);
+    try {
+      await api.createStorageLocation({
+        warehouse: Number(locationWarehouse),
+        name: locationName,
+        code: locationCode,
+      });
+      setLocationName("");
+      setLocationCode("");
+      await loadAll();
+    } catch (err) {
+      setLocationError(err instanceof ApiError ? err.message : "Failed to add storage location.");
+    } finally {
+      setLocationWorking(false);
+    }
+  }
+
+  async function handleDeleteLocation(id: number) {
+    try {
+      await api.deleteStorageLocation(id);
+      await loadAll();
+    } catch (err) {
+      setLocationError(err instanceof ApiError ? err.message : "Failed to delete storage location.");
+    }
+  }
+
+  function toggleSuggestion(itemId: number) {
+    const next = new Set(selectedSuggestions);
+    if (next.has(itemId)) {
+      next.delete(itemId);
+    } else {
+      next.add(itemId);
+    }
+    setSelectedSuggestions(next);
+  }
+
+  async function handleCreatePurchaseRequestFromSuggestions() {
+    if (!reorderSuggestions) return;
+    const chosen = reorderSuggestions.filter((s) => selectedSuggestions.has(s.item_id));
+    if (chosen.length === 0) return;
+    setPrWorking(true);
+    setPrError(null);
+    setPrSuccess(null);
+    try {
+      await api.createPurchaseRequest({
+        justification: "Auto-suggested from low stock levels",
+        lines: chosen.map((s) => ({
+          item: s.item_id,
+          quantity: s.suggested_quantity,
+          estimated_unit_cost_cents: 0,
+        })),
+      });
+      setSelectedSuggestions(new Set());
+      setPrSuccess("Purchase request created — see Procurement.");
+    } catch (err) {
+      setPrError(err instanceof ApiError ? err.message : "Failed to create purchase request.");
+    } finally {
+      setPrWorking(false);
     }
   }
 
@@ -454,6 +538,87 @@ export default function InventoryPage() {
             )}
           </section>
 
+          {/* Storage locations */}
+          <section style={{ marginTop: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Storage locations
+            </h2>
+            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+              Sub-warehouse bins/aisles — purely descriptive; stock movements can optionally note
+              which one they went to/from, but quantities are still tracked per-warehouse, not
+              per-location.
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}>Warehouse</th>
+                  <th style={{ padding: "6px 4px" }}>Name</th>
+                  <th style={{ padding: "6px 4px" }}>Code</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {storageLocations?.map((loc) => (
+                  <tr key={loc.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{warehouseName(loc.warehouse)}</td>
+                    <td style={{ padding: "6px 4px" }}>{loc.name}</td>
+                    <td style={{ padding: "6px 4px" }}>{loc.code}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions onDelete={() => handleDeleteLocation(loc.id)} disabled={locationWorking} />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {storageLocations?.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                      No storage locations yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleAddLocation} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <select
+                  required
+                  value={locationWarehouse}
+                  onChange={(e) => setLocationWarehouse(e.target.value)}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">Warehouse…</option>
+                  {warehouses?.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  placeholder="Name (e.g. Aisle 3)"
+                  required
+                  value={locationName}
+                  onChange={(e) => setLocationName(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <input
+                  placeholder="Code (optional)"
+                  value={locationCode}
+                  onChange={(e) => setLocationCode(e.target.value)}
+                  style={{ padding: 8 }}
+                />
+                <button
+                  type="submit"
+                  disabled={locationWorking || !locationWarehouse || !locationName}
+                  style={{ padding: "8px 16px" }}
+                >
+                  Add location
+                </button>
+              </form>
+            )}
+            {locationError && <p style={{ color: "crimson" }}>{locationError}</p>}
+          </section>
+
           {/* Stock levels */}
           <section style={{ marginTop: 40 }}>
             <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
@@ -624,6 +789,71 @@ export default function InventoryPage() {
                 )}
               </form>
             )}
+          </section>
+
+          {/* Reorder suggestions */}
+          <section style={{ marginTop: 40, marginBottom: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Reorder suggestions
+            </h2>
+            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+              Items at or below their minimum stock level. A simple &quot;top back up to minimum&quot;
+              suggestion, not a real reorder-point/EOQ system. Select some and create a purchase
+              request — it starts with no supplier, same as any other purchase request.
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                  <th style={{ padding: "6px 4px" }}></th>
+                  <th style={{ padding: "6px 4px" }}>Item</th>
+                  <th style={{ padding: "6px 4px" }}>Warehouse</th>
+                  <th style={{ padding: "6px 4px" }}>Quantity</th>
+                  <th style={{ padding: "6px 4px" }}>Minimum</th>
+                  <th style={{ padding: "6px 4px" }}>Suggested reorder</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reorderSuggestions?.map((s) => (
+                  <tr key={`${s.item_id}-${s.warehouse_id}`} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>
+                      {canManage && (
+                        <input
+                          type="checkbox"
+                          checked={selectedSuggestions.has(s.item_id)}
+                          onChange={() => toggleSuggestion(s.item_id)}
+                        />
+                      )}
+                    </td>
+                    <td style={{ padding: "6px 4px" }}>{s.item_name}</td>
+                    <td style={{ padding: "6px 4px" }}>{s.warehouse_name}</td>
+                    <td style={{ padding: "6px 4px" }}>{s.quantity}</td>
+                    <td style={{ padding: "6px 4px" }}>{s.minimum_stock}</td>
+                    <td style={{ padding: "6px 4px" }}>{s.suggested_quantity}</td>
+                  </tr>
+                ))}
+                {reorderSuggestions?.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                      Nothing needs reordering right now.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && reorderSuggestions && reorderSuggestions.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  disabled={prWorking || selectedSuggestions.size === 0}
+                  onClick={handleCreatePurchaseRequestFromSuggestions}
+                  style={{ padding: "8px 16px" }}
+                >
+                  Create purchase request from selected
+                </button>
+              </div>
+            )}
+            {prError && <p style={{ color: "crimson" }}>{prError}</p>}
+            {prSuccess && <p style={{ color: "#2e7d32" }}>{prSuccess}</p>}
           </section>
         </>
       )}

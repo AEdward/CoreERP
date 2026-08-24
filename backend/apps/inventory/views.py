@@ -7,13 +7,27 @@ from apps.auditlog.models import AuditLog
 from apps.auditlog.services import log_audit
 from apps.common.views import CompanyScopedReadOnlyViewSet, CompanyScopedViewSet
 
-from .models import Stock, StockCount, StockCountLine, StockMovement, Warehouse
+from .models import Stock, StockCount, StockCountLine, StockMovement, StorageLocation, Warehouse
 from .serializers import (
     StockCountSerializer,
     StockMovementSerializer,
     StockSerializer,
+    StorageLocationSerializer,
     WarehouseSerializer,
 )
+
+
+class StorageLocationViewSet(CompanyScopedViewSet):
+    queryset = StorageLocation.objects.select_related("warehouse")
+    serializer_class = StorageLocationSerializer
+    permission_module = "inventory"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        warehouse_id = self.request.query_params.get("warehouse")
+        if warehouse_id:
+            qs = qs.filter(warehouse_id=warehouse_id)
+        return qs
 
 
 class WarehouseViewSet(CompanyScopedViewSet):
@@ -31,7 +45,7 @@ class StockViewSet(CompanyScopedReadOnlyViewSet):
 
 
 class StockMovementViewSet(CompanyScopedViewSet):
-    queryset = StockMovement.objects.select_related("item", "warehouse", "to_warehouse").all()
+    queryset = StockMovement.objects.select_related("item", "warehouse", "to_warehouse", "location").all()
     serializer_class = StockMovementSerializer
     permission_module = "inventory"
     http_method_names = ["get", "post", "head", "options"]  # movements are an append-only ledger

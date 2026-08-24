@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { ActivityPanel } from "@/components/ActivityPanel";
@@ -17,6 +17,7 @@ import {
   type OrderLine,
   type Quotation,
   type SalesOrder,
+  type Warehouse,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
@@ -61,6 +62,7 @@ export default function SalesPage() {
   const [orders, setOrders] = useState<SalesOrder[] | null>(null);
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const [creditNotes, setCreditNotes] = useState<CreditNote[] | null>(null);
+  const [warehouses, setWarehouses] = useState<Warehouse[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [customerForm, setCustomerForm] = useState(EMPTY_CUSTOMER_FORM);
@@ -94,15 +96,22 @@ export default function SalesPage() {
   const [cnWorking, setCnWorking] = useState(false);
   const [cnError, setCnError] = useState<string | null>(null);
 
+  const [dispatchingOrderId, setDispatchingOrderId] = useState<number | null>(null);
+  const [dispatchWarehouse, setDispatchWarehouse] = useState("");
+  const [dispatchQuantities, setDispatchQuantities] = useState<Record<number, string>>({});
+  const [dispatchWorking, setDispatchWorking] = useState(false);
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
+
   async function loadAll() {
     try {
-      const [c, i, q, so, inv, cn] = await Promise.all([
+      const [c, i, q, so, inv, cn, w] = await Promise.all([
         api.listCustomers(),
         api.listItems(),
         api.listQuotations(),
         api.listSalesOrders(),
         api.listInvoices(),
         api.listCreditNotes(),
+        api.listWarehouses(),
       ]);
       setCustomers(c);
       setItems(i);
@@ -110,6 +119,7 @@ export default function SalesPage() {
       setOrders(so);
       setInvoices(inv);
       setCreditNotes(cn);
+      setWarehouses(w);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load sales data.");
     }
@@ -239,6 +249,31 @@ export default function SalesPage() {
       await loadAll();
     } catch (err) {
       setSoError(err instanceof ApiError ? err.message : "Failed to delete sales order.");
+    }
+  }
+
+  async function handleDispatch(order: SalesOrder) {
+    if (!dispatchWarehouse) return;
+    setDispatchWorking(true);
+    setDispatchError(null);
+    try {
+      const lines = order.lines
+        .filter((l) => Number(dispatchQuantities[l.id] || 0) > 0)
+        .map((l) => ({ line: l.id, quantity: Number(dispatchQuantities[l.id]) }));
+      if (lines.length === 0) {
+        setDispatchError("Enter a quantity for at least one line.");
+        setDispatchWorking(false);
+        return;
+      }
+      await api.dispatchSalesOrder(order.id, { warehouse: Number(dispatchWarehouse), lines });
+      setDispatchingOrderId(null);
+      setDispatchWarehouse("");
+      setDispatchQuantities({});
+      await loadAll();
+    } catch (err) {
+      setDispatchError(err instanceof ApiError ? err.message : "Failed to dispatch stock.");
+    } finally {
+      setDispatchWorking(false);
     }
   }
 
@@ -525,30 +560,116 @@ export default function SalesPage() {
                   <th style={{ padding: "6px 4px" }}>Status</th>
                   <th style={{ padding: "6px 4px" }}>Payment</th>
                   <th style={{ padding: "6px 4px" }}>Total</th>
+                  <th></th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {orders?.map((o) => (
-                  <tr key={o.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{customerName(o.customer)}</td>
-                    <td style={{ padding: "6px 4px" }}>{o.status}</td>
-                    <td style={{ padding: "6px 4px" }}>{o.payment_status}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
-                    {canManage && (
+                  <Fragment key={o.id}>
+                    <tr style={{ borderBottom: "1px solid #eee" }}>
+                      <td style={{ padding: "6px 4px" }}>{customerName(o.customer)}</td>
+                      <td style={{ padding: "6px 4px" }}>{o.status}</td>
+                      <td style={{ padding: "6px 4px" }}>{o.payment_status}</td>
+                      <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
                       <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions
-                          onEdit={() => startEditSalesOrder(o)}
-                          onDelete={() => handleDeleteSalesOrder(o.id)}
-                          disabled={soWorking}
-                        />
+                        {canManage &&
+                          (o.status === "pending" || o.status === "processing") &&
+                          dispatchingOrderId !== o.id && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDispatchingOrderId(o.id);
+                                setDispatchError(null);
+                              }}
+                              style={{ padding: "2px 8px", fontSize: 12 }}
+                            >
+                              Dispatch
+                            </button>
+                          )}
                       </td>
+                      {canManage && (
+                        <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                          <RowActions
+                            onEdit={() => startEditSalesOrder(o)}
+                            onDelete={() => handleDeleteSalesOrder(o.id)}
+                            disabled={soWorking}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                    {dispatchingOrderId === o.id && (
+                      <tr style={{ borderBottom: "1px solid #eee", background: "#fafafa" }}>
+                        <td colSpan={6} style={{ padding: "10px 4px" }}>
+                          <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                            <select
+                              value={dispatchWarehouse}
+                              onChange={(e) => setDispatchWarehouse(e.target.value)}
+                              style={{ padding: 6 }}
+                            >
+                              <option value="">Warehouse…</option>
+                              {warehouses?.map((w) => (
+                                <option key={w.id} value={w.id}>
+                                  {w.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {o.lines.map((line) => (
+                            <div
+                              key={line.id}
+                              style={{ display: "flex", gap: 8, marginBottom: 4, alignItems: "center" }}
+                            >
+                              <span style={{ fontSize: 13, width: 220 }}>
+                                {items?.find((it) => it.id === line.item)?.name ?? `Item #${line.item}`}
+                                {" — outstanding "}
+                                {line.outstanding_quantity}
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                max={line.outstanding_quantity}
+                                placeholder="Qty to dispatch"
+                                value={dispatchQuantities[line.id] ?? ""}
+                                onChange={(e) =>
+                                  setDispatchQuantities({ ...dispatchQuantities, [line.id]: e.target.value })
+                                }
+                                disabled={line.outstanding_quantity === 0}
+                                style={{ padding: 6, width: 140 }}
+                              />
+                            </div>
+                          ))}
+                          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button
+                              type="button"
+                              disabled={dispatchWorking || !dispatchWarehouse}
+                              onClick={() => handleDispatch(o)}
+                              style={{ padding: "6px 12px" }}
+                            >
+                              Confirm dispatch
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDispatchingOrderId(null);
+                                setDispatchWarehouse("");
+                                setDispatchQuantities({});
+                                setDispatchError(null);
+                              }}
+                              style={{ padding: "6px 12px" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {dispatchError && <p style={{ color: "crimson" }}>{dispatchError}</p>}
+                        </td>
+                      </tr>
                     )}
-                  </tr>
+                  </Fragment>
                 ))}
                 {orders?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
                       No sales orders yet.
                     </td>
                   </tr>

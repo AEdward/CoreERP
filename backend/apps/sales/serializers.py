@@ -62,11 +62,21 @@ class QuotationSerializer(CompanyScopedSerializer):
 
 class SalesOrderLineSerializer(serializers.ModelSerializer):
     line_total_cents = serializers.IntegerField(read_only=True)
+    outstanding_quantity = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = SalesOrderLine
-        fields = ["id", "item", "quantity", "unit_price_cents", "discount_percent", "line_total_cents"]
-        read_only_fields = ["id"]
+        fields = [
+            "id",
+            "item",
+            "quantity",
+            "unit_price_cents",
+            "discount_percent",
+            "line_total_cents",
+            "dispatched_quantity",
+            "outstanding_quantity",
+        ]
+        read_only_fields = ["id", "dispatched_quantity"]
 
 
 class SalesOrderSerializer(CompanyScopedSerializer):
@@ -110,6 +120,10 @@ class SalesOrderSerializer(CompanyScopedSerializer):
         return order
 
     def update(self, instance, validated_data):
+        # Full replace, same as PurchaseOrderSerializer — and the same
+        # reason it has to lock the line list once dispatch has made
+        # real progress: recreating lines would reset dispatched_quantity
+        # to 0 on a fresh row, letting the same goods ship twice.
         lines_data = validated_data.pop("lines", None)
         with transaction.atomic():
             instance.customer = validated_data.get("customer", instance.customer)
@@ -118,6 +132,10 @@ class SalesOrderSerializer(CompanyScopedSerializer):
             instance.payment_status = validated_data.get("payment_status", instance.payment_status)
             instance.save()
             if lines_data is not None:
+                if any(line.dispatched_quantity > 0 for line in instance.lines.all()):
+                    raise serializers.ValidationError(
+                        {"lines": "Can't edit line items once dispatch has started on this order."}
+                    )
                 instance.lines.all().delete()
                 self._create_lines(instance, instance.company, lines_data)
         return instance

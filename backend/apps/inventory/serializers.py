@@ -4,7 +4,7 @@ from rest_framework import serializers
 from apps.common.serializers import CompanyScopedSerializer
 from apps.notifications.services import notify_permission
 
-from .models import Stock, StockCount, StockCountLine, StockMovement, Warehouse
+from .models import Stock, StockCount, StockCountLine, StockMovement, StorageLocation, Warehouse
 
 
 class WarehouseSerializer(CompanyScopedSerializer):
@@ -13,6 +13,15 @@ class WarehouseSerializer(CompanyScopedSerializer):
     class Meta:
         model = Warehouse
         fields = ["id", "name", "location", "branch", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class StorageLocationSerializer(CompanyScopedSerializer):
+    same_company_fields = ["warehouse"]
+
+    class Meta:
+        model = StorageLocation
+        fields = ["id", "warehouse", "name", "code", "created_at"]
         read_only_fields = ["id", "created_at"]
 
 
@@ -36,11 +45,21 @@ class StockSerializer(CompanyScopedSerializer):
 
 
 class StockMovementSerializer(CompanyScopedSerializer):
-    same_company_fields = ["item", "warehouse", "to_warehouse"]
+    same_company_fields = ["item", "warehouse", "to_warehouse", "location"]
 
     class Meta:
         model = StockMovement
-        fields = ["id", "item", "warehouse", "to_warehouse", "type", "quantity", "reference", "created_at"]
+        fields = [
+            "id",
+            "item",
+            "warehouse",
+            "to_warehouse",
+            "location",
+            "type",
+            "quantity",
+            "reference",
+            "created_at",
+        ]
         read_only_fields = ["id", "created_at"]
 
     def validate(self, attrs):
