@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AppHeader } from "@/components/AppHeader";
+import { useRouter } from "next/navigation";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { ModuleIcon } from "@/components/ModuleIcons";
+import { NotificationBell } from "@/components/NotificationBell";
 import { api, ApiError, type CompanySummary } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import styles from "./launcher.module.css";
 
 const MODULE_TILES = [
   { key: "settings", label: "Settings", permission: "settings.view", href: "/dashboard/settings" },
@@ -38,32 +41,25 @@ function formatCents(cents: number) {
   return (cents / 100).toFixed(2);
 }
 
-function StatCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div
-      style={{
-        padding: 16,
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        minWidth: 140,
-        background: warn ? "#fff8f0" : "white",
-      }}
-    >
-      <div style={{ fontSize: 12, color: "#999", textTransform: "uppercase", letterSpacing: 0.5 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: warn ? "#b45309" : "inherit" }}>
-        {value}
-      </div>
-    </div>
-  );
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
 }
 
 export default function DashboardPage() {
   const { me, activeMembership, error: sessionError, refresh } = useSession();
+  const router = useRouter();
+
+  const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const [summary, setSummary] = useState<CompanySummary | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -84,11 +80,22 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMembership?.company.id]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setCompanyMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   async function handleSwitch(companyId: number) {
     setWorking(true);
     try {
       await api.setActiveCompany(companyId);
       await refresh();
+      setCompanyMenuOpen(false);
     } finally {
       setWorking(false);
     }
@@ -102,6 +109,7 @@ export default function DashboardPage() {
       await api.setActiveCompany(company.id);
       setNewCompanyName("");
       await refresh();
+      setCompanyMenuOpen(false);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create company.");
     } finally {
@@ -109,167 +117,204 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleLogout() {
+    await api.logout();
+    router.push("/login");
+  }
+
   if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
   if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
 
+  const visibleTiles = activeMembership
+    ? MODULE_TILES.filter((tile) => activeMembership.permissions.includes(tile.permission))
+    : [];
+
   return (
-    <main style={{ maxWidth: 960, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <div className={styles.shell}>
+      <header className={styles.topbar}>
+        <Link href="/dashboard" className={styles.brand}>
+          <span className={styles.brandMark}>C</span>
+          CoreERP
+        </Link>
 
-      <section>
-        <h2 style={{ fontSize: 16, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-          Your companies
-        </h2>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {me.memberships.map((m) => (
+        <div className={styles.topbarActions}>
+          {activeMembership && <GlobalSearch active={!!activeMembership} />}
+          {activeMembership && <NotificationBell active={!!activeMembership} />}
+
+          <div className={styles.companySwitcher} ref={menuRef}>
             <button
-              key={m.id}
-              onClick={() => handleSwitch(m.company.id)}
-              disabled={working}
-              style={{
-                padding: "10px 16px",
-                border: m.company.id === me.active_company_id ? "2px solid #333" : "1px solid #ccc",
-                background: m.company.id === me.active_company_id ? "#f5f5f5" : "white",
-                cursor: "pointer",
-              }}
+              type="button"
+              className={styles.companyButton}
+              onClick={() => setCompanyMenuOpen((v) => !v)}
             >
-              {m.company.name}
-              <div style={{ fontSize: 12, color: "#888" }}>{m.roles.map((r) => r.name).join(", ")}</div>
+              <span className={styles.avatar}>
+                {activeMembership ? initials(activeMembership.company.name) : "?"}
+              </span>
+              {activeMembership ? activeMembership.company.name : "Select company"}
             </button>
-          ))}
-        </div>
 
-        <form onSubmit={handleCreateCompany} style={{ marginTop: 16, display: "flex", gap: 8 }}>
-          <input
-            placeholder="New company name"
-            value={newCompanyName}
-            onChange={(e) => setNewCompanyName(e.target.value)}
-            style={{ padding: 8, flex: 1 }}
-          />
-          <button type="submit" disabled={working || !newCompanyName} style={{ padding: "8px 16px" }}>
-            Create company
-          </button>
-        </form>
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-      </section>
-
-      {activeMembership ? (
-        <>
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 16, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              {activeMembership.company.name} — overview
-            </h2>
-            {summaryError && <p style={{ color: "crimson" }}>{summaryError}</p>}
-            {summary && Object.keys(summary).length === 0 && (
-              <p style={{ color: "#999", fontSize: 13 }}>
-                Nothing to show — your role doesn&apos;t have view access to any module with overview
-                data yet.
-              </p>
-            )}
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {summary?.finance && (
-                <>
-                  <StatCard label="Revenue" value={formatCents(summary.finance.revenue_cents)} />
-                  <StatCard label="Expenses" value={formatCents(summary.finance.expense_cents)} />
-                  <StatCard label="Profit" value={formatCents(summary.finance.profit_cents)} />
-                  <StatCard
-                    label="Pending receivable"
-                    value={formatCents(summary.finance.pending_receivable_cents)}
+            {companyMenuOpen && (
+              <div className={styles.companyMenu}>
+                {me.memberships.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={working}
+                    onClick={() => handleSwitch(m.company.id)}
+                    className={`${styles.companyMenuItem} ${
+                      m.company.id === me.active_company_id ? styles.active : ""
+                    }`}
+                  >
+                    {m.company.name}
+                    <div className={styles.companyMenuRole}>{m.roles.map((r) => r.name).join(", ")}</div>
+                  </button>
+                ))}
+                <div className={styles.companyMenuDivider} />
+                <form onSubmit={handleCreateCompany} className={styles.companyMenuForm}>
+                  <input
+                    placeholder="New company name"
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    className={styles.companyMenuInput}
                   />
-                  <StatCard
-                    label="Pending payable"
-                    value={formatCents(summary.finance.pending_payable_cents)}
-                  />
-                </>
-              )}
-              {summary?.sales && (
-                <>
-                  <StatCard label="Sales orders" value={String(summary.sales.order_count)} />
-                  <StatCard label="Sales value" value={formatCents(summary.sales.total_sales_cents)} />
-                </>
-              )}
-              {summary?.inventory && (
-                <>
-                  <StatCard label="Items" value={String(summary.inventory.item_count)} />
-                  <StatCard label="Stock units" value={String(summary.inventory.total_units)} />
-                  <StatCard
-                    label="Low stock alerts"
-                    value={String(summary.inventory.low_stock_count)}
-                    warn={summary.inventory.low_stock_count > 0}
-                  />
-                </>
-              )}
-              {summary?.hr && (
-                <StatCard label="Employees" value={String(summary.hr.employee_count)} />
-              )}
-            </div>
-          </section>
-
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 16, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              {activeMembership.company.name} — modules
-            </h2>
-            <style>{`
-              .module-tile {
-                transition: transform 0.15s ease, box-shadow 0.15s ease;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
-              }
-              .module-tile.clickable:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
-              }
-            `}</style>
-            <div
-              style={{
-                marginTop: 12,
-                padding: 24,
-                borderRadius: 20,
-                background: "linear-gradient(135deg, #f3f0ff 0%, #eef4ff 50%, #fdf4ff 100%)",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-                  gap: 20,
-                }}
-              >
-                {MODULE_TILES.filter((tile) => activeMembership.permissions.includes(tile.permission)).map(
-                  (tile) => (
-                    <Link key={tile.key} href={tile.href} style={{ display: "block" }}>
-                      <div
-                        className="module-tile clickable"
-                        style={{
-                          padding: "20px 12px",
-                          borderRadius: 18,
-                          background: "white",
-                          cursor: "pointer",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: 10,
-                          textAlign: "center",
-                        }}
-                      >
-                        <ModuleIcon moduleKey={tile.key} muted={false} />
-                        <div style={{ fontWeight: 600, fontSize: 13, color: "#222" }}>{tile.label}</div>
-                      </div>
-                    </Link>
-                  )
+                  <button
+                    type="submit"
+                    disabled={working || !newCompanyName}
+                    className={styles.logoutButton}
+                  >
+                    Add
+                  </button>
+                </form>
+                {error && (
+                  <p style={{ color: "crimson", fontSize: 12, padding: "6px 8px 0" }}>{error}</p>
                 )}
               </div>
-            </div>
-            <p style={{ marginTop: 16, fontSize: 13, color: "#999" }}>
-              Only modules your role has access to are shown here — an Owner sees every module; other
-              roles see just the ones their permissions cover.
-            </p>
-          </section>
-        </>
+            )}
+          </div>
+
+          <button type="button" onClick={handleLogout} className={styles.logoutButton}>
+            Log out
+          </button>
+        </div>
+      </header>
+
+      {!activeMembership ? (
+        <div className={styles.onboarding}>
+          <h1 style={{ fontSize: 20, color: "var(--gray-800)" }}>Welcome to CoreERP</h1>
+          <p style={{ color: "var(--gray-600)", fontSize: 14, marginTop: 8 }}>
+            {me.memberships.length === 0
+              ? "You're not a member of any company yet — create one to get started."
+              : "Pick a company from the switcher above, or create a new one."}
+          </p>
+          <div className={styles.onboardingCard}>
+            <form onSubmit={handleCreateCompany} style={{ display: "flex", gap: 8 }}>
+              <input
+                placeholder="New company name"
+                value={newCompanyName}
+                onChange={(e) => setNewCompanyName(e.target.value)}
+                className={styles.companyMenuInput}
+              />
+              <button
+                type="submit"
+                disabled={working || !newCompanyName}
+                className={styles.logoutButton}
+              >
+                Create
+              </button>
+            </form>
+            {error && <p style={{ color: "crimson", fontSize: 12, marginTop: 8 }}>{error}</p>}
+          </div>
+        </div>
       ) : (
-        <p style={{ marginTop: 40, color: "#666" }}>
-          Pick a company above to see its dashboard, or create a new one.
-        </p>
+        <>
+          <div className={styles.gridWrap}>
+            {visibleTiles.length === 0 ? (
+              <p className={styles.emptyState}>
+                Your role doesn&apos;t have access to any module yet — ask your company&apos;s Owner
+                to grant you permissions.
+              </p>
+            ) : (
+              <div className={styles.grid}>
+                {visibleTiles.map((tile) => (
+                  <Link key={tile.key} href={tile.href} className={styles.tile}>
+                    <span className={styles.tileIcon}>
+                      <ModuleIcon moduleKey={tile.key} muted={false} />
+                    </span>
+                    <span className={styles.tileLabel}>{tile.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={styles.overview}>
+            <button
+              type="button"
+              className={styles.overviewToggle}
+              onClick={() => setOverviewOpen((v) => !v)}
+            >
+              {overviewOpen ? "▾" : "▸"} {activeMembership.company.name} overview
+            </button>
+            {overviewOpen && (
+              <>
+                {summaryError && <p style={{ color: "crimson", fontSize: 13 }}>{summaryError}</p>}
+                {summary && Object.keys(summary).length === 0 && (
+                  <p style={{ color: "var(--gray-500)", fontSize: 13 }}>
+                    Nothing to show — your role doesn&apos;t have view access to any module with
+                    overview data yet.
+                  </p>
+                )}
+                <div className={styles.overviewCards}>
+                  {summary?.finance && (
+                    <>
+                      <StatCard label="Revenue" value={formatCents(summary.finance.revenue_cents)} />
+                      <StatCard label="Expenses" value={formatCents(summary.finance.expense_cents)} />
+                      <StatCard label="Profit" value={formatCents(summary.finance.profit_cents)} />
+                      <StatCard
+                        label="Pending receivable"
+                        value={formatCents(summary.finance.pending_receivable_cents)}
+                      />
+                      <StatCard
+                        label="Pending payable"
+                        value={formatCents(summary.finance.pending_payable_cents)}
+                      />
+                    </>
+                  )}
+                  {summary?.sales && (
+                    <>
+                      <StatCard label="Sales orders" value={String(summary.sales.order_count)} />
+                      <StatCard label="Sales value" value={formatCents(summary.sales.total_sales_cents)} />
+                    </>
+                  )}
+                  {summary?.inventory && (
+                    <>
+                      <StatCard label="Items" value={String(summary.inventory.item_count)} />
+                      <StatCard label="Stock units" value={String(summary.inventory.total_units)} />
+                      <StatCard
+                        label="Low stock alerts"
+                        value={String(summary.inventory.low_stock_count)}
+                        warn={summary.inventory.low_stock_count > 0}
+                      />
+                    </>
+                  )}
+                  {summary?.hr && (
+                    <StatCard label="Employees" value={String(summary.hr.employee_count)} />
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </>
       )}
-    </main>
+    </div>
+  );
+}
+
+function StatCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className={styles.statCard}>
+      <div className={styles.statLabel}>{label}</div>
+      <div className={`${styles.statValue} ${warn ? styles.warn : ""}`}>{value}</div>
+    </div>
   );
 }

@@ -1,6 +1,49 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* --- Design tokens (docs/FRONTEND_DESIGN.md §10) --- */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+
+  --brand-50: #f5f3ff;
+  --brand-100: #ede9fe;
+  --brand-400: #a78bfa;
+  --brand-500: #8b5cf6;
+  --brand-600: #7c3aed;
+  --brand-700: #6d28d9;
+
+  --status-info: #1565c0;
+  --status-warn: #b45309;
+  --status-danger: #c62828;
+  --status-success: #2e7d32;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+
+  --launcher-gradient: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 45%, #fce7f3 100%);
 }
 
 @media (prefers-color-scheme: dark) {

@@ -1,6 +1,6 @@
 # CoreERP — Frontend Design Reference
 
-*How Odoo structures its frontend, what CoreERP already does that rhymes with it, and a concrete adoption path — written as a reference to build against, not a rewrite mandate. No page has been redesigned off the back of this doc yet; each section below ends with what changing it would actually take.*
+*How Odoo structures its frontend, what CoreERP already does that rhymes with it, and a concrete adoption path — written as a reference to build against, not a rewrite mandate. The app launcher landing screen (§3) has since been redesigned off the back of this doc; every other section is still reference-only — each ends with what changing it would actually take.*
 
 ---
 
@@ -33,9 +33,15 @@ Odoo 19 is flatter than older versions expect: there's no persistent left sideba
 
 ## 3. The app launcher grid
 
-Odoo's app grid (the screen you land on after login) only ever shows apps installed *and* accessible to you — there's no "greyed out, no access" tile. CoreERP's dashboard (`/dashboard/page.tsx`) used to show every module tile always, greyed out with a "No access" label if the active role lacked the permission.
+Odoo's app grid (the screen you land on after login) only ever shows apps installed *and* accessible to you — there's no "greyed out, no access" tile — inside a full-bleed pastel gradient with a minimal top bar (no text-link nav row; that's a per-app concern once you're inside one).
 
-**Status: done.** `MODULE_TILES` is now filtered by `activeMembership.permissions.includes(tile.permission)` before rendering — a role without `inventory.view` simply never sees an Inventory tile, the same way Odoo never shows an app you can't open. Owner already holds every permission in the seeded role set, so Owner continues to see everything without any special-casing.
+**Status: done, on both counts.** `/dashboard/page.tsx` was rewritten as a dedicated launcher screen, separate from `AppHeader` (which every *other* module page still uses unchanged — this was a deliberate scope boundary, not an oversight):
+
+- `MODULE_TILES` is filtered by `activeMembership.permissions.includes(tile.permission)` before rendering — a role without `inventory.view` simply never sees an Inventory tile. Owner already holds every permission in the seeded role set, so Owner continues to see everything without any special-casing. Verified with two real logins: Owner sees all 9 tiles, an HR Manager role sees only the 5 it holds permissions for.
+- New `launcher.module.css` (a real CSS Module, not inline `style={{...}}` — the first place in the codebase using one) implements the visual shell: `--launcher-gradient` full-bleed background, a minimal top bar (brand mark, global search, notification bell, a compact company-switcher dropdown replacing the old "Your companies" card row, log out), and the icon-tile grid itself (`ModuleIcon` components, already Odoo-style flat geometric marks, unchanged).
+- The company overview stat cards (revenue/expenses/profit/stock/employees) — which Odoo's launcher doesn't show at all, that's a per-app dashboard concern per §4 — moved to a collapsed-by-default "▸ Company overview" toggle below the grid, so the grid is the dominant first-viewport element like Odoo's, without dropping the KPI data entirely.
+- `globals.css` gained the design-token layer §10 below describes (gray scale, brand color, spacing/radius/shadow scale) — `launcher.module.css` is the first consumer; every future page redesign should pull from the same tokens rather than inventing new hex values.
+- A genuinely new state got surfaced by this rework, not previously handled explicitly: a fresh login with no active company selected yet now shows a proper "Welcome to CoreERP — pick a company from the switcher, or create a new one" onboarding screen instead of an empty/broken grid.
 
 ---
 
