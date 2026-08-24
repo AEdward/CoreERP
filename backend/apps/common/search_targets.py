@@ -92,4 +92,9 @@ SEARCH_TARGETS = {
         "title": lambda obj: f"{obj.employee} — {obj.category}",
         "url": "/dashboard/expenses",
     },
+    "hr.leaverequest": {
+        "search_fields": ["reason", "employee__first_name", "employee__last_name"],
+        "title": lambda obj: f"{obj.employee} — {obj.leave_type}",
+        "url": "/dashboard/hr",
+    },
 }

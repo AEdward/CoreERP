@@ -120,18 +120,55 @@ export interface Department {
   created_at: string;
 }
 
+export interface Position {
+  id: number;
+  title: string;
+  department: number | null;
+  created_at: string;
+}
+
 export interface Employee {
   id: number;
   first_name: string;
   last_name: string;
   email: string;
   phone: string;
-  position: string;
+  position: number | null;
   department: number | null;
   branch: number | null;
   salary_cents: number;
   joining_date: string | null;
   status: "active" | "on_leave" | "terminated";
+  created_at: string;
+}
+
+export interface EmployeeContract {
+  id: number;
+  employee: number;
+  contract_type: "permanent" | "fixed_term" | "probation" | "contractor";
+  start_date: string;
+  end_date: string | null;
+  salary_cents: number;
+  notes: string;
+  created_at: string;
+}
+
+export interface LeaveType {
+  id: number;
+  name: string;
+  paid: boolean;
+  created_at: string;
+}
+
+export interface LeaveRequest {
+  id: number;
+  employee: number;
+  leave_type: number;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: "draft" | "submitted" | "approved" | "rejected";
+  days: number;
   created_at: string;
 }
 
@@ -798,6 +835,37 @@ export const api = {
   updateEmployee: (id: number, data: Partial<Employee>) =>
     request<Employee>(`/api/hr/employees/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteEmployee: (id: number) => request<void>(`/api/hr/employees/${id}/`, { method: "DELETE" }),
+  listPositions: () => request<Position[]>("/api/hr/positions/"),
+  createPosition: (data: { title: string; department?: number | null }) =>
+    request<Position>("/api/hr/positions/", { method: "POST", body: JSON.stringify(data) }),
+  deletePosition: (id: number) => request<void>(`/api/hr/positions/${id}/`, { method: "DELETE" }),
+  listEmployeeContracts: (employeeId?: number) =>
+    request<EmployeeContract[]>(
+      `/api/hr/employee-contracts/${employeeId ? `?employee=${employeeId}` : ""}`
+    ),
+  createEmployeeContract: (data: Partial<EmployeeContract>) =>
+    request<EmployeeContract>("/api/hr/employee-contracts/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteEmployeeContract: (id: number) =>
+    request<void>(`/api/hr/employee-contracts/${id}/`, { method: "DELETE" }),
+  listLeaveTypes: () => request<LeaveType[]>("/api/hr/leave-types/"),
+  createLeaveType: (data: { name: string; paid: boolean }) =>
+    request<LeaveType>("/api/hr/leave-types/", { method: "POST", body: JSON.stringify(data) }),
+  listLeaveRequests: (employeeId?: number) =>
+    request<LeaveRequest[]>(
+      `/api/hr/leave-requests/${employeeId ? `?employee=${employeeId}` : ""}`
+    ),
+  createLeaveRequest: (data: {
+    employee: number;
+    leave_type: number;
+    start_date: string;
+    end_date: string;
+    reason?: string;
+  }) => request<LeaveRequest>("/api/hr/leave-requests/", { method: "POST", body: JSON.stringify(data) }),
+  deleteLeaveRequest: (id: number) =>
+    request<void>(`/api/hr/leave-requests/${id}/`, { method: "DELETE" }),
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),

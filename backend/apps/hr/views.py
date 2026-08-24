@@ -5,8 +5,15 @@ from rest_framework.views import APIView
 
 from apps.common.views import CompanyScopedViewSet
 
-from .models import Department, Employee
-from .serializers import DepartmentSerializer, EmployeeSerializer
+from .models import Department, Employee, EmployeeContract, LeaveRequest, LeaveType, Position
+from .serializers import (
+    DepartmentSerializer,
+    EmployeeContractSerializer,
+    EmployeeSerializer,
+    LeaveRequestSerializer,
+    LeaveTypeSerializer,
+    PositionSerializer,
+)
 
 
 class DepartmentViewSet(CompanyScopedViewSet):
@@ -15,10 +22,48 @@ class DepartmentViewSet(CompanyScopedViewSet):
     permission_module = "hr"
 
 
+class PositionViewSet(CompanyScopedViewSet):
+    queryset = Position.objects.select_related("department").all()
+    serializer_class = PositionSerializer
+    permission_module = "hr"
+
+
 class EmployeeViewSet(CompanyScopedViewSet):
-    queryset = Employee.objects.select_related("department").all()
+    queryset = Employee.objects.select_related("department", "position").all()
     serializer_class = EmployeeSerializer
     permission_module = "hr"
+
+
+class EmployeeContractViewSet(CompanyScopedViewSet):
+    queryset = EmployeeContract.objects.select_related("employee").all()
+    serializer_class = EmployeeContractSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
+
+
+class LeaveTypeViewSet(CompanyScopedViewSet):
+    queryset = LeaveType.objects.all()
+    serializer_class = LeaveTypeSerializer
+    permission_module = "hr"
+
+
+class LeaveRequestViewSet(CompanyScopedViewSet):
+    queryset = LeaveRequest.objects.select_related("employee", "leave_type").all()
+    serializer_class = LeaveRequestSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
 
 
 class EmployeePickerView(APIView):

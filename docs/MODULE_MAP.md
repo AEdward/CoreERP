@@ -137,26 +137,26 @@ Scope note: sections I onward (Manufacturing and every named industry) are Phase
 - [x] Human Resources — `apps.hr` baseline
 - [x] Employee Records — `apps.hr.Employee`
 - [x] Departments — `apps.hr.Department`
-- [ ] *(partial)* Positions — `Employee.position` is free text; no separate Position/JobTitle entity
-- [ ] Recruitment — not built
-- [ ] Job Vacancies — not built
-- [ ] Applicants — not built
-- [ ] Onboarding — not built
-- [ ] Employee Contracts — not built
-- [ ] Attendance — not built
-- [ ] Biometric Attendance — not built
-- [ ] Leave Management — not built (Time Off — real gap, flagged earlier)
-- [ ] Shift Management — not built
-- [ ] Payroll — not built
-- [ ] *(partial)* Salary Structures — `Employee.salary_cents` is one flat field; no structured components
-- [ ] Allowances — not built
-- [ ] Deductions — not built
-- [ ] Overtime — not built
-- [ ] Loans / Employee Advances — not built (seen in real-world reference screenshots as a real, common need)
-- [ ] Performance Management — not built
-- [ ] Training — not built
-- [ ] Employee Documents — not built (depends on Document Management, A)
-- [ ] Employee Self-Service — not built
+- [x] Positions — `apps.hr.Position`, promoted from `Employee.position`'s old free text to a real, reusable per-company entity (optionally tied to a Department). Migrated with a 3-step add-column/backfill/drop-old-column migration rather than a lossy in-place `AlterField`, so any existing free-text values became real `Position` rows rather than being silently dropped.
+- [ ] Recruitment — not built (Job Vacancies/Applicants/Onboarding below); deliberately deferred — a genuinely separate discipline from core HR record-keeping, no concrete trigger yet, the same "wait for a real trigger" reasoning as Section E's deferred items
+- [ ] Job Vacancies — not built (see Recruitment)
+- [ ] Applicants — not built (see Recruitment)
+- [ ] Onboarding — not built (see Recruitment)
+- [x] Employee Contracts — `apps.hr.EmployeeContract`: the formal record of an employee's contract terms over time (type, start/end dates, salary at signing). Deliberately doesn't auto-sync `Employee.salary_cents` — that stays the one "current payroll figure" HR keeps up to date by hand, the same "record documents facts, doesn't auto-cascade" scope call Fixed Assets makes about the GL. Signed contract documents attach via the existing generic Documents panel.
+- [ ] Attendance — not built; deferred alongside Shift Management (a real Attendance system needs shift definitions to compare clock-ins against, and neither has a concrete trigger yet)
+- [ ] Biometric Attendance — not built (depends on Attendance, plus real hardware/vendor integration — well out of scope)
+- [x] Leave Management — `apps.hr.{LeaveType, LeaveRequest}`. Goes through `apps.approvals` as a fourth real consumer (after PurchaseOrder, PurchaseRequest, Expense), the identical Draft→Submitted→Approved/Rejected shape. Validates no two approved leave requests overlap for the same employee. Deliberately does *not* flip `Employee.status` to `on_leave` on approval — doing that correctly would mean a scheduled daily job checking whether today falls inside the approved date range, which this project has no infrastructure for yet, so that stays a manual HR action, same as it is today.
+- [ ] Shift Management — not built (see Attendance)
+- [ ] Payroll — not built; deliberately deferred as a whole cluster (with Salary Structures/Allowances/Deductions/Overtime/Loans below) — real payroll needs pay-period cadence, tax/statutory-withholding rules that vary by country (this platform already has companies in different countries), and GL-posting integration decided up front, not built speculatively in the same pass as smaller record-keeping gaps. A real trigger (a specific company's payroll requirements) should shape this rather than a guess.
+- [ ] *(partial)* Salary Structures — `Employee.salary_cents` is one flat field; no structured components (see Payroll)
+- [ ] Allowances — not built (see Payroll)
+- [ ] Deductions — not built (see Payroll)
+- [ ] Overtime — not built (see Payroll)
+- [ ] Loans / Employee Advances — not built (see Payroll — naturally a payroll deduction, so shaped by the same design pass)
+- [ ] Performance Management — not built; deferred, no concrete trigger
+- [ ] Training — not built; deferred, no concrete trigger
+- [x] Employee Documents — this line was stale: `hr.employee` has been in `apps.common.targeting.ALLOWED_TARGETS` since Document Management (Section A) shipped, and the HR page's Employee rows have had a working Documents panel the whole time — same kind of stale checkbox Section D's "Procurement Approvals" line turned out to be.
+- [ ] Employee Self-Service — not built; deferred, same reasoning as CRM's Customer Portal (Section C) — a real self-service portal is a substantial standalone surface, not a natural extension of the admin-facing pages built so far
 
 ## G. Asset & Maintenance
 

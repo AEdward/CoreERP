@@ -34,6 +34,8 @@ ALLOWED_TARGETS = {
     "accounting.payment": ("accounting", "Payment"),
     "branches.branch": ("settings", "Branch"),
     "expenses.expense": ("expenses", "Expense"),
+    "hr.employeecontract": ("hr", "Employee Contract"),
+    "hr.leaverequest": ("hr", "Leave Request"),
 }
 
 

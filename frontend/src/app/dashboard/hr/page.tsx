@@ -6,7 +6,7 @@ import { ActivityPanel } from "@/components/ActivityPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
-import { api, ApiError, type Branch, type Department, type Employee } from "@/lib/api";
+import { api, ApiError, type Branch, type Department, type Employee, type Position } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 
 const STATUS_LABELS: Record<Employee["status"], string> = {
@@ -31,6 +31,7 @@ const EMPTY_EMPLOYEE_FORM = {
 export default function HrPage() {
   const { me, activeMembership, error: sessionError } = useSession();
   const [departments, setDepartments] = useState<Department[] | null>(null);
+  const [positions, setPositions] = useState<Position[] | null>(null);
   const [employees, setEmployees] = useState<Employee[] | null>(null);
   const [branches, setBranches] = useState<Branch[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -40,6 +41,10 @@ export default function HrPage() {
   const [deptWorking, setDeptWorking] = useState(false);
   const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
 
+  const [newPositionTitle, setNewPositionTitle] = useState("");
+  const [positionDept, setPositionDept] = useState("");
+  const [positionWorking, setPositionWorking] = useState(false);
+
   const [empForm, setEmpForm] = useState(EMPTY_EMPLOYEE_FORM);
   const [empWorking, setEmpWorking] = useState(false);
   const [empError, setEmpError] = useState<string | null>(null);
@@ -47,12 +52,14 @@ export default function HrPage() {
 
   async function loadAll() {
     try {
-      const [depts, emps, brs] = await Promise.all([
+      const [depts, poss, emps, brs] = await Promise.all([
         api.listDepartments(),
+        api.listPositions(),
         api.listEmployees(),
         api.listBranches(),
       ]);
       setDepartments(depts);
+      setPositions(poss);
       setEmployees(emps);
       setBranches(brs);
     } catch (err) {
@@ -104,6 +111,33 @@ export default function HrPage() {
     }
   }
 
+  async function handleAddPosition(e: React.FormEvent) {
+    e.preventDefault();
+    setPositionWorking(true);
+    try {
+      await api.createPosition({
+        title: newPositionTitle,
+        department: positionDept ? Number(positionDept) : null,
+      });
+      setNewPositionTitle("");
+      setPositionDept("");
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to save position.");
+    } finally {
+      setPositionWorking(false);
+    }
+  }
+
+  async function handleDeletePosition(id: number) {
+    try {
+      await api.deletePosition(id);
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete position.");
+    }
+  }
+
   async function handleAddEmployee(e: React.FormEvent) {
     e.preventDefault();
     setEmpWorking(true);
@@ -114,7 +148,7 @@ export default function HrPage() {
         last_name: empForm.last_name,
         email: empForm.email,
         phone: empForm.phone,
-        position: empForm.position,
+        position: empForm.position ? Number(empForm.position) : null,
         department: empForm.department ? Number(empForm.department) : null,
         branch: empForm.branch ? Number(empForm.branch) : null,
         salary_cents: empForm.salary_cents ? Math.round(Number(empForm.salary_cents) * 100) : 0,
@@ -143,7 +177,7 @@ export default function HrPage() {
       last_name: emp.last_name,
       email: emp.email,
       phone: emp.phone,
-      position: emp.position,
+      position: emp.position ? String(emp.position) : "",
       department: emp.department ? String(emp.department) : "",
       branch: emp.branch ? String(emp.branch) : "",
       salary_cents: emp.salary_cents ? String(emp.salary_cents / 100) : "",
@@ -167,6 +201,7 @@ export default function HrPage() {
   const canManage = activeMembership?.permissions.includes("hr.manage") ?? false;
   const departmentName = (id: number | null) => departments?.find((d) => d.id === id)?.name ?? "—";
   const branchName = (id: number | null) => branches?.find((b) => b.id === id)?.name ?? "—";
+  const positionTitle = (id: number | null) => positions?.find((p) => p.id === id)?.title ?? "—";
 
   return (
     <main style={{ maxWidth: 960, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
@@ -179,6 +214,9 @@ export default function HrPage() {
       ) : (
         <>
           <h1 style={{ fontSize: 20 }}>HR — {activeMembership.company.name}</h1>
+          <p style={{ color: "#666", fontSize: 13 }}>
+            <a href="/dashboard/hr/leave-and-contracts">Leave requests & employee contracts &rarr;</a>
+          </p>
           {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
 
           <section style={{ marginTop: 24 }}>
@@ -257,6 +295,66 @@ export default function HrPage() {
 
           <section style={{ marginTop: 40 }}>
             <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+              Positions
+            </h2>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
+              <tbody>
+                {positions?.map((p) => (
+                  <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: "6px 4px" }}>{p.title}</td>
+                    <td style={{ padding: "6px 4px", color: "#666" }}>{departmentName(p.department)}</td>
+                    {canManage && (
+                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <RowActions
+                          onDelete={() => handleDeletePosition(p.id)}
+                          disabled={positionWorking}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {positions?.length === 0 && (
+                  <tr>
+                    <td colSpan={3} style={{ padding: "6px 4px", color: "#999" }}>
+                      No positions yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleAddPosition} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <input
+                  placeholder="New position title (e.g. Sales Manager)"
+                  value={newPositionTitle}
+                  onChange={(e) => setNewPositionTitle(e.target.value)}
+                  style={{ padding: 8, flex: 1, maxWidth: 280 }}
+                />
+                <select
+                  value={positionDept}
+                  onChange={(e) => setPositionDept(e.target.value)}
+                  style={{ padding: 8 }}
+                >
+                  <option value="">No department</option>
+                  {departments?.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={positionWorking || !newPositionTitle}
+                  style={{ padding: "8px 16px" }}
+                >
+                  Add position
+                </button>
+              </form>
+            )}
+          </section>
+
+          <section style={{ marginTop: 40 }}>
+            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
               Employees
             </h2>
             <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
@@ -277,7 +375,7 @@ export default function HrPage() {
                     <td style={{ padding: "6px 4px" }}>
                       {emp.first_name} {emp.last_name}
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{emp.position || "—"}</td>
+                    <td style={{ padding: "6px 4px" }}>{positionTitle(emp.position)}</td>
                     <td style={{ padding: "6px 4px" }}>{departmentName(emp.department)}</td>
                     <td style={{ padding: "6px 4px" }}>{branchName(emp.branch)}</td>
                     <td style={{ padding: "6px 4px" }}>{STATUS_LABELS[emp.status]}</td>
@@ -353,12 +451,18 @@ export default function HrPage() {
                   onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })}
                   style={{ padding: 8 }}
                 />
-                <input
-                  placeholder="Position"
+                <select
                   value={empForm.position}
                   onChange={(e) => setEmpForm({ ...empForm, position: e.target.value })}
                   style={{ padding: 8 }}
-                />
+                >
+                  <option value="">No position</option>
+                  {positions?.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
                 <select
                   value={empForm.department}
                   onChange={(e) => setEmpForm({ ...empForm, department: e.target.value })}

@@ -8,12 +8,12 @@ registers its own hooks from its AppConfig.ready(), the same
 apps.activity's post_save signal connection and apps.notifications'
 notify_permission().
 
-Only apps.procurement.PurchaseOrder is registered today — its `status`
-field already had an unused APPROVED value sitting there with nothing
-enforcing the transition into it, the same shape Item.tax_rate was in
-before apps.tax existed. Add a line to APPROVABLE_TARGETS and call
-register_approval_hooks() from another app's ready() when a second real
-approval need shows up.
+Started with just apps.procurement.PurchaseOrder — its `status` field
+already had an unused APPROVED value sitting there with nothing enforcing
+the transition into it, the same shape Item.tax_rate was in before
+apps.tax existed. Now also PurchaseRequest, Expense, and LeaveRequest.
+Add a line to APPROVABLE_TARGETS and call register_approval_hooks() from
+another app's ready() when the next real approval need shows up.
 """
 
 from django.contrib.contenttypes.models import ContentType
@@ -33,6 +33,11 @@ APPROVABLE_TARGETS = {
         "permission_module": "expenses",
         "label": "Expense",
         "url": "/dashboard/expenses",
+    },
+    "hr.leaverequest": {
+        "permission_module": "hr",
+        "label": "Leave Request",
+        "url": "/dashboard/hr",
     },
 }
 
