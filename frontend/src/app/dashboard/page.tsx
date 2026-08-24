@@ -234,48 +234,34 @@ export default function DashboardPage() {
                   gap: 20,
                 }}
               >
-                {MODULE_TILES.map((tile) => {
-                  const enabled = activeMembership.permissions.includes(tile.permission);
-                  const clickable = enabled && tile.href;
-                  const card = (
-                    <div
-                      className={`module-tile${clickable ? " clickable" : ""}`}
-                      style={{
-                        padding: "20px 12px",
-                        borderRadius: 18,
-                        background: "white",
-                        cursor: clickable ? "pointer" : "default",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 10,
-                        textAlign: "center",
-                      }}
-                      title={enabled ? undefined : `Requires ${tile.permission}`}
-                    >
-                      <ModuleIcon moduleKey={tile.key} muted={!enabled} />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: enabled ? "#222" : "#999" }}>
-                          {tile.label}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>
-                          {enabled ? "" : "No access"}
-                        </div>
+                {MODULE_TILES.filter((tile) => activeMembership.permissions.includes(tile.permission)).map(
+                  (tile) => (
+                    <Link key={tile.key} href={tile.href} style={{ display: "block" }}>
+                      <div
+                        className="module-tile clickable"
+                        style={{
+                          padding: "20px 12px",
+                          borderRadius: 18,
+                          background: "white",
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 10,
+                          textAlign: "center",
+                        }}
+                      >
+                        <ModuleIcon moduleKey={tile.key} muted={false} />
+                        <div style={{ fontWeight: 600, fontSize: 13, color: "#222" }}>{tile.label}</div>
                       </div>
-                    </div>
-                  );
-                  return clickable ? (
-                    <Link key={tile.key} href={tile.href!} style={{ display: "block" }}>
-                      {card}
                     </Link>
-                  ) : (
-                    <div key={tile.key}>{card}</div>
-                  );
-                })}
+                  )
+                )}
               </div>
             </div>
             <p style={{ marginTop: 16, fontSize: 13, color: "#999" }}>
-              Every module has a working screen now. See TODO.md.
+              Only modules your role has access to are shown here — an Owner sees every module; other
+              roles see just the ones their permissions cover.
             </p>
           </section>
         </>
