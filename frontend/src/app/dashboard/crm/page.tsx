@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { RowActions } from "@/components/RowActions";
 import {
   api,
@@ -13,6 +13,7 @@ import {
   type Opportunity,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const EMPTY_LEAD_FORM = { name: "", company_name: "", email: "", phone: "", source: "", assigned_to: "" };
 const EMPTY_OPP_FORM = {
@@ -32,6 +33,15 @@ const STAGE_LABELS: Record<Opportunity["stage"], string> = {
   negotiation: "Negotiation",
   won: "Won",
   lost: "Lost",
+};
+
+const STAGE_BADGE: Record<Opportunity["stage"], string> = {
+  prospecting: "badgeInfo",
+  qualification: "badgeInfo",
+  proposal: "badgeWarn",
+  negotiation: "badgeWarn",
+  won: "badgeSuccess",
+  lost: "badgeDanger",
 };
 
 function formatCents(cents: number) {
@@ -221,8 +231,8 @@ export default function CrmPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("sales.manage") ?? false;
   const customerName = (id: number) => customers?.find((c) => c.id === id)?.name ?? "—";
@@ -230,56 +240,55 @@ export default function CrmPage() {
   const activeLeads = leads?.filter((l) => l.status !== "converted") ?? [];
 
   return (
-    <main style={{ maxWidth: 1100, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <ModuleShell moduleKey="sales" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>CRM pipeline</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+          <div className={shared.pageActions}>
+            <a href="/dashboard/sales" className={shared.btn}>
+              &larr; Back to Sales
+            </a>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>CRM pipeline — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/sales">&larr; Back to Sales</a>
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Leads
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Leads</h2>
+          <div className={shared.card}>
+            <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 12 }}>
               Converting a lead creates a real Customer and a Prospecting-stage Opportunity in one
               step. A converted lead can&apos;t be converted again.
             </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Company</th>
-                  <th style={{ padding: "6px 4px" }}>Source</th>
-                  <th style={{ padding: "6px 4px" }}>Assigned to</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Company</th>
+                  <th>Source</th>
+                  <th>Assigned to</th>
+                  <th>Status</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {activeLeads.map((l) => (
-                  <tr key={l.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{l.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{l.company_name}</td>
-                    <td style={{ padding: "6px 4px" }}>{l.source}</td>
-                    <td style={{ padding: "6px 4px" }}>{l.assigned_to_name || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{l.status}</td>
+                  <tr key={l.id}>
+                    <td>{l.name}</td>
+                    <td>{l.company_name}</td>
+                    <td>{l.source}</td>
+                    <td>{l.assigned_to_name || "—"}</td>
+                    <td>{l.status}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <span style={{ display: "inline-flex", gap: 6 }}>
                           <button
                             type="button"
                             disabled={leadWorking}
                             onClick={() => handleConvertLead(l.id)}
-                            style={{ padding: "4px 10px" }}
+                            className={`${shared.btn} ${shared.btnSmall}`}
                           >
                             Convert
                           </button>
@@ -291,7 +300,7 @@ export default function CrmPage() {
                 ))}
                 {activeLeads.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       No open leads.
                     </td>
                   </tr>
@@ -300,52 +309,43 @@ export default function CrmPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleAddLead}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 900,
-                }}
-              >
+              <form onSubmit={handleAddLead} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <input
                   placeholder="Name"
                   required
                   value={leadForm.name}
                   onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Company"
                   value={leadForm.company_name}
                   onChange={(e) => setLeadForm({ ...leadForm, company_name: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Email"
                   type="email"
                   value={leadForm.email}
                   onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Phone"
                   value={leadForm.phone}
                   onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Source (e.g. Referral)"
                   value={leadForm.source}
                   onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <select
                   value={leadForm.assigned_to}
                   onChange={(e) => setLeadForm({ ...leadForm, assigned_to: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Assigned to…</option>
                   {members?.map((m) => (
@@ -354,43 +354,53 @@ export default function CrmPage() {
                     </option>
                   ))}
                 </select>
-                <button type="submit" disabled={leadWorking || !leadForm.name} style={{ padding: 8 }}>
+                <button
+                  type="submit"
+                  disabled={leadWorking || !leadForm.name}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
                   Add lead
                 </button>
                 {leadError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{leadError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {leadError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Opportunities
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Opportunities</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Customer</th>
-                  <th style={{ padding: "6px 4px" }}>Stage</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
-                  <th style={{ padding: "6px 4px" }}>Expected close</th>
-                  <th style={{ padding: "6px 4px" }}>Assigned to</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Customer</th>
+                  <th>Stage</th>
+                  <th>Amount</th>
+                  <th>Expected close</th>
+                  <th>Assigned to</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {opportunities?.map((o) => (
-                  <tr key={o.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{o.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{customerName(o.customer)}</td>
-                    <td style={{ padding: "6px 4px" }}>{STAGE_LABELS[o.stage]}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(o.amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{o.expected_close_date ?? "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{memberName(o.assigned_to)}</td>
+                  <tr key={o.id}>
+                    <td>{o.name}</td>
+                    <td>{customerName(o.customer)}</td>
+                    <td>
+                      <span className={`${shared.badge} ${shared[STAGE_BADGE[o.stage]]}`}>
+                        {STAGE_LABELS[o.stage]}
+                      </span>
+                    </td>
+                    <td>{formatCents(o.amount_cents)}</td>
+                    <td>{o.expected_close_date ?? "—"}</td>
+                    <td>{memberName(o.assigned_to)}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onEdit={() => startEditOpp(o)}
                           onDelete={() => handleDeleteOpp(o.id)}
@@ -402,7 +412,7 @@ export default function CrmPage() {
                 ))}
                 {opportunities?.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={7} className={shared.tableMuted}>
                       No opportunities yet.
                     </td>
                   </tr>
@@ -411,21 +421,12 @@ export default function CrmPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleSubmitOpp}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 900,
-                }}
-              >
+              <form onSubmit={handleSubmitOpp} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   required
                   value={oppForm.customer}
                   onChange={(e) => setOppForm({ ...oppForm, customer: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Customer…</option>
                   {customers?.map((c) => (
@@ -439,12 +440,12 @@ export default function CrmPage() {
                   required
                   value={oppForm.name}
                   onChange={(e) => setOppForm({ ...oppForm, name: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <select
                   value={oppForm.stage}
                   onChange={(e) => setOppForm({ ...oppForm, stage: e.target.value as Opportunity["stage"] })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   {Object.entries(STAGE_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -458,18 +459,18 @@ export default function CrmPage() {
                   step="0.01"
                   value={oppForm.amount}
                   onChange={(e) => setOppForm({ ...oppForm, amount: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   type="date"
                   value={oppForm.expected_close_date}
                   onChange={(e) => setOppForm({ ...oppForm, expected_close_date: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <select
                   value={oppForm.assigned_to}
                   onChange={(e) => setOppForm({ ...oppForm, assigned_to: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Assigned to…</option>
                   {members?.map((m) => (
@@ -482,7 +483,7 @@ export default function CrmPage() {
                   <button
                     type="submit"
                     disabled={oppWorking || !oppForm.customer || !oppForm.name}
-                    style={{ padding: "8px 16px" }}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
                   >
                     {editingOppId ? "Save changes" : "Add opportunity"}
                   </button>
@@ -493,27 +494,29 @@ export default function CrmPage() {
                         setEditingOppId(null);
                         setOppForm(EMPTY_OPP_FORM);
                       }}
-                      style={{ padding: "8px 16px" }}
+                      className={shared.btn}
                     >
                       Cancel
                     </button>
                   )}
                 </div>
                 {oppError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{oppError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {oppError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Contacts
-            </h2>
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Contacts</h2>
+          <div className={shared.card}>
             <select
               value={selectedCustomerId ?? ""}
               onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : null)}
-              style={{ padding: 8, marginTop: 8 }}
+              className={shared.select}
             >
               {customers?.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -522,27 +525,27 @@ export default function CrmPage() {
               ))}
             </select>
 
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+            <table className={shared.table} style={{ marginTop: 16 }}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Title</th>
-                  <th style={{ padding: "6px 4px" }}>Email</th>
-                  <th style={{ padding: "6px 4px" }}>Phone</th>
-                  <th style={{ padding: "6px 4px" }}>Primary</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Title</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Primary</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {contacts?.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{c.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.title}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.email}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.phone}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.is_primary ? "Yes" : ""}</td>
+                  <tr key={c.id}>
+                    <td>{c.name}</td>
+                    <td>{c.title}</td>
+                    <td>{c.email}</td>
+                    <td>{c.phone}</td>
+                    <td>{c.is_primary ? "Yes" : ""}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions onDelete={() => handleDeleteContact(c.id)} disabled={contactWorking} />
                       </td>
                     )}
@@ -550,7 +553,7 @@ export default function CrmPage() {
                 ))}
                 {contacts?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       No contacts for this customer yet.
                     </td>
                   </tr>
@@ -559,41 +562,32 @@ export default function CrmPage() {
             </table>
 
             {canManage && selectedCustomerId !== null && (
-              <form
-                onSubmit={handleAddContact}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 900,
-                }}
-              >
+              <form onSubmit={handleAddContact} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <input
                   placeholder="Name"
                   required
                   value={contactForm.name}
                   onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Title"
                   value={contactForm.title}
                   onChange={(e) => setContactForm({ ...contactForm, title: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Email"
                   type="email"
                   value={contactForm.email}
                   onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Phone"
                   value={contactForm.phone}
                   onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <input
@@ -603,17 +597,23 @@ export default function CrmPage() {
                   />
                   Primary contact
                 </label>
-                <button type="submit" disabled={contactWorking} style={{ padding: 8 }}>
+                <button
+                  type="submit"
+                  disabled={contactWorking}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
                   Add contact
                 </button>
                 {contactError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{contactError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {contactError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
-        </>
-      )}
-    </main>
+          </div>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { RowActions } from "@/components/RowActions";
 import {
   api,
@@ -13,6 +13,7 @@ import {
   type SalaryComponent,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const RUN_STATUS_LABELS: Record<PayrollRun["status"], string> = {
   draft: "Draft",
@@ -20,10 +21,10 @@ const RUN_STATUS_LABELS: Record<PayrollRun["status"], string> = {
   paid: "Paid",
 };
 
-const RUN_STATUS_COLORS: Record<PayrollRun["status"], string> = {
-  draft: "#666",
-  processed: "#e65100",
-  paid: "#2e7d32",
+const RUN_STATUS_BADGES: Record<PayrollRun["status"], string> = {
+  draft: "",
+  processed: shared.badgeWarn,
+  paid: shared.badgeSuccess,
 };
 
 function formatCents(cents: number) {
@@ -205,45 +206,42 @@ export default function PayrollPage() {
   const employeeName = (id: number) => employees?.find((e) => e.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
-
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
+    <ModuleShell moduleKey="hr" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Payroll</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+            <p className={shared.hint} style={{ marginTop: 4 }}>
+              <a href="/dashboard/hr">&larr; Back to HR</a>
+            </p>
+          </div>
+        </div>
+        <p className={shared.hint} style={{ maxWidth: 700 }}>
+          PAYE income tax and pension (7% employee / 11% employer) are computed automatically per
+          Ethiopia&apos;s Income Tax Proclamation No. 1395/2025 — not editable here. Basic Salary
+          comes from each employee&apos;s HR record; components below are additional allowances or
+          deductions layered on top.
         </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Payroll — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/hr">&larr; Back to HR</a>
-          </p>
-          <p style={{ fontSize: 12, color: "#999", maxWidth: 700 }}>
-            PAYE income tax and pension (7% employee / 11% employer) are computed automatically per
-            Ethiopia&apos;s Income Tax Proclamation No. 1395/2025 — not editable here. Basic Salary
-            comes from each employee&apos;s HR record; components below are additional allowances or
-            deductions layered on top.
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-          {/* Salary Components */}
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Salary components
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Salary Components */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Salary components</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <tbody>
                 {components?.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{c.name}</td>
-                    <td style={{ padding: "6px 4px", color: "#666" }}>
+                  <tr key={c.id}>
+                    <td>{c.name}</td>
+                    <td className={shared.tableMuted}>
                       {c.category === "earning" ? "Earning" : "Deduction"}
                     </td>
-                    <td style={{ padding: "6px 4px", color: "#999" }}>
+                    <td className={shared.tableMuted}>
                       {c.category === "earning" ? (c.is_taxable ? "Taxable" : "Tax-exempt") : ""}
                     </td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onDelete={() => handleDeleteComponent(c.id)}
                           disabled={componentWorking}
@@ -254,7 +252,7 @@ export default function PayrollPage() {
                 ))}
                 {components?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={4} className={shared.tableMuted}>
                       No salary components yet.
                     </td>
                   </tr>
@@ -262,12 +260,13 @@ export default function PayrollPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleAddComponent} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <form onSubmit={handleAddComponent} className={shared.formRow} style={{ marginTop: 12 }}>
                 <input
                   placeholder="Name (e.g. Transport Allowance)"
                   value={componentForm.name}
                   onChange={(e) => setComponentForm({ ...componentForm, name: e.target.value })}
-                  style={{ padding: 8, flex: 1, maxWidth: 240 }}
+                  className={shared.input}
+                  style={{ flex: 1, maxWidth: 240 }}
                 />
                 <select
                   value={componentForm.category}
@@ -277,7 +276,7 @@ export default function PayrollPage() {
                       category: e.target.value as SalaryComponent["category"],
                     })
                   }
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="earning">Earning</option>
                   <option value="deduction">Deduction</option>
@@ -297,41 +296,41 @@ export default function PayrollPage() {
                 <button
                   type="submit"
                   disabled={componentWorking || !componentForm.name}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Add component
                 </button>
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Employee Salary Structure */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Employee salary structure
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Employee Salary Structure */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Employee salary structure</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Employee</th>
-                  <th style={{ padding: "6px 4px" }}>Component</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
+                <tr>
+                  <th>Employee</th>
+                  <th>Component</th>
+                  <th>Amount</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {assignments?.map((a) => (
-                  <tr key={a.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{employeeName(a.employee)}</td>
-                    <td style={{ padding: "6px 4px" }}>
+                  <tr key={a.id}>
+                    <td>{employeeName(a.employee)}</td>
+                    <td>
                       {a.component_name}{" "}
-                      <span style={{ color: "#999" }}>
+                      <span className={shared.tableMuted}>
                         ({a.component_category === "earning" ? "earning" : "deduction"})
                       </span>
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(a.amount_cents)}</td>
+                    <td>{formatCents(a.amount_cents)}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions onDelete={() => handleUnassign(a.id)} disabled={assignWorking} />
                       </td>
                     )}
@@ -339,7 +338,7 @@ export default function PayrollPage() {
                 ))}
                 {assignments?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={4} className={shared.tableMuted}>
                       No components assigned yet.
                     </td>
                   </tr>
@@ -347,12 +346,12 @@ export default function PayrollPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleAssign} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <form onSubmit={handleAssign} className={shared.formRow} style={{ marginTop: 12 }}>
                 <select
                   required
                   value={assignForm.employee}
                   onChange={(e) => setAssignForm({ ...assignForm, employee: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Employee…</option>
                   {employees?.map((emp) => (
@@ -365,7 +364,7 @@ export default function PayrollPage() {
                   required
                   value={assignForm.component}
                   onChange={(e) => setAssignForm({ ...assignForm, component: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Component…</option>
                   {components?.map((c) => (
@@ -381,32 +380,33 @@ export default function PayrollPage() {
                   required
                   value={assignForm.amount_cents}
                   onChange={(e) => setAssignForm({ ...assignForm, amount_cents: e.target.value })}
-                  style={{ padding: 8, width: 120 }}
+                  className={shared.input}
+                  style={{ width: 120 }}
                 />
                 <button
                   type="submit"
                   disabled={assignWorking || !assignForm.employee || !assignForm.component}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Assign
                 </button>
-                {assignError && <p style={{ color: "crimson" }}>{assignError}</p>}
+                {assignError && <p className={shared.errorText}>{assignError}</p>}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Payroll Runs */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Payroll runs
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Payroll Runs */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Payroll runs</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Label</th>
-                  <th style={{ padding: "6px 4px" }}>Period</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}>Total net pay</th>
+                <tr>
+                  <th>Label</th>
+                  <th>Period</th>
+                  <th>Status</th>
+                  <th>Total net pay</th>
                   <th></th>
                   {canManage && <th></th>}
                 </tr>
@@ -414,39 +414,38 @@ export default function PayrollPage() {
               <tbody>
                 {runs?.map((r) => (
                   <Fragment key={r.id}>
-                    <tr style={{ borderBottom: "1px solid #eee" }}>
-                      <td style={{ padding: "6px 4px" }}>
+                    <tr>
+                      <td>
                         <button
                           type="button"
                           onClick={() => toggleRun(r.id)}
+                          className={shared.btnGhost}
                           style={{
-                            background: "none",
                             border: "none",
                             padding: 0,
-                            color: "#1565c0",
-                            cursor: "pointer",
                             font: "inherit",
+                            textDecoration: "underline",
                           }}
                         >
                           {r.label}
                         </button>
                       </td>
-                      <td style={{ padding: "6px 4px" }}>
+                      <td>
                         {r.start_date} to {r.end_date}
                       </td>
-                      <td style={{ padding: "6px 4px" }}>
-                        <span style={{ color: RUN_STATUS_COLORS[r.status], fontWeight: 600 }}>
+                      <td>
+                        <span className={`${shared.badge} ${RUN_STATUS_BADGES[r.status]}`}>
                           {RUN_STATUS_LABELS[r.status]}
                         </span>
                       </td>
-                      <td style={{ padding: "6px 4px" }}>{formatCents(r.total_net_pay_cents)}</td>
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td>{formatCents(r.total_net_pay_cents)}</td>
+                      <td style={{ textAlign: "right" }}>
                         {canManage && r.status === "draft" && (
                           <button
                             type="button"
                             onClick={() => handleProcess(r.id)}
                             disabled={runWorking}
-                            style={{ padding: "2px 8px", fontSize: 12 }}
+                            className={`${shared.btn} ${shared.btnSmall}`}
                           >
                             Process
                           </button>
@@ -456,14 +455,14 @@ export default function PayrollPage() {
                             type="button"
                             onClick={() => handleMarkPaid(r.id)}
                             disabled={runWorking}
-                            style={{ padding: "2px 8px", fontSize: 12 }}
+                            className={`${shared.btn} ${shared.btnSmall}`}
                           >
                             Mark paid
                           </button>
                         )}
                       </td>
                       {canManage && (
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <td style={{ textAlign: "right" }}>
                           {r.status === "draft" && (
                             <RowActions onDelete={() => handleDeleteRun(r.id)} disabled={runWorking} />
                           )}
@@ -471,40 +470,34 @@ export default function PayrollPage() {
                       )}
                     </tr>
                     {expandedRunId === r.id && (
-                      <tr style={{ borderBottom: "1px solid #eee", background: "#fafafa" }}>
-                        <td colSpan={6} style={{ padding: "10px 4px" }}>
+                      <tr>
+                        <td colSpan={6} style={{ padding: "10px 4px", background: "var(--gray-50)" }}>
                           {runPayslips === null ? (
-                            <p style={{ color: "#999", fontSize: 13 }}>Loading payslips…</p>
+                            <p className={shared.hint}>Loading payslips…</p>
                           ) : runPayslips.length === 0 ? (
-                            <p style={{ color: "#999", fontSize: 13 }}>
-                              No payslips yet — process this run first.
-                            </p>
+                            <p className={shared.hint}>No payslips yet — process this run first.</p>
                           ) : (
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                            <table className={shared.table}>
                               <thead>
-                                <tr style={{ textAlign: "left" }}>
-                                  <th style={{ padding: "4px" }}>Employee</th>
-                                  <th style={{ padding: "4px" }}>Gross</th>
-                                  <th style={{ padding: "4px" }}>PAYE</th>
-                                  <th style={{ padding: "4px" }}>Pension (emp.)</th>
-                                  <th style={{ padding: "4px" }}>Net pay</th>
+                                <tr>
+                                  <th>Employee</th>
+                                  <th>Gross</th>
+                                  <th>PAYE</th>
+                                  <th>Pension (emp.)</th>
+                                  <th>Net pay</th>
                                   <th></th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {runPayslips.map((p) => (
                                   <Fragment key={p.id}>
-                                    <tr style={{ borderTop: "1px solid #eee" }}>
-                                      <td style={{ padding: "4px" }}>{employeeName(p.employee)}</td>
-                                      <td style={{ padding: "4px" }}>{formatCents(p.gross_cents)}</td>
-                                      <td style={{ padding: "4px" }}>{formatCents(p.paye_tax_cents)}</td>
-                                      <td style={{ padding: "4px" }}>
-                                        {formatCents(p.pension_employee_cents)}
-                                      </td>
-                                      <td style={{ padding: "4px", fontWeight: 600 }}>
-                                        {formatCents(p.net_pay_cents)}
-                                      </td>
-                                      <td style={{ padding: "4px", textAlign: "right" }}>
+                                    <tr>
+                                      <td>{employeeName(p.employee)}</td>
+                                      <td>{formatCents(p.gross_cents)}</td>
+                                      <td>{formatCents(p.paye_tax_cents)}</td>
+                                      <td>{formatCents(p.pension_employee_cents)}</td>
+                                      <td style={{ fontWeight: 600 }}>{formatCents(p.net_pay_cents)}</td>
+                                      <td style={{ textAlign: "right" }}>
                                         <button
                                           type="button"
                                           onClick={() =>
@@ -512,7 +505,7 @@ export default function PayrollPage() {
                                               expandedPayslipId === p.id ? null : p.id
                                             )
                                           }
-                                          style={{ padding: "1px 6px", fontSize: 11 }}
+                                          className={`${shared.btn} ${shared.btnSmall}`}
                                         >
                                           {expandedPayslipId === p.id ? "Hide" : "Details"}
                                         </button>
@@ -521,14 +514,12 @@ export default function PayrollPage() {
                                     {expandedPayslipId === p.id && (
                                       <tr>
                                         <td colSpan={6} style={{ padding: "4px 4px 8px 16px" }}>
-                                          <table style={{ fontSize: 12, color: "#666" }}>
+                                          <table className={shared.table} style={{ fontSize: 12 }}>
                                             <tbody>
                                               {p.lines.map((line) => (
                                                 <tr key={line.id}>
-                                                  <td style={{ padding: "2px 12px 2px 0" }}>
-                                                    {line.label}
-                                                  </td>
-                                                  <td style={{ padding: "2px 0" }}>
+                                                  <td>{line.label}</td>
+                                                  <td>
                                                     {line.line_type === "deduction" ? "−" : ""}
                                                     {formatCents(line.amount_cents)}
                                                   </td>
@@ -551,7 +542,7 @@ export default function PayrollPage() {
                 ))}
                 {runs?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       No payroll runs yet.
                     </td>
                   </tr>
@@ -559,41 +550,42 @@ export default function PayrollPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleCreateRun} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <form onSubmit={handleCreateRun} className={shared.formRow} style={{ marginTop: 12 }}>
                 <input
                   placeholder="Label (e.g. August 2026)"
                   required
                   value={runForm.label}
                   onChange={(e) => setRunForm({ ...runForm, label: e.target.value })}
-                  style={{ padding: 8, flex: 1, maxWidth: 200 }}
+                  className={shared.input}
+                  style={{ flex: 1, maxWidth: 200 }}
                 />
                 <input
                   type="date"
                   required
                   value={runForm.start_date}
                   onChange={(e) => setRunForm({ ...runForm, start_date: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   type="date"
                   required
                   value={runForm.end_date}
                   onChange={(e) => setRunForm({ ...runForm, end_date: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <button
                   type="submit"
                   disabled={runWorking || !runForm.label}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Create run
                 </button>
-                {runError && <p style={{ color: "crimson" }}>{runError}</p>}
+                {runError && <p className={shared.errorText}>{runError}</p>}
               </form>
             )}
-          </section>
-        </>
-      )}
-    </main>
+          </div>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

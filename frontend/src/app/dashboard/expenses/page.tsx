@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { ApprovalPanel } from "@/components/ApprovalPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
@@ -9,6 +9,7 @@ import { NotesPanel } from "@/components/NotesPanel";
 import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type EmployeePickerEntry, type Expense } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const STATUS_LABELS: Record<Expense["status"], string> = {
   draft: "Draft",
@@ -18,12 +19,12 @@ const STATUS_LABELS: Record<Expense["status"], string> = {
   paid: "Paid",
 };
 
-const STATUS_COLORS: Record<Expense["status"], string> = {
-  draft: "#666",
-  submitted: "#e65100",
-  approved: "#2e7d32",
-  rejected: "#c62828",
-  paid: "#1565c0",
+const STATUS_BADGES: Record<Expense["status"], string> = {
+  draft: "",
+  submitted: shared.badgeWarn,
+  approved: shared.badgeSuccess,
+  rejected: shared.badgeDanger,
+  paid: shared.badgeInfo,
 };
 
 const EMPTY_FORM = {
@@ -114,179 +115,170 @@ export default function ExpensesPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("expenses.manage") ?? false;
   const employeeName = (id: number) => employees?.find((e) => e.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
-
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
+    <ModuleShell moduleKey="expenses" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Expenses</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+        </div>
+        <p className={shared.hint} style={{ marginBottom: 16 }}>
+          File an expense claim, then request approval from the Approval panel on its row. Once
+          approved, it can be paid the same way a supplier bill is, from Accounting.
         </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Expenses — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            File an expense claim, then request approval from the Approval panel on its row. Once
-            approved, it can be paid the same way a supplier bill is, from Accounting.
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-          <section style={{ marginTop: 24, marginBottom: 40 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Employee</th>
-                  <th style={{ padding: "6px 4px" }}>Category</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
-                  <th style={{ padding: "6px 4px" }}>Date</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}></th>
-                  {canManage && <th></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {expenses?.map((exp) => (
-                  <tr key={exp.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{employeeName(exp.employee)}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {exp.category}
-                      {exp.description && (
-                        <div style={{ fontSize: 12, color: "#999" }}>{exp.description}</div>
-                      )}
+        <div className={shared.card}>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th></th>
+                {canManage && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {expenses?.map((exp) => (
+                <tr key={exp.id}>
+                  <td>{employeeName(exp.employee)}</td>
+                  <td>
+                    {exp.category}
+                    {exp.description && <div className={shared.tableMuted}>{exp.description}</div>}
+                  </td>
+                  <td>{formatCents(exp.amount_cents)}</td>
+                  <td>{exp.expense_date}</td>
+                  <td>
+                    <span className={`${shared.badge} ${STATUS_BADGES[exp.status]}`}>
+                      {STATUS_LABELS[exp.status]}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <span style={{ display: "inline-flex", gap: 6 }}>
+                      <DocumentsPanel
+                        target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
+                        canManage={canManage}
+                      />
+                      <NotesPanel
+                        target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
+                        canManage={canManage}
+                      />
+                      <ActivityPanel
+                        target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
+                      />
+                      <ApprovalPanel
+                        target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
+                        canManage={canManage}
+                      />
+                    </span>
+                  </td>
+                  {canManage && (
+                    <td style={{ textAlign: "right" }}>
+                      <RowActions
+                        onEdit={() => startEdit(exp)}
+                        onDelete={() => handleDelete(exp.id)}
+                        disabled={working}
+                      />
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(exp.amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{exp.expense_date}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      <span style={{ color: STATUS_COLORS[exp.status], fontWeight: 600 }}>
-                        {STATUS_LABELS[exp.status]}
-                      </span>
-                    </td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                      <span style={{ display: "inline-flex", gap: 6 }}>
-                        <DocumentsPanel
-                          target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
-                          canManage={canManage}
-                        />
-                        <NotesPanel
-                          target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
-                          canManage={canManage}
-                        />
-                        <ActivityPanel
-                          target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
-                        />
-                        <ApprovalPanel
-                          target={{ appLabel: "expenses", model: "expense", objectId: exp.id }}
-                          canManage={canManage}
-                        />
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions
-                          onEdit={() => startEdit(exp)}
-                          onDelete={() => handleDelete(exp.id)}
-                          disabled={working}
-                        />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {expenses?.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
-                      No expenses yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {canManage && (
-              <form
-                onSubmit={handleSubmit}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 800,
-                }}
-              >
-                <select
-                  required
-                  value={form.employee}
-                  onChange={(e) => setForm({ ...form, employee: e.target.value })}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">Employee…</option>
-                  {employees?.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  placeholder="Category (e.g. Travel)"
-                  required
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Amount"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  type="date"
-                  required
-                  value={form.expense_date}
-                  onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Description (optional)"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  style={{ padding: 8, gridColumn: "1 / -1" }}
-                />
-                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
-                  <button
-                    type="submit"
-                    disabled={working || !form.employee || !form.category}
-                    style={{ padding: "8px 16px" }}
-                  >
-                    {editingId ? "Save changes" : "Add expense"}
-                  </button>
-                  {editingId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(null);
-                        setForm(EMPTY_FORM);
-                      }}
-                      style={{ padding: "8px 16px" }}
-                    >
-                      Cancel
-                    </button>
                   )}
-                </div>
-                {error && <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{error}</p>}
-              </form>
-            )}
-          </section>
-        </>
-      )}
-    </main>
+                </tr>
+              ))}
+              {expenses?.length === 0 && (
+                <tr>
+                  <td colSpan={7} className={shared.tableMuted}>
+                    No expenses yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {canManage && (
+            <form onSubmit={handleSubmit} className={shared.formGrid} style={{ marginTop: 16 }}>
+              <select
+                required
+                value={form.employee}
+                onChange={(e) => setForm({ ...form, employee: e.target.value })}
+                className={shared.select}
+              >
+                <option value="">Employee…</option>
+                {employees?.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                placeholder="Category (e.g. Travel)"
+                required
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                placeholder="Amount"
+                type="number"
+                step="0.01"
+                required
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                type="date"
+                required
+                value={form.expense_date}
+                onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                placeholder="Description (optional)"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className={shared.input}
+                style={{ gridColumn: "1 / -1" }}
+              />
+              <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                <button
+                  type="submit"
+                  disabled={working || !form.employee || !form.category}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
+                  {editingId ? "Save changes" : "Add expense"}
+                </button>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(EMPTY_FORM);
+                    }}
+                    className={shared.btn}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+              {error && (
+                <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                  {error}
+                </p>
+              )}
+            </form>
+          )}
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

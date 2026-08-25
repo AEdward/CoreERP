@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { api, ApiError, type Bill, type Event, type Invoice, type Task } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -154,68 +155,69 @@ export default function CalendarPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("calendar.manage") ?? false;
   const todayKey = localDateKey(new Date());
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
-
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h1 style={{ fontSize: 20 }}>Calendar — {activeMembership.company.name}</h1>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button
-                onClick={() => setMonthStart(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1))}
-                style={{ padding: "4px 10px" }}
-              >
-                ←
-              </button>
-              <strong style={{ minWidth: 140, textAlign: "center" }}>{monthLabel(monthStart)}</strong>
-              <button
-                onClick={() => setMonthStart(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1))}
-                style={{ padding: "4px 10px" }}
-              >
-                →
-              </button>
-            </div>
+    <ModuleShell moduleKey="calendar" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Calendar</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
           </div>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
+          <div className={shared.pageActions}>
+            <button
+              onClick={() => setMonthStart(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1))}
+              className={`${shared.btn} ${shared.btnSmall}`}
+            >
+              ←
+            </button>
+            <strong style={{ minWidth: 140, textAlign: "center" }}>{monthLabel(monthStart)}</strong>
+            <button
+              onClick={() => setMonthStart(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1))}
+              className={`${shared.btn} ${shared.btnSmall}`}
+            >
+              →
+            </button>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-          {canManage && (
-            <form onSubmit={handleAddEvent} style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                placeholder="New event title"
-                required
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                style={{ padding: 8, flex: 1, maxWidth: 260 }}
-              />
-              <input
-                type="date"
-                required
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                style={{ padding: 8 }}
-              />
-              <button type="submit" disabled={working || !form.title || !form.date} style={{ padding: "8px 16px" }}>
-                Add event
-              </button>
-              {error && <span style={{ color: "crimson", fontSize: 12 }}>{error}</span>}
-            </form>
-          )}
+        {canManage && (
+          <form onSubmit={handleAddEvent} className={shared.formRow} style={{ marginBottom: 16 }}>
+            <input
+              placeholder="New event title"
+              required
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className={shared.input}
+              style={{ flex: 1, maxWidth: 260 }}
+            />
+            <input
+              type="date"
+              required
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              className={shared.input}
+            />
+            <button
+              type="submit"
+              disabled={working || !form.title || !form.date}
+              className={`${shared.btn} ${shared.btnPrimary}`}
+            >
+              Add event
+            </button>
+            {error && <span className={shared.errorText}>{error}</span>}
+          </form>
+        )}
 
+        <div className={shared.card}>
           <div
             style={{
-              marginTop: 16,
               display: "grid",
               gridTemplateColumns: "repeat(7, 1fr)",
               border: "1px solid #eee",
@@ -351,12 +353,12 @@ export default function CalendarPage() {
               );
             })}
           </div>
-          <p style={{ marginTop: 12, fontSize: 12, color: "#999" }}>
+          <p className={shared.hint} style={{ marginTop: 12 }}>
             Events (indigo) are entries you add here. Task/Invoice/Bill due dates (green/orange/red) are
             pulled live from those modules — nothing&apos;s duplicated, click one to go to the source.
           </p>
-        </>
-      )}
-    </main>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

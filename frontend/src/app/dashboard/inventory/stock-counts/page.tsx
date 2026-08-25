@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { api, ApiError, type StockCount, type Warehouse } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 export default function StockCountsPage() {
   const { me, activeMembership, error: sessionError } = useSession();
@@ -106,45 +107,44 @@ export default function StockCountsPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("inventory.manage") ?? false;
   const warehouseName = (id: number) => warehouses?.find((w) => w.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
-
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
+    <ModuleShell moduleKey="inventory" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Stock counts</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+          <div className={shared.pageActions}>
+            <a href="/dashboard/inventory" className={shared.btn}>
+              &larr; Back to Inventory
+            </a>
+          </div>
+        </div>
+        <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 16 }}>
+          Starting a count snapshots every item&apos;s current system quantity for a warehouse.
+          Fill in what staff actually counted, then finalize to post one adjustment per line that
+          differs — the same audit trail and low-stock alerts as any other stock movement.
         </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Stock counts — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/inventory">&larr; Back to Inventory</a>
-          </p>
-          <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
-            Starting a count snapshots every item&apos;s current system quantity for a warehouse.
-            Fill in what staff actually counted, then finalize to post one adjustment per line that
-            differs — the same audit trail and low-stock alerts as any other stock movement.
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Counts
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Counts</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}></th>
-                  <th style={{ padding: "6px 4px" }}>Warehouse</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}>Lines</th>
-                  <th style={{ padding: "6px 4px" }}>Completed</th>
+                <tr>
+                  <th></th>
+                  <th>Warehouse</th>
+                  <th>Status</th>
+                  <th>Lines</th>
+                  <th>Completed</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,28 +152,29 @@ export default function StockCountsPage() {
                   <tr
                     key={c.id}
                     style={{
-                      borderBottom: "1px solid #eee",
-                      background: c.id === selectedId ? "#f5f5f5" : undefined,
+                      background: c.id === selectedId ? "var(--gray-50)" : undefined,
                       cursor: "pointer",
                     }}
                     onClick={() => setSelectedId(c.id)}
                   >
-                    <td style={{ padding: "6px 4px" }}>
+                    <td>
                       <input type="radio" checked={c.id === selectedId} onChange={() => setSelectedId(c.id)} />
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{warehouseName(c.warehouse)}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      <span style={{ color: c.status === "completed" ? "#1565c0" : "#2e7d32", fontWeight: 600 }}>
+                    <td>{warehouseName(c.warehouse)}</td>
+                    <td>
+                      <span
+                        className={`${shared.badge} ${c.status === "completed" ? shared.badgeInfo : shared.badgeSuccess}`}
+                      >
                         {c.status === "completed" ? "Completed" : "Open"}
                       </span>
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{c.lines.length}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.completed_at ?? "—"}</td>
+                    <td>{c.lines.length}</td>
+                    <td>{c.completed_at ?? "—"}</td>
                   </tr>
                 ))}
                 {counts?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} className={shared.tableMuted}>
                       No stock counts yet.
                     </td>
                   </tr>
@@ -182,15 +183,13 @@ export default function StockCountsPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleCreateCount}
-                style={{ marginTop: 16, display: "flex", gap: 8, maxWidth: 500 }}
-              >
+              <form onSubmit={handleCreateCount} className={shared.formRow} style={{ marginTop: 16, maxWidth: 500 }}>
                 <select
                   required
                   value={newWarehouse}
                   onChange={(e) => setNewWarehouse(e.target.value)}
-                  style={{ padding: 8, flex: 1 }}
+                  className={shared.select}
+                  style={{ flex: 1 }}
                 >
                   <option value="">Warehouse…</option>
                   {warehouses?.map((w) => (
@@ -199,34 +198,40 @@ export default function StockCountsPage() {
                     </option>
                   ))}
                 </select>
-                <button type="submit" disabled={createWorking || !newWarehouse} style={{ padding: 8 }}>
+                <button
+                  type="submit"
+                  disabled={createWorking || !newWarehouse}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
                   Start count
                 </button>
               </form>
             )}
-            {createError && <p style={{ color: "crimson" }}>{createError}</p>}
-          </section>
+            {createError && <p className={shared.errorText}>{createError}</p>}
+          </div>
+        </div>
 
-          {selectedCount && (
-            <section style={{ marginTop: 40, marginBottom: 40 }}>
-              <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-                {warehouseName(selectedCount.warehouse)} — {selectedCount.status === "completed" ? "Completed" : "Open"}
-              </h2>
-              <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {selectedCount && (
+          <div className={shared.section}>
+            <h2 className={shared.sectionTitle}>
+              {warehouseName(selectedCount.warehouse)} — {selectedCount.status === "completed" ? "Completed" : "Open"}
+            </h2>
+            <div className={shared.card}>
+              <table className={shared.table}>
                 <thead>
-                  <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                    <th style={{ padding: "6px 4px" }}>Item</th>
-                    <th style={{ padding: "6px 4px" }}>System qty</th>
-                    <th style={{ padding: "6px 4px" }}>Counted qty</th>
-                    <th style={{ padding: "6px 4px" }}>Variance</th>
+                  <tr>
+                    <th>Item</th>
+                    <th>System qty</th>
+                    <th>Counted qty</th>
+                    <th>Variance</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedCount.lines.map((line) => (
-                    <tr key={line.id} style={{ borderBottom: "1px solid #eee" }}>
-                      <td style={{ padding: "6px 4px" }}>{line.item_name}</td>
-                      <td style={{ padding: "6px 4px" }}>{line.system_quantity}</td>
-                      <td style={{ padding: "6px 4px" }}>
+                    <tr key={line.id}>
+                      <td>{line.item_name}</td>
+                      <td>{line.system_quantity}</td>
+                      <td>
                         {selectedCount.status === "open" && canManage ? (
                           <input
                             type="number"
@@ -234,7 +239,8 @@ export default function StockCountsPage() {
                             onChange={(e) =>
                               setCountedValues({ ...countedValues, [line.id]: e.target.value })
                             }
-                            style={{ padding: 4, width: 100 }}
+                            className={shared.input}
+                            style={{ width: 100, padding: 4 }}
                           />
                         ) : (
                           line.counted_quantity ?? "—"
@@ -242,13 +248,12 @@ export default function StockCountsPage() {
                       </td>
                       <td
                         style={{
-                          padding: "6px 4px",
                           color:
                             line.variance === null || line.variance === 0
                               ? undefined
                               : line.variance < 0
-                                ? "#c62828"
-                                : "#2e7d32",
+                                ? "var(--status-danger)"
+                                : "var(--status-success)",
                         }}
                       >
                         {line.variance ?? "—"}
@@ -257,7 +262,7 @@ export default function StockCountsPage() {
                   ))}
                   {selectedCount.lines.length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                      <td colSpan={4} className={shared.tableMuted}>
                         No stock at this warehouse to count.
                       </td>
                     </tr>
@@ -267,25 +272,30 @@ export default function StockCountsPage() {
 
               {canManage && selectedCount.status === "open" && (
                 <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                  <button type="button" disabled={saveWorking} onClick={handleSaveCounts} style={{ padding: "8px 16px" }}>
+                  <button
+                    type="button"
+                    disabled={saveWorking}
+                    onClick={handleSaveCounts}
+                    className={shared.btn}
+                  >
                     Save counts
                   </button>
                   <button
                     type="button"
                     disabled={finalizeWorking}
                     onClick={handleFinalize}
-                    style={{ padding: "8px 16px" }}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
                   >
                     Finalize
                   </button>
                 </div>
               )}
-              {saveError && <p style={{ color: "crimson" }}>{saveError}</p>}
-              {finalizeError && <p style={{ color: "crimson" }}>{finalizeError}</p>}
-            </section>
-          )}
-        </>
-      )}
-    </main>
+              {saveError && <p className={shared.errorText}>{saveError}</p>}
+              {finalizeError && <p className={shared.errorText}>{finalizeError}</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    </ModuleShell>
   );
 }

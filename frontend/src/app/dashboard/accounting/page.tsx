@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import Link from "next/link";
+import { ModuleShell } from "@/components/ModuleShell";
 import { RowActions } from "@/components/RowActions";
 import {
   api,
@@ -19,6 +20,7 @@ import {
   type TrialBalanceRow,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const EMPTY_ACCOUNT_FORM = { code: "", name: "", type: "asset" as Account["type"] };
 const EMPTY_JE_LINE = { account: "", debit: "", credit: "" };
@@ -218,8 +220,8 @@ export default function AccountingPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("accounting.manage") ?? false;
   const accountLabel = (id: number) => {
@@ -231,547 +233,549 @@ export default function AccountingPage() {
   const payableExpenses = expenses?.filter((e) => e.status === "approved") ?? [];
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <ModuleShell moduleKey="accounting" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Accounting</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Accounting — {activeMembership.company.name}</h1>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          {/* Chart of Accounts */}
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Chart of accounts
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Code</th>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Type</th>
-                  {canManage && <th></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {accounts?.map((a) => (
-                  <tr key={a.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{a.code}</td>
-                    <td style={{ padding: "6px 4px" }}>{a.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{a.type}</td>
-                    {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        {a.role ? (
-                          <span style={{ fontSize: 12, color: "#999" }} title="A well-known account the posting engine looks up by role — edit/delete disabled to keep auto-posting working.">
-                            System account
-                          </span>
-                        ) : (
-                          <RowActions
-                            onEdit={() => startEditAccount(a)}
-                            onDelete={() => handleDeleteAccount(a.id)}
-                            disabled={accountWorking}
-                          />
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {accountError && <p style={{ color: "crimson" }}>{accountError}</p>}
-            {canManage && (
-              <form onSubmit={handleAddAccount} style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                <input
-                  placeholder="Code"
-                  required
-                  value={accountForm.code}
-                  onChange={(e) => setAccountForm({ ...accountForm, code: e.target.value })}
-                  style={{ padding: 8, width: 100 }}
-                />
-                <input
-                  placeholder="Name"
-                  required
-                  value={accountForm.name}
-                  onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })}
-                  style={{ padding: 8, flex: 1, maxWidth: 240 }}
-                />
-                <select
-                  value={accountForm.type}
-                  onChange={(e) =>
-                    setAccountForm({ ...accountForm, type: e.target.value as Account["type"] })
-                  }
-                  style={{ padding: 8 }}
-                >
-                  <option value="asset">Asset</option>
-                  <option value="liability">Liability</option>
-                  <option value="equity">Equity</option>
-                  <option value="revenue">Revenue</option>
-                  <option value="expense">Expense</option>
-                </select>
-                <button
-                  type="submit"
-                  disabled={accountWorking || !accountForm.code || !accountForm.name}
-                  style={{ padding: "8px 16px" }}
-                >
-                  {editingAccountId ? "Save changes" : "Add account"}
-                </button>
-                {editingAccountId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingAccountId(null);
-                      setAccountForm(EMPTY_ACCOUNT_FORM);
-                    }}
-                    style={{ padding: "8px 16px" }}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </form>
-            )}
-          </section>
-
-          {/* Journal Entries */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Journal entries
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", margin: "4px 0 8px" }}>
-              Most of these post automatically (invoices, bills, payments) — this list includes those
-              alongside any manual entries below.
-            </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Reference</th>
-                  <th style={{ padding: "6px 4px" }}>Memo</th>
-                  <th style={{ padding: "6px 4px" }}>Lines</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries?.map((entry) => (
-                  <tr key={entry.id} style={{ borderBottom: "1px solid #eee", verticalAlign: "top" }}>
-                    <td style={{ padding: "6px 4px" }}>{entry.reference}</td>
-                    <td style={{ padding: "6px 4px" }}>{entry.memo}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {entry.lines.map((line) => (
-                        <div key={line.id}>
-                          {accountLabel(line.account)}:{" "}
-                          {line.debit_cents ? `Dr ${formatCents(line.debit_cents)}` : `Cr ${formatCents(line.credit_cents)}`}
-                        </div>
-                      ))}
+        {/* Chart of Accounts */}
+        <div className={shared.card} style={{ marginBottom: 24 }}>
+          <h2 className={shared.sectionTitle}>Chart of accounts</h2>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Type</th>
+                {canManage && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {accounts?.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.code}</td>
+                  <td>{a.name}</td>
+                  <td>{a.type}</td>
+                  {canManage && (
+                    <td style={{ textAlign: "right" }}>
+                      {a.role ? (
+                        <span
+                          className={shared.tableMuted}
+                          title="A well-known account the posting engine looks up by role — edit/delete disabled to keep auto-posting working."
+                        >
+                          System account
+                        </span>
+                      ) : (
+                        <RowActions
+                          onEdit={() => startEditAccount(a)}
+                          onDelete={() => handleDeleteAccount(a.id)}
+                          disabled={accountWorking}
+                        />
+                      )}
                     </td>
-                  </tr>
-                ))}
-                {entries?.length === 0 && (
-                  <tr>
-                    <td colSpan={3} style={{ padding: "6px 4px", color: "#999" }}>
-                      No journal entries yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {canManage && (
-              <form onSubmit={handleAddJournalEntry} style={{ marginTop: 16, maxWidth: 640 }}>
-                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <input
-                    placeholder="Reference"
-                    value={jeReference}
-                    onChange={(e) => setJeReference(e.target.value)}
-                    style={{ padding: 8, flex: 1 }}
-                  />
-                  <input
-                    placeholder="Memo"
-                    value={jeMemo}
-                    onChange={(e) => setJeMemo(e.target.value)}
-                    style={{ padding: 8, flex: 1 }}
-                  />
-                </div>
-                {jeLines.map((line, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                    <select
-                      value={line.account}
-                      onChange={(e) => {
-                        const next = jeLines.slice();
-                        next[i] = { ...next[i], account: e.target.value };
-                        setJeLines(next);
-                      }}
-                      style={{ padding: 6, flex: 2 }}
-                    >
-                      <option value="">Account…</option>
-                      {accounts?.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.code} {a.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Debit"
-                      value={line.debit}
-                      onChange={(e) => {
-                        const next = jeLines.slice();
-                        next[i] = { ...next[i], debit: e.target.value, credit: "" };
-                        setJeLines(next);
-                      }}
-                      style={{ padding: 6, width: 100 }}
-                    />
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Credit"
-                      value={line.credit}
-                      onChange={(e) => {
-                        const next = jeLines.slice();
-                        next[i] = { ...next[i], credit: e.target.value, debit: "" };
-                        setJeLines(next);
-                      }}
-                      style={{ padding: 6, width: 100 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setJeLines(jeLines.filter((_, idx) => idx !== i))}
-                      disabled={jeLines.length === 2}
-                      style={{ padding: "4px 10px" }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {accountError && <p className={shared.errorText}>{accountError}</p>}
+          {canManage && (
+            <form onSubmit={handleAddAccount} className={shared.formRow} style={{ marginTop: 12 }}>
+              <input
+                placeholder="Code"
+                required
+                value={accountForm.code}
+                onChange={(e) => setAccountForm({ ...accountForm, code: e.target.value })}
+                className={shared.input}
+                style={{ width: 100 }}
+              />
+              <input
+                placeholder="Name"
+                required
+                value={accountForm.name}
+                onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })}
+                className={shared.input}
+                style={{ flex: 1, maxWidth: 240 }}
+              />
+              <select
+                value={accountForm.type}
+                onChange={(e) =>
+                  setAccountForm({ ...accountForm, type: e.target.value as Account["type"] })
+                }
+                className={shared.select}
+              >
+                <option value="asset">Asset</option>
+                <option value="liability">Liability</option>
+                <option value="equity">Equity</option>
+                <option value="revenue">Revenue</option>
+                <option value="expense">Expense</option>
+              </select>
+              <button
+                type="submit"
+                disabled={accountWorking || !accountForm.code || !accountForm.name}
+                className={`${shared.btn} ${shared.btnPrimary}`}
+              >
+                {editingAccountId ? "Save changes" : "Add account"}
+              </button>
+              {editingAccountId && (
                 <button
                   type="button"
-                  onClick={() => setJeLines([...jeLines, { ...EMPTY_JE_LINE }])}
-                  style={{ padding: "4px 10px", marginTop: 4 }}
-                >
-                  + Add line
-                </button>
-                <div>
-                  <button type="submit" disabled={jeWorking} style={{ padding: "8px 16px", marginTop: 8 }}>
-                    Post journal entry
-                  </button>
-                </div>
-                {jeError && <p style={{ color: "crimson" }}>{jeError}</p>}
-              </form>
-            )}
-          </section>
-
-          {/* Payments */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Payments
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Direction</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
-                  <th style={{ padding: "6px 4px" }}>Method</th>
-                  <th style={{ padding: "6px 4px" }}>Reference</th>
-                  <th style={{ padding: "6px 4px" }}>Against</th>
-                  <th style={{ padding: "6px 4px" }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments?.map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{p.direction}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(p.amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{p.method}</td>
-                    <td style={{ padding: "6px 4px" }}>{p.reference || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {p.invoice
-                        ? invoices?.find((i) => i.id === p.invoice)?.invoice_number
-                        : p.bill
-                          ? bills?.find((b) => b.id === p.bill)?.bill_number
-                          : (() => {
-                              const exp = expenses?.find((e) => e.id === p.expense);
-                              return exp ? `Expense: ${exp.category}` : "—";
-                            })()}
-                    </td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                      <a href={`/dashboard/accounting/receipts/${p.id}`} target="_blank" rel="noopener noreferrer">
-                        Receipt
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-                {payments?.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
-                      No payments recorded yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {canManage && (
-              <form
-                onSubmit={handleAddPayment}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 720,
-                }}
-              >
-                <select
-                  value={paymentForm.direction}
-                  onChange={(e) => {
-                    const direction = e.target.value as Payment["direction"];
-                    setPaymentForm({
-                      ...paymentForm,
-                      direction,
-                      targetType: direction === "received" ? "invoice" : "bill",
-                      target: "",
-                    });
+                  onClick={() => {
+                    setEditingAccountId(null);
+                    setAccountForm(EMPTY_ACCOUNT_FORM);
                   }}
-                  style={{ padding: 8 }}
+                  className={shared.btn}
                 >
-                  <option value="received">Received (from customer)</option>
-                  <option value="paid">Paid (to supplier or employee)</option>
-                </select>
-                {paymentForm.direction === "paid" && (
-                  <select
-                    value={paymentForm.targetType}
-                    onChange={(e) =>
-                      setPaymentForm({
-                        ...paymentForm,
-                        targetType: e.target.value as "bill" | "expense",
-                        target: "",
-                      })
-                    }
-                    style={{ padding: 8 }}
-                  >
-                    <option value="bill">Supplier bill</option>
-                    <option value="expense">Employee expense</option>
-                  </select>
-                )}
-                <select
-                  required
-                  value={paymentForm.target}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, target: e.target.value })}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">
-                    {paymentForm.targetType === "invoice"
-                      ? "Invoice…"
-                      : paymentForm.targetType === "bill"
-                        ? "Bill…"
-                        : "Expense…"}
-                  </option>
-                  {paymentForm.targetType === "invoice" &&
-                    unpaidInvoices.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.invoice_number} — {formatCents(i.amount_cents + i.tax_amount_cents)}
-                      </option>
+                  Cancel
+                </button>
+              )}
+            </form>
+          )}
+        </div>
+
+          {/* Journal Entries */}
+        <div className={shared.card} style={{ marginBottom: 24 }}>
+          <h2 className={shared.sectionTitle}>Journal entries</h2>
+          <p className={shared.hint} style={{ marginBottom: 8 }}>
+            Most of these post automatically (invoices, bills, payments) — this list includes those
+            alongside any manual entries below.
+          </p>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Memo</th>
+                <th>Lines</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries?.map((entry) => (
+                <tr key={entry.id}>
+                  <td>{entry.reference}</td>
+                  <td>{entry.memo}</td>
+                  <td>
+                    {entry.lines.map((line) => (
+                      <div key={line.id}>
+                        {accountLabel(line.account)}:{" "}
+                        {line.debit_cents ? `Dr ${formatCents(line.debit_cents)}` : `Cr ${formatCents(line.credit_cents)}`}
+                      </div>
                     ))}
-                  {paymentForm.targetType === "bill" &&
-                    unpaidBills.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.bill_number} — {formatCents(b.amount_cents + b.tax_amount_cents)}
-                      </option>
-                    ))}
-                  {paymentForm.targetType === "expense" &&
-                    payableExpenses.map((exp) => (
-                      <option key={exp.id} value={exp.id}>
-                        {exp.category} — {formatCents(exp.amount_cents)}
-                      </option>
-                    ))}
-                </select>
-                <input
-                  placeholder="Amount"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={paymentForm.amount}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <select
-                  value={paymentForm.method}
-                  onChange={(e) =>
-                    setPaymentForm({ ...paymentForm, method: e.target.value as Payment["method"] })
-                  }
-                  style={{ padding: 8 }}
-                >
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="mobile_money">Mobile money</option>
-                  <option value="card">Card</option>
-                </select>
+                  </td>
+                </tr>
+              ))}
+              {entries?.length === 0 && (
+                <tr>
+                  <td colSpan={3} className={shared.tableMuted}>
+                    No journal entries yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {canManage && (
+            <form onSubmit={handleAddJournalEntry} style={{ marginTop: 16, maxWidth: 640 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                 <input
                   placeholder="Reference"
-                  value={paymentForm.reference}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, reference: e.target.value })}
-                  style={{ padding: 8 }}
+                  value={jeReference}
+                  onChange={(e) => setJeReference(e.target.value)}
+                  className={shared.input}
+                  style={{ flex: 1 }}
                 />
+                <input
+                  placeholder="Memo"
+                  value={jeMemo}
+                  onChange={(e) => setJeMemo(e.target.value)}
+                  className={shared.input}
+                  style={{ flex: 1 }}
+                />
+              </div>
+              {jeLines.map((line, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                  <select
+                    value={line.account}
+                    onChange={(e) => {
+                      const next = jeLines.slice();
+                      next[i] = { ...next[i], account: e.target.value };
+                      setJeLines(next);
+                    }}
+                    className={shared.select}
+                    style={{ flex: 2 }}
+                  >
+                    <option value="">Account…</option>
+                    {accounts?.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Debit"
+                    value={line.debit}
+                    onChange={(e) => {
+                      const next = jeLines.slice();
+                      next[i] = { ...next[i], debit: e.target.value, credit: "" };
+                      setJeLines(next);
+                    }}
+                    className={shared.input}
+                    style={{ width: 100 }}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Credit"
+                    value={line.credit}
+                    onChange={(e) => {
+                      const next = jeLines.slice();
+                      next[i] = { ...next[i], credit: e.target.value, debit: "" };
+                      setJeLines(next);
+                    }}
+                    className={shared.input}
+                    style={{ width: 100 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setJeLines(jeLines.filter((_, idx) => idx !== i))}
+                    disabled={jeLines.length === 2}
+                    className={`${shared.btn} ${shared.btnSmall}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setJeLines([...jeLines, { ...EMPTY_JE_LINE }])}
+                className={`${shared.btn} ${shared.btnSmall}`}
+                style={{ marginTop: 4 }}
+              >
+                + Add line
+              </button>
+              <div>
                 <button
                   type="submit"
-                  disabled={paymentWorking || !paymentForm.target || !paymentForm.amount}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
+                  disabled={jeWorking}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                  style={{ marginTop: 8 }}
                 >
-                  Record payment
+                  Post journal entry
                 </button>
-                {paymentError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{paymentError}</p>
-                )}
-              </form>
-            )}
-          </section>
+              </div>
+              {jeError && <p className={shared.errorText}>{jeError}</p>}
+            </form>
+          )}
+        </div>
+
+          {/* Payments */}
+        <div className={shared.card} style={{ marginBottom: 24 }}>
+          <h2 className={shared.sectionTitle}>Payments</h2>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th>Direction</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Reference</th>
+                <th>Against</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments?.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.direction}</td>
+                  <td>{formatCents(p.amount_cents)}</td>
+                  <td>{p.method}</td>
+                  <td>{p.reference || "—"}</td>
+                  <td>
+                    {p.invoice
+                      ? invoices?.find((i) => i.id === p.invoice)?.invoice_number
+                      : p.bill
+                        ? bills?.find((b) => b.id === p.bill)?.bill_number
+                        : (() => {
+                            const exp = expenses?.find((e) => e.id === p.expense);
+                            return exp ? `Expense: ${exp.category}` : "—";
+                          })()}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <a href={`/dashboard/accounting/receipts/${p.id}`} target="_blank" rel="noopener noreferrer">
+                      Receipt
+                    </a>
+                  </td>
+                </tr>
+              ))}
+              {payments?.length === 0 && (
+                <tr>
+                  <td colSpan={6} className={shared.tableMuted}>
+                    No payments recorded yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {canManage && (
+            <form onSubmit={handleAddPayment} className={shared.formGrid} style={{ marginTop: 12 }}>
+              <select
+                value={paymentForm.direction}
+                onChange={(e) => {
+                  const direction = e.target.value as Payment["direction"];
+                  setPaymentForm({
+                    ...paymentForm,
+                    direction,
+                    targetType: direction === "received" ? "invoice" : "bill",
+                    target: "",
+                  });
+                }}
+                className={shared.select}
+              >
+                <option value="received">Received (from customer)</option>
+                <option value="paid">Paid (to supplier or employee)</option>
+              </select>
+              {paymentForm.direction === "paid" && (
+                <select
+                  value={paymentForm.targetType}
+                  onChange={(e) =>
+                    setPaymentForm({
+                      ...paymentForm,
+                      targetType: e.target.value as "bill" | "expense",
+                      target: "",
+                    })
+                  }
+                  className={shared.select}
+                >
+                  <option value="bill">Supplier bill</option>
+                  <option value="expense">Employee expense</option>
+                </select>
+              )}
+              <select
+                required
+                value={paymentForm.target}
+                onChange={(e) => setPaymentForm({ ...paymentForm, target: e.target.value })}
+                className={shared.select}
+              >
+                <option value="">
+                  {paymentForm.targetType === "invoice"
+                    ? "Invoice…"
+                    : paymentForm.targetType === "bill"
+                      ? "Bill…"
+                      : "Expense…"}
+                </option>
+                {paymentForm.targetType === "invoice" &&
+                  unpaidInvoices.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.invoice_number} — {formatCents(i.amount_cents + i.tax_amount_cents)}
+                    </option>
+                  ))}
+                {paymentForm.targetType === "bill" &&
+                  unpaidBills.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.bill_number} — {formatCents(b.amount_cents + b.tax_amount_cents)}
+                    </option>
+                  ))}
+                {paymentForm.targetType === "expense" &&
+                  payableExpenses.map((exp) => (
+                    <option key={exp.id} value={exp.id}>
+                      {exp.category} — {formatCents(exp.amount_cents)}
+                    </option>
+                  ))}
+              </select>
+              <input
+                placeholder="Amount"
+                type="number"
+                step="0.01"
+                required
+                value={paymentForm.amount}
+                onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                className={shared.input}
+              />
+              <select
+                value={paymentForm.method}
+                onChange={(e) =>
+                  setPaymentForm({ ...paymentForm, method: e.target.value as Payment["method"] })
+                }
+                className={shared.select}
+              >
+                <option value="cash">Cash</option>
+                <option value="bank_transfer">Bank transfer</option>
+                <option value="mobile_money">Mobile money</option>
+                <option value="card">Card</option>
+              </select>
+              <input
+                placeholder="Reference"
+                value={paymentForm.reference}
+                onChange={(e) => setPaymentForm({ ...paymentForm, reference: e.target.value })}
+                className={shared.input}
+              />
+              <button
+                type="submit"
+                disabled={paymentWorking || !paymentForm.target || !paymentForm.amount}
+                className={`${shared.btn} ${shared.btnPrimary}`}
+                style={{ gridColumn: "1 / -1", justifySelf: "start" }}
+              >
+                Record payment
+              </button>
+              {paymentError && (
+                <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                  {paymentError}
+                </p>
+              )}
+            </form>
+          )}
+        </div>
 
           {/* Reports */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Reports
-            </h2>
+        <div className={shared.card} style={{ marginBottom: 24 }}>
+          <h2 className={shared.sectionTitle}>Reports</h2>
 
-            <h3 style={{ fontSize: 13, marginTop: 16 }}>Trial balance</h3>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4, fontSize: 13 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "4px" }}>Account</th>
-                  <th style={{ padding: "4px" }}>Debit</th>
-                  <th style={{ padding: "4px" }}>Credit</th>
-                  <th style={{ padding: "4px" }}>Net</th>
+          <h3 style={{ fontSize: 13, fontWeight: 700, marginTop: 16, marginBottom: 4 }}>Trial balance</h3>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Debit</th>
+                <th>Credit</th>
+                <th>Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trialBalance?.map((row) => (
+                <tr key={row.account_id}>
+                  <td>
+                    {row.code} {row.name}
+                  </td>
+                  <td>{formatCents(row.total_debit_cents)}</td>
+                  <td>{formatCents(row.total_credit_cents)}</td>
+                  <td>{formatCents(row.net_cents)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {trialBalance?.map((row) => (
-                  <tr key={row.account_id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "4px" }}>
-                      {row.code} {row.name}
-                    </td>
-                    <td style={{ padding: "4px" }}>{formatCents(row.total_debit_cents)}</td>
-                    <td style={{ padding: "4px" }}>{formatCents(row.total_credit_cents)}</td>
-                    <td style={{ padding: "4px" }}>{formatCents(row.net_cents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
 
-            <div style={{ display: "flex", gap: 40, marginTop: 24, flexWrap: "wrap" }}>
-              <div>
-                <h3 style={{ fontSize: 13 }}>Profit & loss</h3>
-                {profitAndLoss && (
-                  <table style={{ borderCollapse: "collapse", fontSize: 13 }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Revenue</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(profitAndLoss.total_revenue_cents)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Expenses</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(profitAndLoss.total_expense_cents)}
-                        </td>
-                      </tr>
-                      <tr style={{ borderTop: "1px solid #ddd", fontWeight: 700 }}>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Net income</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(profitAndLoss.net_income_cents)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-              <div>
-                <h3 style={{ fontSize: 13 }}>Balance sheet</h3>
-                {balanceSheet && (
-                  <table style={{ borderCollapse: "collapse", fontSize: 13 }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Total assets</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(balanceSheet.total_assets_cents)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Total liabilities</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(balanceSheet.total_liabilities_cents)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Total equity</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(balanceSheet.total_equity_cents)}
-                        </td>
-                      </tr>
-                      <tr style={{ borderTop: "1px solid #ddd" }}>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Unclosed net income</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(balanceSheet.unclosed_net_income_cents)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                )}
-                {balanceSheet && (
-                  <p style={{ fontSize: 11, color: "#999", maxWidth: 320, marginTop: 8 }}>
-                    {balanceSheet.note}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <h3 style={{ fontSize: 13 }}>Cash flow</h3>
-                {cashFlow && (
-                  <table style={{ borderCollapse: "collapse", fontSize: 13 }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Received from customers</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(cashFlow.cash_received_from_customers_cents)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Paid to suppliers</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(cashFlow.cash_paid_to_suppliers_cents)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Paid to employees</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(cashFlow.cash_paid_to_employees_cents)}
-                        </td>
-                      </tr>
-                      {cashFlow.other_cash_movements_cents !== 0 && (
-                        <tr>
-                          <td style={{ padding: "4px 12px 4px 0" }}>Other cash movements</td>
-                          <td style={{ padding: "4px 0", textAlign: "right" }}>
-                            {formatCents(cashFlow.other_cash_movements_cents)}
-                          </td>
-                        </tr>
-                      )}
-                      <tr style={{ borderTop: "1px solid #ddd", fontWeight: 700 }}>
-                        <td style={{ padding: "4px 12px 4px 0" }}>Net change in cash</td>
-                        <td style={{ padding: "4px 0", textAlign: "right" }}>
-                          {formatCents(cashFlow.net_change_in_cash_cents)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                )}
-                {cashFlow && (
-                  <p style={{ fontSize: 11, color: "#999", maxWidth: 320, marginTop: 8 }}>{cashFlow.note}</p>
-                )}
-              </div>
+          <div style={{ display: "flex", gap: 40, marginTop: 24, flexWrap: "wrap" }}>
+            <div>
+              <h3 style={{ fontSize: 13, fontWeight: 700 }}>Profit &amp; loss</h3>
+              {profitAndLoss && (
+                <table className={shared.table} style={{ width: "auto" }}>
+                  <tbody>
+                    <tr>
+                      <td>Revenue</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(profitAndLoss.total_revenue_cents)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Expenses</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(profitAndLoss.total_expense_cents)}
+                      </td>
+                    </tr>
+                    <tr style={{ fontWeight: 700 }}>
+                      <td>Net income</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(profitAndLoss.net_income_cents)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
             </div>
-          </section>
+
+            <div>
+              <h3 style={{ fontSize: 13, fontWeight: 700 }}>Balance sheet</h3>
+              {balanceSheet && (
+                <table className={shared.table} style={{ width: "auto" }}>
+                  <tbody>
+                    <tr>
+                      <td>Total assets</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(balanceSheet.total_assets_cents)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Total liabilities</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(balanceSheet.total_liabilities_cents)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Total equity</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(balanceSheet.total_equity_cents)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Unclosed net income</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(balanceSheet.unclosed_net_income_cents)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+              {balanceSheet && (
+                <p className={shared.hint} style={{ maxWidth: 320, marginTop: 8 }}>
+                  {balanceSheet.note}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: 13, fontWeight: 700 }}>Cash flow</h3>
+              {cashFlow && (
+                <table className={shared.table} style={{ width: "auto" }}>
+                  <tbody>
+                    <tr>
+                      <td>Received from customers</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(cashFlow.cash_received_from_customers_cents)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Paid to suppliers</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(cashFlow.cash_paid_to_suppliers_cents)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Paid to employees</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(cashFlow.cash_paid_to_employees_cents)}
+                      </td>
+                    </tr>
+                    {cashFlow.other_cash_movements_cents !== 0 && (
+                      <tr>
+                        <td>Other cash movements</td>
+                        <td style={{ textAlign: "right" }}>
+                          {formatCents(cashFlow.other_cash_movements_cents)}
+                        </td>
+                      </tr>
+                    )}
+                    <tr style={{ fontWeight: 700 }}>
+                      <td>Net change in cash</td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCents(cashFlow.net_change_in_cash_cents)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+              {cashFlow && (
+                <p className={shared.hint} style={{ maxWidth: 320, marginTop: 8 }}>
+                  {cashFlow.note}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
           {/* Financial Periods */}
           <section style={{ marginTop: 40, marginBottom: 40 }}>
@@ -881,20 +885,25 @@ export default function AccountingPage() {
             )}
           </section>
 
-          {/* Links to dedicated accounting tools */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              More accounting tools
-            </h2>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8, fontSize: 14 }}>
-              <a href="/dashboard/accounting/banking">Bank accounts & reconciliation</a>
-              <a href="/dashboard/accounting/petty-cash">Petty cash</a>
-              <a href="/dashboard/accounting/budgets">Budgets</a>
-              <a href="/dashboard/accounting/fixed-assets">Fixed assets</a>
-            </div>
-          </section>
-        </>
-      )}
-    </main>
+        {/* Links to dedicated accounting tools */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>More accounting tools</h2>
+          <div className={shared.pageActions}>
+            <Link href="/dashboard/accounting/banking" className={shared.btn}>
+              Bank accounts & reconciliation
+            </Link>
+            <Link href="/dashboard/accounting/petty-cash" className={shared.btn}>
+              Petty cash
+            </Link>
+            <Link href="/dashboard/accounting/budgets" className={shared.btn}>
+              Budgets
+            </Link>
+            <Link href="/dashboard/accounting/fixed-assets" className={shared.btn}>
+              Fixed assets
+            </Link>
+          </div>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

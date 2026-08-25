@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { api, ApiError, type AuditLogEntry } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const ACTION_LABELS: Record<AuditLogEntry["action"], string> = {
   created: "Created",
@@ -11,10 +12,10 @@ const ACTION_LABELS: Record<AuditLogEntry["action"], string> = {
   deleted: "Deleted",
 };
 
-const ACTION_COLORS: Record<AuditLogEntry["action"], string> = {
-  created: "#2e7d32",
-  updated: "#1565c0",
-  deleted: "#c62828",
+const ACTION_BADGES: Record<AuditLogEntry["action"], string> = {
+  created: shared.badgeSuccess,
+  updated: shared.badgeInfo,
+  deleted: shared.badgeDanger,
 };
 
 function formatChanges(changes: Record<string, [unknown, unknown]>) {
@@ -50,64 +51,57 @@ export default function AuditLogPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMembership?.company.id]);
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   return (
-    <main style={{ maxWidth: 960, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
-
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
+    <ModuleShell moduleKey="settings" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Audit Log</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+        </div>
+        <p className={shared.hint} style={{ marginBottom: 16 }}>
+          Every create, update, and delete across the company, in one place. Visible to company
+          administrators only.
         </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Audit Log — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            Every create, update, and delete across the company, in one place. Visible to company
-            administrators only.
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-          <section style={{ marginTop: 24, marginBottom: 40 }}>
-            {entries === null && !loadError && <p style={{ color: "#999" }}>Loading…</p>}
-            {entries?.length === 0 && <p style={{ color: "#999" }}>Nothing recorded yet.</p>}
-            {entries && entries.length > 0 && (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                    <th style={{ padding: "6px 4px" }}>When</th>
-                    <th style={{ padding: "6px 4px" }}>Who</th>
-                    <th style={{ padding: "6px 4px" }}>Action</th>
-                    <th style={{ padding: "6px 4px" }}>Record</th>
-                    <th style={{ padding: "6px 4px" }}>Changes</th>
+        <div className={shared.card}>
+          {entries === null && !loadError && <p className={shared.emptyState}>Loading…</p>}
+          {entries?.length === 0 && <p className={shared.emptyState}>Nothing recorded yet.</p>}
+          {entries && entries.length > 0 && (
+            <table className={shared.table}>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Who</th>
+                  <th>Action</th>
+                  <th>Record</th>
+                  <th>Changes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((e) => (
+                  <tr key={e.id}>
+                    <td style={{ whiteSpace: "nowrap" }}>{new Date(e.created_at).toLocaleString()}</td>
+                    <td>{e.actor_name}</td>
+                    <td>
+                      <span className={`${shared.badge} ${ACTION_BADGES[e.action]}`}>
+                        {ACTION_LABELS[e.action]}
+                      </span>
+                    </td>
+                    <td>{e.target_label}</td>
+                    <td className={shared.tableMuted}>{formatChanges(e.changes) || "—"}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {entries.map((e) => (
-                    <tr key={e.id} style={{ borderBottom: "1px solid #eee" }}>
-                      <td style={{ padding: "6px 4px", whiteSpace: "nowrap" }}>
-                        {new Date(e.created_at).toLocaleString()}
-                      </td>
-                      <td style={{ padding: "6px 4px" }}>{e.actor_name}</td>
-                      <td style={{ padding: "6px 4px" }}>
-                        <span style={{ color: ACTION_COLORS[e.action], fontWeight: 600 }}>
-                          {ACTION_LABELS[e.action]}
-                        </span>
-                      </td>
-                      <td style={{ padding: "6px 4px" }}>{e.target_label}</td>
-                      <td style={{ padding: "6px 4px", fontSize: 12, color: "#555" }}>
-                        {formatChanges(e.changes) || "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-        </>
-      )}
-    </main>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

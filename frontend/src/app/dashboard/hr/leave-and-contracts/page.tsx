@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { ApprovalPanel } from "@/components/ApprovalPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
@@ -16,6 +16,7 @@ import {
   type LeaveType,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const CONTRACT_TYPE_LABELS: Record<EmployeeContract["contract_type"], string> = {
   permanent: "Permanent",
@@ -31,11 +32,11 @@ const LEAVE_STATUS_LABELS: Record<LeaveRequest["status"], string> = {
   rejected: "Rejected",
 };
 
-const LEAVE_STATUS_COLORS: Record<LeaveRequest["status"], string> = {
-  draft: "#666",
-  submitted: "#e65100",
-  approved: "#2e7d32",
-  rejected: "#c62828",
+const LEAVE_STATUS_BADGES: Record<LeaveRequest["status"], string> = {
+  draft: "",
+  submitted: shared.badgeWarn,
+  approved: shared.badgeSuccess,
+  rejected: shared.badgeDanger,
 };
 
 const EMPTY_CONTRACT_FORM = {
@@ -190,52 +191,49 @@ export default function LeaveAndContractsPage() {
   const leaveTypeName = (id: number) => leaveTypes?.find((t) => t.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
-
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Leave & Contracts — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/hr">&larr; Back to HR</a>
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          {/* Employee Contracts */}
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Employee contracts
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
-              The formal record of an employee&apos;s terms over time — doesn&apos;t change their
-              current salary automatically, that&apos;s still kept up to date on their HR record
-              directly.
+    <ModuleShell moduleKey="hr" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Leave & Contracts</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+            <p className={shared.hint} style={{ marginTop: 4 }}>
+              <a href="/dashboard/hr">&larr; Back to HR</a>
             </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
+
+        {/* Employee Contracts */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Employee contracts</h2>
+          <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 8 }}>
+            The formal record of an employee&apos;s terms over time — doesn&apos;t change their
+            current salary automatically, that&apos;s still kept up to date on their HR record
+            directly.
+          </p>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Employee</th>
-                  <th style={{ padding: "6px 4px" }}>Type</th>
-                  <th style={{ padding: "6px 4px" }}>Start</th>
-                  <th style={{ padding: "6px 4px" }}>End</th>
-                  <th style={{ padding: "6px 4px" }}>Salary</th>
-                  <th style={{ padding: "6px 4px" }}></th>
+                <tr>
+                  <th>Employee</th>
+                  <th>Type</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Salary</th>
+                  <th></th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {contracts?.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{employeeName(c.employee)}</td>
-                    <td style={{ padding: "6px 4px" }}>{CONTRACT_TYPE_LABELS[c.contract_type]}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.start_date}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.end_date || "Open-ended"}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(c.salary_cents)}</td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                  <tr key={c.id}>
+                    <td>{employeeName(c.employee)}</td>
+                    <td>{CONTRACT_TYPE_LABELS[c.contract_type]}</td>
+                    <td>{c.start_date}</td>
+                    <td>{c.end_date || "Open-ended"}</td>
+                    <td>{formatCents(c.salary_cents)}</td>
+                    <td style={{ textAlign: "right" }}>
                       <span style={{ display: "inline-flex", gap: 6 }}>
                         <DocumentsPanel
                           target={{ appLabel: "hr", model: "employeecontract", objectId: c.id }}
@@ -251,7 +249,7 @@ export default function LeaveAndContractsPage() {
                       </span>
                     </td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onDelete={() => handleDeleteContract(c.id)}
                           disabled={contractWorking}
@@ -262,7 +260,7 @@ export default function LeaveAndContractsPage() {
                 ))}
                 {contracts?.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={7} className={shared.tableMuted}>
                       No contracts yet.
                     </td>
                   </tr>
@@ -270,21 +268,12 @@ export default function LeaveAndContractsPage() {
               </tbody>
             </table>
             {canManage && (
-              <form
-                onSubmit={handleAddContract}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 800,
-                }}
-              >
+              <form onSubmit={handleAddContract} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   required
                   value={contractForm.employee}
                   onChange={(e) => setContractForm({ ...contractForm, employee: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Employee…</option>
                   {employees?.map((emp) => (
@@ -301,7 +290,7 @@ export default function LeaveAndContractsPage() {
                       contract_type: e.target.value as EmployeeContract["contract_type"],
                     })
                   }
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="permanent">Permanent</option>
                   <option value="fixed_term">Fixed-term</option>
@@ -313,14 +302,14 @@ export default function LeaveAndContractsPage() {
                   required
                   value={contractForm.start_date}
                   onChange={(e) => setContractForm({ ...contractForm, start_date: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   type="date"
                   placeholder="End (blank = open-ended)"
                   value={contractForm.end_date}
                   onChange={(e) => setContractForm({ ...contractForm, end_date: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Salary"
@@ -328,44 +317,47 @@ export default function LeaveAndContractsPage() {
                   step="0.01"
                   value={contractForm.salary_cents}
                   onChange={(e) => setContractForm({ ...contractForm, salary_cents: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Notes (optional)"
                   value={contractForm.notes}
                   onChange={(e) => setContractForm({ ...contractForm, notes: e.target.value })}
-                  style={{ padding: 8, gridColumn: "1 / -1" }}
+                  className={shared.input}
+                  style={{ gridColumn: "1 / -1" }}
                 />
                 <button
                   type="submit"
                   disabled={contractWorking || !contractForm.employee || !contractForm.start_date}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Add contract
                 </button>
                 {contractError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{contractError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {contractError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Leave Types */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Leave types
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Leave Types */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Leave types</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <tbody>
                 {leaveTypes?.map((t) => (
-                  <tr key={t.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{t.name}</td>
-                    <td style={{ padding: "6px 4px", color: "#666" }}>{t.paid ? "Paid" : "Unpaid"}</td>
+                  <tr key={t.id}>
+                    <td>{t.name}</td>
+                    <td className={shared.tableMuted}>{t.paid ? "Paid" : "Unpaid"}</td>
                   </tr>
                 ))}
                 {leaveTypes?.length === 0 && (
                   <tr>
-                    <td colSpan={2} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={2} className={shared.tableMuted}>
                       No leave types yet.
                     </td>
                   </tr>
@@ -373,12 +365,13 @@ export default function LeaveAndContractsPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleAddLeaveType} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <form onSubmit={handleAddLeaveType} className={shared.formRow} style={{ marginTop: 12 }}>
                 <input
                   placeholder="Leave type (e.g. Annual Leave)"
                   value={newLeaveTypeName}
                   onChange={(e) => setNewLeaveTypeName(e.target.value)}
-                  style={{ padding: 8, flex: 1, maxWidth: 280 }}
+                  className={shared.input}
+                  style={{ flex: 1, maxWidth: 280 }}
                 />
                 <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
                   <input
@@ -391,54 +384,54 @@ export default function LeaveAndContractsPage() {
                 <button
                   type="submit"
                   disabled={leaveTypeWorking || !newLeaveTypeName}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Add leave type
                 </button>
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Leave Requests */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Leave requests
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
-              Request approval from the Approval panel on its row, same as Expenses and Purchase
-              Requests. Approving doesn&apos;t automatically flip the employee&apos;s status to
-              &quot;On leave&quot; — that&apos;s still a manual HR action.
-            </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Leave Requests */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Leave requests</h2>
+          <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 8 }}>
+            Request approval from the Approval panel on its row, same as Expenses and Purchase
+            Requests. Approving doesn&apos;t automatically flip the employee&apos;s status to
+            &quot;On leave&quot; — that&apos;s still a manual HR action.
+          </p>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Employee</th>
-                  <th style={{ padding: "6px 4px" }}>Type</th>
-                  <th style={{ padding: "6px 4px" }}>Dates</th>
-                  <th style={{ padding: "6px 4px" }}>Days</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}></th>
+                <tr>
+                  <th>Employee</th>
+                  <th>Type</th>
+                  <th>Dates</th>
+                  <th>Days</th>
+                  <th>Status</th>
+                  <th></th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {leaveRequests?.map((lr) => (
-                  <tr key={lr.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{employeeName(lr.employee)}</td>
-                    <td style={{ padding: "6px 4px" }}>
+                  <tr key={lr.id}>
+                    <td>{employeeName(lr.employee)}</td>
+                    <td>
                       {leaveTypeName(lr.leave_type)}
-                      {lr.reason && <div style={{ fontSize: 12, color: "#999" }}>{lr.reason}</div>}
+                      {lr.reason && <div className={shared.tableMuted}>{lr.reason}</div>}
                     </td>
-                    <td style={{ padding: "6px 4px" }}>
+                    <td>
                       {lr.start_date} to {lr.end_date}
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{lr.days}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      <span style={{ color: LEAVE_STATUS_COLORS[lr.status], fontWeight: 600 }}>
+                    <td>{lr.days}</td>
+                    <td>
+                      <span className={`${shared.badge} ${LEAVE_STATUS_BADGES[lr.status]}`}>
                         {LEAVE_STATUS_LABELS[lr.status]}
                       </span>
                     </td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                    <td style={{ textAlign: "right" }}>
                       <span style={{ display: "inline-flex", gap: 6 }}>
                         <DocumentsPanel
                           target={{ appLabel: "hr", model: "leaverequest", objectId: lr.id }}
@@ -458,7 +451,7 @@ export default function LeaveAndContractsPage() {
                       </span>
                     </td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onDelete={() => handleDeleteLeaveRequest(lr.id)}
                           disabled={leaveWorking}
@@ -469,7 +462,7 @@ export default function LeaveAndContractsPage() {
                 ))}
                 {leaveRequests?.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={7} className={shared.tableMuted}>
                       No leave requests yet.
                     </td>
                   </tr>
@@ -477,21 +470,12 @@ export default function LeaveAndContractsPage() {
               </tbody>
             </table>
             {canManage && (
-              <form
-                onSubmit={handleAddLeaveRequest}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 800,
-                }}
-              >
+              <form onSubmit={handleAddLeaveRequest} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   required
                   value={leaveForm.employee}
                   onChange={(e) => setLeaveForm({ ...leaveForm, employee: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Employee…</option>
                   {employees?.map((emp) => (
@@ -504,7 +488,7 @@ export default function LeaveAndContractsPage() {
                   required
                   value={leaveForm.leave_type}
                   onChange={(e) => setLeaveForm({ ...leaveForm, leave_type: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Leave type…</option>
                   {leaveTypes?.map((t) => (
@@ -518,20 +502,21 @@ export default function LeaveAndContractsPage() {
                   required
                   value={leaveForm.start_date}
                   onChange={(e) => setLeaveForm({ ...leaveForm, start_date: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   type="date"
                   required
                   value={leaveForm.end_date}
                   onChange={(e) => setLeaveForm({ ...leaveForm, end_date: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Reason (optional)"
                   value={leaveForm.reason}
                   onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
-                  style={{ padding: 8, gridColumn: "1 / -1" }}
+                  className={shared.input}
+                  style={{ gridColumn: "1 / -1" }}
                 />
                 <button
                   type="submit"
@@ -542,18 +527,20 @@ export default function LeaveAndContractsPage() {
                     !leaveForm.start_date ||
                     !leaveForm.end_date
                   }
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Request leave
                 </button>
                 {leaveError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{leaveError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {leaveError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
-        </>
-      )}
-    </main>
+          </div>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

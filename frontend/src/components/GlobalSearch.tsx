@@ -6,8 +6,8 @@ import { api, type SearchResult } from "@/lib/api";
 
 const DEBOUNCE_MS = 250;
 
-/** A single search box mounted in AppHeader rather than each module
- * owning its own — see apps.search.GlobalSearchView. Debounces input,
+/** A single search box mounted in the launcher and ModuleShell top bars
+ * rather than each module owning its own — see apps.search.GlobalSearchView. Debounces input,
  * shows a grouped-by-module dropdown, and just navigates to the hit's
  * module page (there's no per-record detail route yet to deep-link to). */
 export function GlobalSearch({ active }: { active: boolean }) {

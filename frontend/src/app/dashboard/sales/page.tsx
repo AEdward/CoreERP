@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
@@ -20,6 +20,7 @@ import {
   type Warehouse,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const EMPTY_CUSTOMER_FORM = {
   name: "",
@@ -51,6 +52,27 @@ function linesToRows(lines: OrderLine[]): LineItemRow[] {
     unitPrice: (l.unit_price_cents / 100).toString(),
     discountPercent: String(l.discount_percent),
   }));
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  draft: "badgeInfo",
+  pending: "badgeWarn",
+  processing: "badgeWarn",
+  approved: "badgeSuccess",
+  confirmed: "badgeSuccess",
+  completed: "badgeSuccess",
+  delivered: "badgeSuccess",
+  paid: "badgeSuccess",
+  partially_paid: "badgeWarn",
+  unpaid: "badgeDanger",
+  overdue: "badgeDanger",
+  cancelled: "badgeDanger",
+  rejected: "badgeDanger",
+};
+
+function statusBadgeClass(status: string) {
+  const key = STATUS_BADGE[status] ?? "badgeInfo";
+  return `${shared.badge} ${shared[key]}`;
 }
 
 export default function SalesPage() {
@@ -323,52 +345,51 @@ export default function SalesPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("sales.manage") ?? false;
   const customerName = (id: number) => customers?.find((c) => c.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <ModuleShell moduleKey="sales" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Sales & CRM</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+          <div className={shared.pageActions}>
+            <a href="/dashboard/crm" className={shared.btn}>
+              Leads, opportunities & contacts &rarr;
+            </a>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Sales & CRM — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/crm">Leads, opportunities & contacts &rarr;</a>
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          {/* Customers */}
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Customers
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Customers */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Customers</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Type</th>
-                  <th style={{ padding: "6px 4px" }}>Phone</th>
-                  <th style={{ padding: "6px 4px" }}>Email</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Phone</th>
+                  <th>Email</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {customers?.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{c.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.type}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.phone || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{c.email || "—"}</td>
+                  <tr key={c.id}>
+                    <td>{c.name}</td>
+                    <td>{c.type}</td>
+                    <td>{c.phone || "—"}</td>
+                    <td>{c.email || "—"}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onEdit={() => startEditCustomer(c)}
                           onDelete={() => handleDeleteCustomer(c.id)}
@@ -380,7 +401,7 @@ export default function SalesPage() {
                 ))}
                 {customers?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} className={shared.tableMuted}>
                       No customers yet.
                     </td>
                   </tr>
@@ -388,29 +409,20 @@ export default function SalesPage() {
               </tbody>
             </table>
             {canManage && (
-              <form
-                onSubmit={handleAddCustomer}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 720,
-                }}
-              >
+              <form onSubmit={handleAddCustomer} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <input
                   placeholder="Name"
                   required
                   value={customerForm.name}
                   onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <select
                   value={customerForm.type}
                   onChange={(e) =>
                     setCustomerForm({ ...customerForm, type: e.target.value as Customer["type"] })
                   }
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="individual">Individual</option>
                   <option value="business">Business</option>
@@ -421,26 +433,26 @@ export default function SalesPage() {
                   placeholder="Phone"
                   value={customerForm.phone}
                   onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Email"
                   type="email"
                   value={customerForm.email}
                   onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Address"
                   value={customerForm.address}
                   onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
                   <button
                     type="submit"
                     disabled={customerWorking || !customerForm.name}
-                    style={{ padding: "8px 16px" }}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
                   >
                     {editingCustomerId ? "Save changes" : "Add customer"}
                   </button>
@@ -451,7 +463,7 @@ export default function SalesPage() {
                         setEditingCustomerId(null);
                         setCustomerForm(EMPTY_CUSTOMER_FORM);
                       }}
-                      style={{ padding: "8px 16px" }}
+                      className={shared.btn}
                     >
                       Cancel
                     </button>
@@ -459,32 +471,34 @@ export default function SalesPage() {
                 </div>
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Quotations */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Quotations
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Quotations */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Quotations</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Customer</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}>Lines</th>
-                  <th style={{ padding: "6px 4px" }}>Total</th>
+                <tr>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Lines</th>
+                  <th>Total</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {quotations?.map((q) => (
-                  <tr key={q.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{customerName(q.customer)}</td>
-                    <td style={{ padding: "6px 4px" }}>{q.status}</td>
-                    <td style={{ padding: "6px 4px" }}>{q.lines.length}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(q.total_cents)}</td>
+                  <tr key={q.id}>
+                    <td>{customerName(q.customer)}</td>
+                    <td>
+                      <span className={statusBadgeClass(q.status)}>{q.status}</span>
+                    </td>
+                    <td>{q.lines.length}</td>
+                    <td>{formatCents(q.total_cents)}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onEdit={() => startEditQuotation(q)}
                           onDelete={() => handleDeleteQuotation(q.id)}
@@ -496,7 +510,7 @@ export default function SalesPage() {
                 ))}
                 {quotations?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} className={shared.tableMuted}>
                       No quotations yet.
                     </td>
                   </tr>
@@ -509,7 +523,8 @@ export default function SalesPage() {
                   required
                   value={qCustomer}
                   onChange={(e) => setQCustomer(e.target.value)}
-                  style={{ padding: 8, marginBottom: 8, width: "100%", maxWidth: 300 }}
+                  className={shared.select}
+                  style={{ marginBottom: 8, width: "100%", maxWidth: 300 }}
                 >
                   <option value="">Customer…</option>
                   {customers?.map((c) => (
@@ -526,7 +541,11 @@ export default function SalesPage() {
                   showDiscount
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button type="submit" disabled={qWorking || !qCustomer} style={{ padding: "8px 16px" }}>
+                  <button
+                    type="submit"
+                    disabled={qWorking || !qCustomer}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
+                  >
                     {editingQuotation ? "Save changes" : "Create quotation"}
                   </button>
                   {editingQuotation && (
@@ -537,29 +556,29 @@ export default function SalesPage() {
                         setQCustomer("");
                         setQLines([{ ...EMPTY_LINE }]);
                       }}
-                      style={{ padding: "8px 16px" }}
+                      className={shared.btn}
                     >
                       Cancel
                     </button>
                   )}
                 </div>
-                {qError && <p style={{ color: "crimson" }}>{qError}</p>}
+                {qError && <p className={shared.errorText}>{qError}</p>}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Sales Orders */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Sales orders
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Sales Orders */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Sales orders</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Customer</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}>Payment</th>
-                  <th style={{ padding: "6px 4px" }}>Total</th>
+                <tr>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th>Total</th>
                   <th></th>
                   {canManage && <th></th>}
                 </tr>
@@ -567,12 +586,16 @@ export default function SalesPage() {
               <tbody>
                 {orders?.map((o) => (
                   <Fragment key={o.id}>
-                    <tr style={{ borderBottom: "1px solid #eee" }}>
-                      <td style={{ padding: "6px 4px" }}>{customerName(o.customer)}</td>
-                      <td style={{ padding: "6px 4px" }}>{o.status}</td>
-                      <td style={{ padding: "6px 4px" }}>{o.payment_status}</td>
-                      <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                    <tr>
+                      <td>{customerName(o.customer)}</td>
+                      <td>
+                        <span className={statusBadgeClass(o.status)}>{o.status}</span>
+                      </td>
+                      <td>
+                        <span className={statusBadgeClass(o.payment_status)}>{o.payment_status}</span>
+                      </td>
+                      <td>{formatCents(o.total_cents)}</td>
+                      <td style={{ textAlign: "right" }}>
                         {canManage &&
                           (o.status === "pending" || o.status === "processing") &&
                           dispatchingOrderId !== o.id && (
@@ -582,14 +605,14 @@ export default function SalesPage() {
                                 setDispatchingOrderId(o.id);
                                 setDispatchError(null);
                               }}
-                              style={{ padding: "2px 8px", fontSize: 12 }}
+                              className={`${shared.btn} ${shared.btnSmall}`}
                             >
                               Dispatch
                             </button>
                           )}
                       </td>
                       {canManage && (
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <td style={{ textAlign: "right" }}>
                           <RowActions
                             onEdit={() => startEditSalesOrder(o)}
                             onDelete={() => handleDeleteSalesOrder(o.id)}
@@ -599,13 +622,13 @@ export default function SalesPage() {
                       )}
                     </tr>
                     {dispatchingOrderId === o.id && (
-                      <tr style={{ borderBottom: "1px solid #eee", background: "#fafafa" }}>
-                        <td colSpan={6} style={{ padding: "10px 4px" }}>
+                      <tr style={{ background: "var(--gray-50)" }}>
+                        <td colSpan={6} style={{ padding: "10px 8px" }}>
                           <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                             <select
                               value={dispatchWarehouse}
                               onChange={(e) => setDispatchWarehouse(e.target.value)}
-                              style={{ padding: 6 }}
+                              className={shared.select}
                             >
                               <option value="">Warehouse…</option>
                               {warehouses?.map((w) => (
@@ -635,7 +658,8 @@ export default function SalesPage() {
                                   setDispatchQuantities({ ...dispatchQuantities, [line.id]: e.target.value })
                                 }
                                 disabled={line.outstanding_quantity === 0}
-                                style={{ padding: 6, width: 140 }}
+                                className={shared.input}
+                                style={{ width: 140 }}
                               />
                             </div>
                           ))}
@@ -644,7 +668,7 @@ export default function SalesPage() {
                               type="button"
                               disabled={dispatchWorking || !dispatchWarehouse}
                               onClick={() => handleDispatch(o)}
-                              style={{ padding: "6px 12px" }}
+                              className={`${shared.btn} ${shared.btnPrimary}`}
                             >
                               Confirm dispatch
                             </button>
@@ -656,12 +680,12 @@ export default function SalesPage() {
                                 setDispatchQuantities({});
                                 setDispatchError(null);
                               }}
-                              style={{ padding: "6px 12px" }}
+                              className={shared.btn}
                             >
                               Cancel
                             </button>
                           </div>
-                          {dispatchError && <p style={{ color: "crimson" }}>{dispatchError}</p>}
+                          {dispatchError && <p className={shared.errorText}>{dispatchError}</p>}
                         </td>
                       </tr>
                     )}
@@ -669,7 +693,7 @@ export default function SalesPage() {
                 ))}
                 {orders?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       No sales orders yet.
                     </td>
                   </tr>
@@ -683,7 +707,8 @@ export default function SalesPage() {
                     required
                     value={soCustomer}
                     onChange={(e) => setSoCustomer(e.target.value)}
-                    style={{ padding: 8, flex: 1 }}
+                    className={shared.select}
+                    style={{ flex: 1 }}
                   >
                     <option value="">Customer…</option>
                     {customers?.map((c) => (
@@ -695,7 +720,8 @@ export default function SalesPage() {
                   <select
                     value={soQuotation}
                     onChange={(e) => setSoQuotation(e.target.value)}
-                    style={{ padding: 8, flex: 1 }}
+                    className={shared.select}
+                    style={{ flex: 1 }}
                   >
                     <option value="">No linked quotation</option>
                     {quotations?.map((q) => (
@@ -713,7 +739,11 @@ export default function SalesPage() {
                   showDiscount
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button type="submit" disabled={soWorking || !soCustomer} style={{ padding: "8px 16px" }}>
+                  <button
+                    type="submit"
+                    disabled={soWorking || !soCustomer}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
+                  >
                     {editingSalesOrder ? "Save changes" : "Create sales order"}
                   </button>
                   {editingSalesOrder && (
@@ -725,42 +755,44 @@ export default function SalesPage() {
                         setSoQuotation("");
                         setSoLines([{ ...EMPTY_LINE }]);
                       }}
-                      style={{ padding: "8px 16px" }}
+                      className={shared.btn}
                     >
                       Cancel
                     </button>
                   )}
                 </div>
-                {soError && <p style={{ color: "crimson" }}>{soError}</p>}
+                {soError && <p className={shared.errorText}>{soError}</p>}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Invoices */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Invoices
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Invoices */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Invoices</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Number</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
-                  <th style={{ padding: "6px 4px" }}>Tax</th>
-                  <th style={{ padding: "6px 4px" }}>Due date</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
+                <tr>
+                  <th>Number</th>
+                  <th>Amount</th>
+                  <th>Tax</th>
+                  <th>Due date</th>
+                  <th>Status</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {invoices?.map((inv) => (
-                  <tr key={inv.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{inv.invoice_number}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(inv.amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(inv.tax_amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{inv.due_date || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{inv.status}</td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                  <tr key={inv.id}>
+                    <td>{inv.invoice_number}</td>
+                    <td>{formatCents(inv.amount_cents)}</td>
+                    <td>{formatCents(inv.tax_amount_cents)}</td>
+                    <td>{inv.due_date || "—"}</td>
+                    <td>
+                      <span className={statusBadgeClass(inv.status)}>{inv.status}</span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
                       <span style={{ display: "inline-flex", gap: 6 }}>
                         <DocumentsPanel
                           target={{ appLabel: "sales", model: "invoice", objectId: inv.id }}
@@ -777,7 +809,7 @@ export default function SalesPage() {
                 ))}
                 {invoices?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       No invoices yet.
                     </td>
                   </tr>
@@ -785,20 +817,11 @@ export default function SalesPage() {
               </tbody>
             </table>
             {canManage && (
-              <form
-                onSubmit={handleAddInvoice}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 720,
-                }}
-              >
+              <form onSubmit={handleAddInvoice} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   value={invSalesOrder}
                   onChange={(e) => setInvSalesOrder(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">No linked sales order (manual amount)</option>
                   {orders?.map((o) => (
@@ -814,7 +837,7 @@ export default function SalesPage() {
                     step="0.01"
                     value={invAmount}
                     onChange={(e) => setInvAmount(e.target.value)}
-                    style={{ padding: 8 }}
+                    className={shared.input}
                   />
                 )}
                 {!invSalesOrder && (
@@ -824,63 +847,64 @@ export default function SalesPage() {
                     step="0.01"
                     value={invTax}
                     onChange={(e) => setInvTax(e.target.value)}
-                    style={{ padding: 8 }}
+                    className={shared.input}
                   />
                 )}
                 <input
                   type="date"
                   value={invDueDate}
                   onChange={(e) => setInvDueDate(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <button
                   type="submit"
                   disabled={invWorking || (!invSalesOrder && !invAmount)}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                  style={{ gridColumn: "1 / -1", justifySelf: "start" }}
                 >
                   Create invoice
                 </button>
                 {invError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{invError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {invError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Credit Notes */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Credit notes
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+        {/* Credit Notes */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Credit notes</h2>
+          <div className={shared.card}>
+            <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 12 }}>
               Reduces an already-issued invoice — a refund, a pricing error, a partial return.
               Can&apos;t exceed what&apos;s still owed on the invoice.
             </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Number</th>
-                  <th style={{ padding: "6px 4px" }}>Invoice</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
-                  <th style={{ padding: "6px 4px" }}>Tax</th>
-                  <th style={{ padding: "6px 4px" }}>Reason</th>
+                <tr>
+                  <th>Number</th>
+                  <th>Invoice</th>
+                  <th>Amount</th>
+                  <th>Tax</th>
+                  <th>Reason</th>
                 </tr>
               </thead>
               <tbody>
                 {creditNotes?.map((cn) => (
-                  <tr key={cn.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{cn.credit_note_number}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {invoices?.find((inv) => inv.id === cn.invoice)?.invoice_number ?? "—"}
-                    </td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(cn.amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(cn.tax_amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{cn.reason}</td>
+                  <tr key={cn.id}>
+                    <td>{cn.credit_note_number}</td>
+                    <td>{invoices?.find((inv) => inv.id === cn.invoice)?.invoice_number ?? "—"}</td>
+                    <td>{formatCents(cn.amount_cents)}</td>
+                    <td>{formatCents(cn.tax_amount_cents)}</td>
+                    <td>{cn.reason}</td>
                   </tr>
                 ))}
                 {creditNotes?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} className={shared.tableMuted}>
                       No credit notes yet.
                     </td>
                   </tr>
@@ -889,21 +913,12 @@ export default function SalesPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleAddCreditNote}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 800,
-                }}
-              >
+              <form onSubmit={handleAddCreditNote} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   required
                   value={cnInvoice}
                   onChange={(e) => setCnInvoice(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Invoice…</option>
                   {invoices?.map((inv) => (
@@ -919,7 +934,7 @@ export default function SalesPage() {
                   required
                   value={cnAmount}
                   onChange={(e) => setCnAmount(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Tax amount"
@@ -927,29 +942,31 @@ export default function SalesPage() {
                   step="0.01"
                   value={cnTax}
                   onChange={(e) => setCnTax(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Reason"
                   value={cnReason}
                   onChange={(e) => setCnReason(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <button
                   type="submit"
                   disabled={cnWorking || !cnInvoice || !cnAmount}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Issue credit note
                 </button>
                 {cnError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{cnError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {cnError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
-        </>
-      )}
-    </main>
+          </div>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

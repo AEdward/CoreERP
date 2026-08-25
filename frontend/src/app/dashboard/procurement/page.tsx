@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { EMPTY_LINE, LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { ApprovalPanel } from "@/components/ApprovalPanel";
@@ -21,6 +21,7 @@ import {
   type Warehouse,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 function poLinesToRows(lines: PurchaseOrder["lines"]): LineItemRow[] {
   return lines.map((l) => ({
@@ -34,6 +35,24 @@ const EMPTY_SUPPLIER_FORM = { name: "", phone: "", email: "", address: "", tax_n
 
 function formatCents(cents: number) {
   return (cents / 100).toFixed(2);
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  draft: "badgeInfo",
+  submitted: "badgeWarn",
+  pending: "badgeWarn",
+  approved: "badgeSuccess",
+  received: "badgeSuccess",
+  paid: "badgeSuccess",
+  rejected: "badgeDanger",
+  cancelled: "badgeDanger",
+  overdue: "badgeDanger",
+  unpaid: "badgeDanger",
+};
+
+function statusBadgeClass(status: string) {
+  const key = STATUS_BADGE[status] ?? "badgeInfo";
+  return `${shared.badge} ${shared[key]}`;
 }
 
 export default function ProcurementPage() {
@@ -330,49 +349,46 @@ export default function ProcurementPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("procurement.manage") ?? false;
   const supplierName = (id: number) => suppliers?.find((s) => s.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <ModuleShell moduleKey="procurement" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Procurement</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Procurement — {activeMembership.company.name}</h1>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          {/* Suppliers */}
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Suppliers
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Suppliers */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Suppliers</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Phone</th>
-                  <th style={{ padding: "6px 4px" }}>Email</th>
-                  <th style={{ padding: "6px 4px" }}>Tax number</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Tax number</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {suppliers?.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{s.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.phone || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.email || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.tax_number || "—"}</td>
+                  <tr key={s.id}>
+                    <td>{s.name}</td>
+                    <td>{s.phone || "—"}</td>
+                    <td>{s.email || "—"}</td>
+                    <td>{s.tax_number || "—"}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onEdit={() => startEditSupplier(s)}
                           onDelete={() => handleDeleteSupplier(s.id)}
@@ -384,7 +400,7 @@ export default function ProcurementPage() {
                 ))}
                 {suppliers?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} className={shared.tableMuted}>
                       No suppliers yet.
                     </td>
                   </tr>
@@ -393,53 +409,44 @@ export default function ProcurementPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleAddSupplier}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 720,
-                }}
-              >
+              <form onSubmit={handleAddSupplier} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <input
                   placeholder="Name"
                   required
                   value={supplierForm.name}
                   onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Phone"
                   value={supplierForm.phone}
                   onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Email"
                   type="email"
                   value={supplierForm.email}
                   onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Address"
                   value={supplierForm.address}
                   onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Tax number"
                   value={supplierForm.tax_number}
                   onChange={(e) => setSupplierForm({ ...supplierForm, tax_number: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
                   <button
                     type="submit"
                     disabled={supplierWorking || !supplierForm.name}
-                    style={{ padding: "8px 16px" }}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
                   >
                     {editingSupplierId ? "Save changes" : "Add supplier"}
                   </button>
@@ -450,7 +457,7 @@ export default function ProcurementPage() {
                         setEditingSupplierId(null);
                         setSupplierForm(EMPTY_SUPPLIER_FORM);
                       }}
-                      style={{ padding: "8px 16px" }}
+                      className={shared.btn}
                     >
                       Cancel
                     </button>
@@ -458,39 +465,41 @@ export default function ProcurementPage() {
                 </div>
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Purchase Requests */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Purchase requests
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+        {/* Purchase Requests */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Purchase requests</h2>
+          <div className={shared.card}>
+            <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 12 }}>
               The internal &quot;we need to buy this&quot; step before a supplier is chosen. Request
               approval from the panel on each row; once approved, convert it into a real draft
               purchase order against a supplier.
             </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Requested by</th>
-                  <th style={{ padding: "6px 4px" }}>Justification</th>
-                  <th style={{ padding: "6px 4px" }}>Lines</th>
-                  <th style={{ padding: "6px 4px" }}>Est. total</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
+                <tr>
+                  <th>Requested by</th>
+                  <th>Justification</th>
+                  <th>Lines</th>
+                  <th>Est. total</th>
+                  <th>Status</th>
                   <th></th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {purchaseRequests?.map((pr) => (
-                  <tr key={pr.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{pr.requested_by_name || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{pr.justification}</td>
-                    <td style={{ padding: "6px 4px" }}>{pr.lines.length}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(pr.total_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{pr.status}</td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                  <tr key={pr.id}>
+                    <td>{pr.requested_by_name || "—"}</td>
+                    <td>{pr.justification}</td>
+                    <td>{pr.lines.length}</td>
+                    <td>{formatCents(pr.total_cents)}</td>
+                    <td>
+                      <span className={statusBadgeClass(pr.status)}>{pr.status}</span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
                       <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                         <ApprovalPanel
                           target={{ appLabel: "procurement", model: "purchaserequest", objectId: pr.id }}
@@ -500,7 +509,7 @@ export default function ProcurementPage() {
                           <button
                             type="button"
                             onClick={() => setConvertingPrId(pr.id)}
-                            style={{ padding: "4px 10px" }}
+                            className={`${shared.btn} ${shared.btnSmall}`}
                           >
                             Convert to PO
                           </button>
@@ -510,7 +519,7 @@ export default function ProcurementPage() {
                             <select
                               value={convertSupplier}
                               onChange={(e) => setConvertSupplier(e.target.value)}
-                              style={{ padding: 4 }}
+                              className={shared.select}
                             >
                               <option value="">Supplier…</option>
                               {suppliers?.map((s) => (
@@ -523,7 +532,7 @@ export default function ProcurementPage() {
                               type="button"
                               disabled={prWorking || !convertSupplier}
                               onClick={() => handleConvertPurchaseRequest(pr.id)}
-                              style={{ padding: "4px 10px" }}
+                              className={`${shared.btn} ${shared.btnPrimary} ${shared.btnSmall}`}
                             >
                               Confirm
                             </button>
@@ -533,7 +542,7 @@ export default function ProcurementPage() {
                                 setConvertingPrId(null);
                                 setConvertSupplier("");
                               }}
-                              style={{ padding: "4px 10px" }}
+                              className={`${shared.btn} ${shared.btnSmall}`}
                             >
                               Cancel
                             </button>
@@ -542,7 +551,7 @@ export default function ProcurementPage() {
                       </span>
                     </td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions onDelete={() => handleDeletePurchaseRequest(pr.id)} disabled={prWorking} />
                       </td>
                     )}
@@ -550,7 +559,7 @@ export default function ProcurementPage() {
                 ))}
                 {purchaseRequests?.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={7} className={shared.tableMuted}>
                       No purchase requests yet.
                     </td>
                   </tr>
@@ -564,7 +573,8 @@ export default function ProcurementPage() {
                   <select
                     value={prRequestedBy}
                     onChange={(e) => setPrRequestedBy(e.target.value)}
-                    style={{ padding: 8, flex: 1 }}
+                    className={shared.select}
+                    style={{ flex: 1 }}
                   >
                     <option value="">Requested by…</option>
                     {members?.map((m) => (
@@ -577,7 +587,8 @@ export default function ProcurementPage() {
                     placeholder="Justification"
                     value={prJustification}
                     onChange={(e) => setPrJustification(e.target.value)}
-                    style={{ padding: 8, flex: 2 }}
+                    className={shared.input}
+                    style={{ flex: 2 }}
                   />
                 </div>
                 <LineItemsEditor
@@ -586,26 +597,31 @@ export default function ProcurementPage() {
                   onChange={setPrLines}
                   priceLabel="Est. unit cost"
                 />
-                <button type="submit" disabled={prWorking} style={{ padding: "8px 16px", marginTop: 8 }}>
+                <button
+                  type="submit"
+                  disabled={prWorking}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                  style={{ marginTop: 8 }}
+                >
                   Add purchase request
                 </button>
-                {prError && <p style={{ color: "crimson" }}>{prError}</p>}
+                {prError && <p className={shared.errorText}>{prError}</p>}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Purchase Orders */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Purchase orders
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Purchase Orders */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Purchase orders</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Supplier</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}>Lines</th>
-                  <th style={{ padding: "6px 4px" }}>Total</th>
+                <tr>
+                  <th>Supplier</th>
+                  <th>Status</th>
+                  <th>Lines</th>
+                  <th>Total</th>
                   <th></th>
                   {canManage && <th></th>}
                 </tr>
@@ -613,12 +629,14 @@ export default function ProcurementPage() {
               <tbody>
                 {orders?.map((o) => (
                   <Fragment key={o.id}>
-                    <tr style={{ borderBottom: "1px solid #eee" }}>
-                      <td style={{ padding: "6px 4px" }}>{supplierName(o.supplier)}</td>
-                      <td style={{ padding: "6px 4px" }}>{o.status}</td>
-                      <td style={{ padding: "6px 4px" }}>{o.lines.length}</td>
-                      <td style={{ padding: "6px 4px" }}>{formatCents(o.total_cents)}</td>
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                    <tr>
+                      <td>{supplierName(o.supplier)}</td>
+                      <td>
+                        <span className={statusBadgeClass(o.status)}>{o.status}</span>
+                      </td>
+                      <td>{o.lines.length}</td>
+                      <td>{formatCents(o.total_cents)}</td>
+                      <td style={{ textAlign: "right" }}>
                         <span style={{ display: "inline-flex", gap: 6 }}>
                           <DocumentsPanel
                             target={{ appLabel: "procurement", model: "purchaseorder", objectId: o.id }}
@@ -642,7 +660,7 @@ export default function ProcurementPage() {
                                 setReceivingOrderId(o.id);
                                 setReceiveError(null);
                               }}
-                              style={{ padding: "2px 8px", fontSize: 12 }}
+                              className={`${shared.btn} ${shared.btnSmall}`}
                             >
                               Receive
                             </button>
@@ -650,7 +668,7 @@ export default function ProcurementPage() {
                         </span>
                       </td>
                       {canManage && (
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                        <td style={{ textAlign: "right" }}>
                           <RowActions
                             onEdit={() => startEditPurchaseOrder(o)}
                             onDelete={() => handleDeletePurchaseOrder(o.id)}
@@ -660,13 +678,13 @@ export default function ProcurementPage() {
                       )}
                     </tr>
                     {receivingOrderId === o.id && (
-                      <tr style={{ borderBottom: "1px solid #eee", background: "#fafafa" }}>
-                        <td colSpan={6} style={{ padding: "10px 4px" }}>
+                      <tr style={{ background: "var(--gray-50)" }}>
+                        <td colSpan={6} style={{ padding: "10px 8px" }}>
                           <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                             <select
                               value={receiveWarehouse}
                               onChange={(e) => setReceiveWarehouse(e.target.value)}
-                              style={{ padding: 6 }}
+                              className={shared.select}
                             >
                               <option value="">Warehouse…</option>
                               {warehouses?.map((w) => (
@@ -696,7 +714,8 @@ export default function ProcurementPage() {
                                   setReceiveQuantities({ ...receiveQuantities, [line.id]: e.target.value })
                                 }
                                 disabled={line.outstanding_quantity === 0}
-                                style={{ padding: 6, width: 140 }}
+                                className={shared.input}
+                                style={{ width: 140 }}
                               />
                             </div>
                           ))}
@@ -705,7 +724,7 @@ export default function ProcurementPage() {
                               type="button"
                               disabled={receiveWorking || !receiveWarehouse}
                               onClick={() => handleReceive(o)}
-                              style={{ padding: "6px 12px" }}
+                              className={`${shared.btn} ${shared.btnPrimary}`}
                             >
                               Confirm receipt
                             </button>
@@ -717,12 +736,12 @@ export default function ProcurementPage() {
                                 setReceiveQuantities({});
                                 setReceiveError(null);
                               }}
-                              style={{ padding: "6px 12px" }}
+                              className={shared.btn}
                             >
                               Cancel
                             </button>
                           </div>
-                          {receiveError && <p style={{ color: "crimson" }}>{receiveError}</p>}
+                          {receiveError && <p className={shared.errorText}>{receiveError}</p>}
                         </td>
                       </tr>
                     )}
@@ -730,7 +749,7 @@ export default function ProcurementPage() {
                 ))}
                 {orders?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       No purchase orders yet.
                     </td>
                   </tr>
@@ -745,7 +764,8 @@ export default function ProcurementPage() {
                     required
                     value={poSupplier}
                     onChange={(e) => setPoSupplier(e.target.value)}
-                    style={{ padding: 8, flex: 1 }}
+                    className={shared.select}
+                    style={{ flex: 1 }}
                   >
                     <option value="">Supplier…</option>
                     {suppliers?.map((s) => (
@@ -755,14 +775,14 @@ export default function ProcurementPage() {
                     ))}
                   </select>
                   {["submitted", "approved", "rejected"].includes(poStatus) ? (
-                    <span style={{ padding: 8, color: "#666", fontSize: 13 }}>
+                    <span className={shared.hint} style={{ padding: 8 }}>
                       Status: {poStatus} (set by the approval flow, not editable here)
                     </span>
                   ) : (
                     <select
                       value={poStatus}
                       onChange={(e) => setPoStatus(e.target.value as PurchaseOrder["status"])}
-                      style={{ padding: 8 }}
+                      className={shared.select}
                     >
                       <option value="draft">Draft</option>
                       <option value="received">Received</option>
@@ -777,7 +797,11 @@ export default function ProcurementPage() {
                   priceLabel="Unit cost"
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button type="submit" disabled={poWorking || !poSupplier} style={{ padding: "8px 16px" }}>
+                  <button
+                    type="submit"
+                    disabled={poWorking || !poSupplier}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
+                  >
                     {editingPoId ? "Save changes" : "Create purchase order"}
                   </button>
                   {editingPoId && (
@@ -789,45 +813,47 @@ export default function ProcurementPage() {
                         setPoStatus("draft");
                         setPoLines([{ ...EMPTY_LINE }]);
                       }}
-                      style={{ padding: "8px 16px" }}
+                      className={shared.btn}
                     >
                       Cancel
                     </button>
                   )}
                 </div>
-                {poError && <p style={{ color: "crimson" }}>{poError}</p>}
+                {poError && <p className={shared.errorText}>{poError}</p>}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Bills (AP) */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Bills
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Bills (AP) */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Bills</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Number</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
-                  <th style={{ padding: "6px 4px" }}>Tax</th>
-                  <th style={{ padding: "6px 4px" }}>Due date</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
+                <tr>
+                  <th>Number</th>
+                  <th>Amount</th>
+                  <th>Tax</th>
+                  <th>Due date</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {bills?.map((bill) => (
-                  <tr key={bill.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{bill.bill_number}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(bill.amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(bill.tax_amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{bill.due_date || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{bill.status}</td>
+                  <tr key={bill.id}>
+                    <td>{bill.bill_number}</td>
+                    <td>{formatCents(bill.amount_cents)}</td>
+                    <td>{formatCents(bill.tax_amount_cents)}</td>
+                    <td>{bill.due_date || "—"}</td>
+                    <td>
+                      <span className={statusBadgeClass(bill.status)}>{bill.status}</span>
+                    </td>
                   </tr>
                 ))}
                 {bills?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} className={shared.tableMuted}>
                       No bills yet.
                     </td>
                   </tr>
@@ -836,17 +862,8 @@ export default function ProcurementPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleAddBill}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 720,
-                }}
-              >
-                <select value={billPo} onChange={(e) => setBillPo(e.target.value)} style={{ padding: 8 }}>
+              <form onSubmit={handleAddBill} className={shared.formGrid} style={{ marginTop: 16 }}>
+                <select value={billPo} onChange={(e) => setBillPo(e.target.value)} className={shared.select}>
                   <option value="">No linked purchase order (manual amount)</option>
                   {orders?.map((o) => (
                     <option key={o.id} value={o.id}>
@@ -861,7 +878,7 @@ export default function ProcurementPage() {
                     step="0.01"
                     value={billAmount}
                     onChange={(e) => setBillAmount(e.target.value)}
-                    style={{ padding: 8 }}
+                    className={shared.input}
                   />
                 )}
                 {!billPo && (
@@ -871,64 +888,65 @@ export default function ProcurementPage() {
                     step="0.01"
                     value={billTax}
                     onChange={(e) => setBillTax(e.target.value)}
-                    style={{ padding: 8 }}
+                    className={shared.input}
                   />
                 )}
                 <input
                   type="date"
                   value={billDueDate}
                   onChange={(e) => setBillDueDate(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <button
                   type="submit"
                   disabled={billWorking || (!billPo && !billAmount)}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                  style={{ gridColumn: "1 / -1", justifySelf: "start" }}
                 >
                   Create bill
                 </button>
                 {billError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{billError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {billError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Purchase Returns (Debit Notes) */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Purchase returns (debit notes)
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+        {/* Purchase Returns (Debit Notes) */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Purchase returns (debit notes)</h2>
+          <div className={shared.card}>
+            <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 12 }}>
               Reduces an already-received bill — a refund, a pricing error, a return to the
               supplier. Financial only; doesn&apos;t reverse physical stock. Can&apos;t exceed
               what&apos;s still owed on the bill.
             </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Number</th>
-                  <th style={{ padding: "6px 4px" }}>Bill</th>
-                  <th style={{ padding: "6px 4px" }}>Amount</th>
-                  <th style={{ padding: "6px 4px" }}>Tax</th>
-                  <th style={{ padding: "6px 4px" }}>Reason</th>
+                <tr>
+                  <th>Number</th>
+                  <th>Bill</th>
+                  <th>Amount</th>
+                  <th>Tax</th>
+                  <th>Reason</th>
                 </tr>
               </thead>
               <tbody>
                 {purchaseReturns?.map((prt) => (
-                  <tr key={prt.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{prt.debit_note_number}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {bills?.find((b) => b.id === prt.bill)?.bill_number ?? "—"}
-                    </td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(prt.amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(prt.tax_amount_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{prt.reason}</td>
+                  <tr key={prt.id}>
+                    <td>{prt.debit_note_number}</td>
+                    <td>{bills?.find((b) => b.id === prt.bill)?.bill_number ?? "—"}</td>
+                    <td>{formatCents(prt.amount_cents)}</td>
+                    <td>{formatCents(prt.tax_amount_cents)}</td>
+                    <td>{prt.reason}</td>
                   </tr>
                 ))}
                 {purchaseReturns?.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={5} className={shared.tableMuted}>
                       No purchase returns yet.
                     </td>
                   </tr>
@@ -937,21 +955,12 @@ export default function ProcurementPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleAddPurchaseReturn}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 800,
-                }}
-              >
+              <form onSubmit={handleAddPurchaseReturn} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   required
                   value={prtBill}
                   onChange={(e) => setPrtBill(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Bill…</option>
                   {bills?.map((b) => (
@@ -967,7 +976,7 @@ export default function ProcurementPage() {
                   required
                   value={prtAmount}
                   onChange={(e) => setPrtAmount(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Tax amount"
@@ -975,29 +984,31 @@ export default function ProcurementPage() {
                   step="0.01"
                   value={prtTax}
                   onChange={(e) => setPrtTax(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Reason"
                   value={prtReason}
                   onChange={(e) => setPrtReason(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <button
                   type="submit"
                   disabled={prtWorking || !prtBill || !prtAmount}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Issue debit note
                 </button>
                 {prtError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{prtError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {prtError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
-        </>
-      )}
-    </main>
+          </div>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { RowActions } from "@/components/RowActions";
 import {
   api,
@@ -16,6 +16,7 @@ import {
   type Warehouse,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const EMPTY_ITEM_FORM = {
   type: "product" as Item["type"],
@@ -292,8 +293,8 @@ export default function InventoryPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("inventory.manage") ?? false;
   const itemName = (id: number) => items?.find((i) => i.id === id)?.name ?? "—";
@@ -306,51 +307,50 @@ export default function InventoryPage() {
   };
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <ModuleShell moduleKey="inventory" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Inventory & Catalog</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+          <div className={shared.pageActions}>
+            <a href="/dashboard/inventory/stock-counts" className={shared.btn}>
+              Stock counts &rarr;
+            </a>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Inventory & Catalog — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/inventory/stock-counts">Stock counts &rarr;</a>
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          {/* Items */}
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Items
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Items */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Items</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Type</th>
-                  <th style={{ padding: "6px 4px" }}>Category</th>
-                  <th style={{ padding: "6px 4px" }}>Price</th>
-                  <th style={{ padding: "6px 4px" }}>Cost</th>
-                  <th style={{ padding: "6px 4px" }}>Tax</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Category</th>
+                  <th>Price</th>
+                  <th>Cost</th>
+                  <th>Tax</th>
+                  <th>Status</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {items?.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{item.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{item.type}</td>
-                    <td style={{ padding: "6px 4px" }}>{item.category || "—"}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(item.price_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(item.cost_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{taxRateLabel(item.tax_rate)}</td>
-                    <td style={{ padding: "6px 4px" }}>{item.status}</td>
+                  <tr key={item.id}>
+                    <td>{item.name}</td>
+                    <td>{item.type}</td>
+                    <td>{item.category || "—"}</td>
+                    <td>{formatCents(item.price_cents)}</td>
+                    <td>{formatCents(item.cost_cents)}</td>
+                    <td>{taxRateLabel(item.tax_rate)}</td>
+                    <td>{item.status}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onEdit={() => startEditItem(item)}
                           onDelete={() => handleDeleteItem(item.id)}
@@ -362,7 +362,7 @@ export default function InventoryPage() {
                 ))}
                 {items?.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={8} className={shared.tableMuted}>
                       No items yet.
                     </td>
                   </tr>
@@ -371,20 +371,11 @@ export default function InventoryPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleAddItem}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                  gap: 8,
-                  maxWidth: 720,
-                }}
-              >
+              <form onSubmit={handleAddItem} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   value={itemForm.type}
                   onChange={(e) => setItemForm({ ...itemForm, type: e.target.value as Item["type"] })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="product">Product</option>
                   <option value="service">Service</option>
@@ -394,13 +385,13 @@ export default function InventoryPage() {
                   required
                   value={itemForm.name}
                   onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Category"
                   value={itemForm.category}
                   onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Price"
@@ -408,7 +399,7 @@ export default function InventoryPage() {
                   step="0.01"
                   value={itemForm.price}
                   onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Cost"
@@ -416,12 +407,12 @@ export default function InventoryPage() {
                   step="0.01"
                   value={itemForm.cost}
                   onChange={(e) => setItemForm({ ...itemForm, cost: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <select
                   value={itemForm.tax_rate}
                   onChange={(e) => setItemForm({ ...itemForm, tax_rate: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">No tax</option>
                   {taxRates
@@ -433,7 +424,11 @@ export default function InventoryPage() {
                     ))}
                 </select>
                 <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
-                  <button type="submit" disabled={itemWorking || !itemForm.name} style={{ padding: "8px 16px" }}>
+                  <button
+                    type="submit"
+                    disabled={itemWorking || !itemForm.name}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
+                  >
                     {editingItemId ? "Save changes" : "Add item"}
                   </button>
                   {editingItemId && (
@@ -443,33 +438,35 @@ export default function InventoryPage() {
                         setEditingItemId(null);
                         setItemForm(EMPTY_ITEM_FORM);
                       }}
-                      style={{ padding: "8px 16px" }}
+                      className={shared.btn}
                     >
                       Cancel
                     </button>
                   )}
                 </div>
                 {itemError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{itemError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {itemError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Warehouses */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Warehouses
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Warehouses */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Warehouses</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <tbody>
                 {warehouses?.map((w) => (
-                  <tr key={w.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{w.name}</td>
-                    <td style={{ padding: "6px 4px", color: "#666" }}>{w.location || "—"}</td>
-                    <td style={{ padding: "6px 4px", color: "#666" }}>{branchName(w.branch)}</td>
+                  <tr key={w.id}>
+                    <td>{w.name}</td>
+                    <td className={shared.tableMuted}>{w.location || "—"}</td>
+                    <td className={shared.tableMuted}>{branchName(w.branch)}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onEdit={() => startEditWarehouse(w)}
                           onDelete={() => handleDeleteWarehouse(w.id)}
@@ -481,7 +478,7 @@ export default function InventoryPage() {
                 ))}
                 {warehouses?.length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={3} className={shared.tableMuted}>
                       No warehouses yet.
                     </td>
                   </tr>
@@ -489,24 +486,26 @@ export default function InventoryPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleAddWarehouse} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <form onSubmit={handleAddWarehouse} className={shared.formRow} style={{ marginTop: 16 }}>
                 <input
                   placeholder="Warehouse name"
                   required
                   value={warehouseForm.name}
                   onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })}
-                  style={{ padding: 8, flex: 1, maxWidth: 240 }}
+                  className={shared.input}
+                  style={{ flex: 1, maxWidth: 240 }}
                 />
                 <input
                   placeholder="Location"
                   value={warehouseForm.location}
                   onChange={(e) => setWarehouseForm({ ...warehouseForm, location: e.target.value })}
-                  style={{ padding: 8, flex: 1, maxWidth: 240 }}
+                  className={shared.input}
+                  style={{ flex: 1, maxWidth: 240 }}
                 />
                 <select
                   value={warehouseForm.branch}
                   onChange={(e) => setWarehouseForm({ ...warehouseForm, branch: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">No branch</option>
                   {branches?.map((b) => (
@@ -518,7 +517,7 @@ export default function InventoryPage() {
                 <button
                   type="submit"
                   disabled={warehouseWorking || !warehouseForm.name}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   {editingWarehouseId ? "Save changes" : "Add warehouse"}
                 </button>
@@ -529,42 +528,42 @@ export default function InventoryPage() {
                       setEditingWarehouseId(null);
                       setWarehouseForm(EMPTY_WAREHOUSE_FORM);
                     }}
-                    style={{ padding: "8px 16px" }}
+                    className={shared.btn}
                   >
                     Cancel
                   </button>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Storage locations */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Storage locations
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+        {/* Storage locations */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Storage locations</h2>
+          <div className={shared.card}>
+            <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 12 }}>
               Sub-warehouse bins/aisles — purely descriptive; stock movements can optionally note
               which one they went to/from, but quantities are still tracked per-warehouse, not
               per-location.
             </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Warehouse</th>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Code</th>
+                <tr>
+                  <th>Warehouse</th>
+                  <th>Name</th>
+                  <th>Code</th>
                   {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
                 {storageLocations?.map((loc) => (
-                  <tr key={loc.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{warehouseName(loc.warehouse)}</td>
-                    <td style={{ padding: "6px 4px" }}>{loc.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{loc.code}</td>
+                  <tr key={loc.id}>
+                    <td>{warehouseName(loc.warehouse)}</td>
+                    <td>{loc.name}</td>
+                    <td>{loc.code}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions onDelete={() => handleDeleteLocation(loc.id)} disabled={locationWorking} />
                       </td>
                     )}
@@ -572,7 +571,7 @@ export default function InventoryPage() {
                 ))}
                 {storageLocations?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={4} className={shared.tableMuted}>
                       No storage locations yet.
                     </td>
                   </tr>
@@ -580,12 +579,12 @@ export default function InventoryPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleAddLocation} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <form onSubmit={handleAddLocation} className={shared.formRow} style={{ marginTop: 16 }}>
                 <select
                   required
                   value={locationWarehouse}
                   onChange={(e) => setLocationWarehouse(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Warehouse…</option>
                   {warehouses?.map((w) => (
@@ -599,97 +598,92 @@ export default function InventoryPage() {
                   required
                   value={locationName}
                   onChange={(e) => setLocationName(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Code (optional)"
                   value={locationCode}
                   onChange={(e) => setLocationCode(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <button
                   type="submit"
                   disabled={locationWorking || !locationWarehouse || !locationName}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Add location
                 </button>
               </form>
             )}
-            {locationError && <p style={{ color: "crimson" }}>{locationError}</p>}
-          </section>
+            {locationError && <p className={shared.errorText}>{locationError}</p>}
+          </div>
+        </div>
 
-          {/* Stock levels */}
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Stock levels
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Stock levels */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Stock levels</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Item</th>
-                  <th style={{ padding: "6px 4px" }}>Warehouse</th>
-                  <th style={{ padding: "6px 4px" }}>Quantity</th>
-                  <th style={{ padding: "6px 4px" }}>Minimum</th>
+                <tr>
+                  <th>Item</th>
+                  <th>Warehouse</th>
+                  <th>Quantity</th>
+                  <th>Minimum</th>
                 </tr>
               </thead>
               <tbody>
                 {stock?.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{s.item_name}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.warehouse_name}</td>
-                    <td
-                      style={{
-                        padding: "6px 4px",
-                        color: s.quantity <= s.minimum_stock ? "crimson" : "inherit",
-                      }}
-                    >
+                  <tr key={s.id}>
+                    <td>{s.item_name}</td>
+                    <td>{s.warehouse_name}</td>
+                    <td style={{ color: s.quantity <= s.minimum_stock ? "var(--status-danger)" : "inherit" }}>
                       {s.quantity}
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{s.minimum_stock}</td>
+                    <td>{s.minimum_stock}</td>
                   </tr>
                 ))}
                 {stock?.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={4} className={shared.tableMuted}>
                       No stock recorded yet — add a movement below.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </section>
+          </div>
+        </div>
 
-          {/* Stock movements */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Stock movements
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+        {/* Stock movements */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Stock movements</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Type</th>
-                  <th style={{ padding: "6px 4px" }}>Item</th>
-                  <th style={{ padding: "6px 4px" }}>Warehouse</th>
-                  <th style={{ padding: "6px 4px" }}>To</th>
-                  <th style={{ padding: "6px 4px" }}>Qty</th>
-                  <th style={{ padding: "6px 4px" }}>Reference</th>
+                <tr>
+                  <th>Type</th>
+                  <th>Item</th>
+                  <th>Warehouse</th>
+                  <th>To</th>
+                  <th>Qty</th>
+                  <th>Reference</th>
                 </tr>
               </thead>
               <tbody>
                 {movements?.map((mv) => (
-                  <tr key={mv.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{mv.type}</td>
-                    <td style={{ padding: "6px 4px" }}>{itemName(mv.item)}</td>
-                    <td style={{ padding: "6px 4px" }}>{warehouseName(mv.warehouse)}</td>
-                    <td style={{ padding: "6px 4px" }}>{warehouseName(mv.to_warehouse)}</td>
-                    <td style={{ padding: "6px 4px" }}>{mv.quantity}</td>
-                    <td style={{ padding: "6px 4px", color: "#666" }}>{mv.reference || "—"}</td>
+                  <tr key={mv.id}>
+                    <td>{mv.type}</td>
+                    <td>{itemName(mv.item)}</td>
+                    <td>{warehouseName(mv.warehouse)}</td>
+                    <td>{warehouseName(mv.to_warehouse)}</td>
+                    <td>{mv.quantity}</td>
+                    <td className={shared.tableMuted}>{mv.reference || "—"}</td>
                   </tr>
                 ))}
                 {movements?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       No movements yet.
                     </td>
                   </tr>
@@ -698,22 +692,13 @@ export default function InventoryPage() {
             </table>
 
             {canManage && (
-              <form
-                onSubmit={handleAddMovement}
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                  gap: 8,
-                  maxWidth: 840,
-                }}
-              >
+              <form onSubmit={handleAddMovement} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select
                   value={movementForm.type}
                   onChange={(e) =>
                     setMovementForm({ ...movementForm, type: e.target.value as StockMovement["type"] })
                   }
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="in">In</option>
                   <option value="out">Out</option>
@@ -724,7 +709,7 @@ export default function InventoryPage() {
                   required
                   value={movementForm.item}
                   onChange={(e) => setMovementForm({ ...movementForm, item: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">Item…</option>
                   {items?.map((i) => (
@@ -737,7 +722,7 @@ export default function InventoryPage() {
                   required
                   value={movementForm.warehouse}
                   onChange={(e) => setMovementForm({ ...movementForm, warehouse: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">
                     {movementForm.type === "transfer" ? "From warehouse…" : "Warehouse…"}
@@ -753,7 +738,7 @@ export default function InventoryPage() {
                     required
                     value={movementForm.to_warehouse}
                     onChange={(e) => setMovementForm({ ...movementForm, to_warehouse: e.target.value })}
-                    style={{ padding: 8 }}
+                    className={shared.select}
                   >
                     <option value="">To warehouse…</option>
                     {warehouses?.map((w) => (
@@ -769,53 +754,56 @@ export default function InventoryPage() {
                   required
                   value={movementForm.quantity}
                   onChange={(e) => setMovementForm({ ...movementForm, quantity: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <input
                   placeholder="Reference (optional)"
                   value={movementForm.reference}
                   onChange={(e) => setMovementForm({ ...movementForm, reference: e.target.value })}
-                  style={{ padding: 8 }}
+                  className={shared.input}
                 />
                 <button
                   type="submit"
                   disabled={movementWorking || !movementForm.item || !movementForm.warehouse}
-                  style={{ padding: "8px 16px", gridColumn: "1 / -1", justifySelf: "start" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                  style={{ gridColumn: "1 / -1", justifySelf: "start" }}
                 >
                   Record movement
                 </button>
                 {movementError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{movementError}</p>
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {movementError}
+                  </p>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          {/* Reorder suggestions */}
-          <section style={{ marginTop: 40, marginBottom: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Reorder suggestions
-            </h2>
-            <p style={{ fontSize: 12, color: "#999", maxWidth: 600 }}>
+        {/* Reorder suggestions */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Reorder suggestions</h2>
+          <div className={shared.card}>
+            <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 12 }}>
               Items at or below their minimum stock level. A simple &quot;top back up to minimum&quot;
               suggestion, not a real reorder-point/EOQ system. Select some and create a purchase
               request — it starts with no supplier, same as any other purchase request.
             </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
+            <table className={shared.table}>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}></th>
-                  <th style={{ padding: "6px 4px" }}>Item</th>
-                  <th style={{ padding: "6px 4px" }}>Warehouse</th>
-                  <th style={{ padding: "6px 4px" }}>Quantity</th>
-                  <th style={{ padding: "6px 4px" }}>Minimum</th>
-                  <th style={{ padding: "6px 4px" }}>Suggested reorder</th>
+                <tr>
+                  <th></th>
+                  <th>Item</th>
+                  <th>Warehouse</th>
+                  <th>Quantity</th>
+                  <th>Minimum</th>
+                  <th>Suggested reorder</th>
                 </tr>
               </thead>
               <tbody>
                 {reorderSuggestions?.map((s) => (
-                  <tr key={`${s.item_id}-${s.warehouse_id}`} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>
+                  <tr key={`${s.item_id}-${s.warehouse_id}`}>
+                    <td>
                       {canManage && (
                         <input
                           type="checkbox"
@@ -824,16 +812,16 @@ export default function InventoryPage() {
                         />
                       )}
                     </td>
-                    <td style={{ padding: "6px 4px" }}>{s.item_name}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.warehouse_name}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.quantity}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.minimum_stock}</td>
-                    <td style={{ padding: "6px 4px" }}>{s.suggested_quantity}</td>
+                    <td>{s.item_name}</td>
+                    <td>{s.warehouse_name}</td>
+                    <td>{s.quantity}</td>
+                    <td>{s.minimum_stock}</td>
+                    <td>{s.suggested_quantity}</td>
                   </tr>
                 ))}
                 {reorderSuggestions?.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={6} className={shared.tableMuted}>
                       Nothing needs reordering right now.
                     </td>
                   </tr>
@@ -841,22 +829,22 @@ export default function InventoryPage() {
               </tbody>
             </table>
             {canManage && reorderSuggestions && reorderSuggestions.length > 0 && (
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginTop: 16 }}>
                 <button
                   type="button"
                   disabled={prWorking || selectedSuggestions.size === 0}
                   onClick={handleCreatePurchaseRequestFromSuggestions}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   Create purchase request from selected
                 </button>
               </div>
             )}
-            {prError && <p style={{ color: "crimson" }}>{prError}</p>}
-            {prSuccess && <p style={{ color: "#2e7d32" }}>{prSuccess}</p>}
-          </section>
-        </>
-      )}
-    </main>
+            {prError && <p className={shared.errorText}>{prError}</p>}
+            {prSuccess && <p style={{ color: "var(--status-success)", fontSize: 13 }}>{prSuccess}</p>}
+          </div>
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

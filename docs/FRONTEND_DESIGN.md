@@ -1,6 +1,6 @@
 # CoreERP — Frontend Design Reference
 
-*How Odoo structures its frontend, what CoreERP already does that rhymes with it, and a concrete adoption path — written as a reference to build against, not a rewrite mandate. The app launcher landing screen (§3) has since been redesigned off the back of this doc; every other section is still reference-only — each ends with what changing it would actually take.*
+*How Odoo structures its frontend, what CoreERP already does that rhymes with it, and a concrete adoption path — written as a reference to build against, not a rewrite mandate. The app launcher landing screen (§3) and the module chrome (§2, §4 — left sidebar nav + shared CSS system) have since shipped off the back of this doc; §5-9 and §11 are still reference-only — each ends with what changing it would actually take.*
 
 ---
 
@@ -25,9 +25,7 @@ Odoo 19 is flatter than older versions expect: there's no persistent left sideba
 - `addons/web/static/src/webclient/navbar/navbar.js` — the top bar: the app-switcher grid trigger on the left, the *current app's* section tabs in the middle, a right-aligned "systray" (a registry of slots — user menu, notifications, company switcher, debug menu).
 - `addons/web/static/src/search/control_panel/control_panel.js` / `.xml` — a second bar rendered *per view*, under the navbar: breadcrumbs, create/action buttons, the list/kanban/calendar view-switcher icons, and the pager. This is not part of the navbar — every view type renders its own.
 
-**CoreERP today**: `AppHeader.tsx` is a single persistent top bar (company switcher, global search, notification bell, module links) rendered by every page. That's already the right shape for the navbar layer — it's the second layer (a per-page action/breadcrumb bar) that doesn't exist yet; each page currently puts its own `<h1>` where that bar would go.
-
-**What changing this takes**: a `<PageHeader>` component (breadcrumbs + page title + primary action button, e.g. "+ New Employee") rendered by every module page below `<AppHeader>`, replacing the current ad hoc `<h1>{module} — {company}</h1>` line each page writes today.
+**Status: shipped, in CoreERP's own shape rather than Odoo's.** The single-top-row `AppHeader.tsx` (company switcher, global search, notification bell, a flat row of links to every module) is gone — deleted, no longer imported anywhere. It's replaced by `ModuleShell.tsx`: a minimal top bar (brand → `/dashboard`, search, notifications, company badge, log out) plus a **left sidebar scoped to only the current module's own pages** (HR's sidebar shows Overview/Attendance/Leave & Contracts/Payroll; Accounting's shows Overview/Banking/Petty Cash/Budgets/Fixed Assets; and so on). This is a deliberate product decision, not an Odoo mirror: Odoo 19 itself dropped the persistent left sidebar (see the note above), but CoreERP's explicit requirement is the opposite — cross-module navigation happens *only* by going back to the launcher grid (§3) and picking a different tile; the sidebar never links outside its own module. `<PageHeader>` (breadcrumbs + title + primary action) as originally scoped here didn't ship separately — each page's own `shared.pageHeader`/`shared.pageTitle` block (§10) does that job inline instead.
 
 ---
 
@@ -35,7 +33,7 @@ Odoo 19 is flatter than older versions expect: there's no persistent left sideba
 
 Odoo's app grid (the screen you land on after login) only ever shows apps installed *and* accessible to you — there's no "greyed out, no access" tile — inside a full-bleed pastel gradient with a minimal top bar (no text-link nav row; that's a per-app concern once you're inside one).
 
-**Status: done, on both counts.** `/dashboard/page.tsx` was rewritten as a dedicated launcher screen, separate from `AppHeader` (which every *other* module page still uses unchanged — this was a deliberate scope boundary, not an oversight):
+**Status: done, on both counts.** `/dashboard/page.tsx` was rewritten as a dedicated launcher screen, separate from the module chrome every *other* page uses (`ModuleShell`, §2/§4 — originally `AppHeader`, since replaced):
 
 - `MODULE_TILES` is filtered by `activeMembership.permissions.includes(tile.permission)` before rendering — a role without `inventory.view` simply never sees an Inventory tile. Owner already holds every permission in the seeded role set, so Owner continues to see everything without any special-casing. Verified with two real logins: Owner sees all 9 tiles, an HR Manager role sees only the 5 it holds permissions for.
 - New `launcher.module.css` (a real CSS Module, not inline `style={{...}}` — the first place in the codebase using one) implements the visual shell: `--launcher-gradient` full-bleed background, a minimal top bar (brand mark, global search, notification bell, a compact company-switcher dropdown replacing the old "Your companies" card row, log out), and the icon-tile grid itself (`ModuleIcon` components, already Odoo-style flat geometric marks, unchanged).
@@ -45,16 +43,13 @@ Odoo's app grid (the screen you land on after login) only ever shows apps instal
 
 ---
 
-## 4. Per-module landing = a dashboard, not a list
+## 4. Per-module landing: a left sidebar, not a flat top-nav
 
-This is the biggest structural gap and the next concrete target. In Odoo, opening an app never drops you straight into a record table. Accounting opens to a kanban-card dashboard (Customer Invoices card with its own mini bar chart and quick actions, Vendor Bills card, one card per bank/cash journal). Time Off opens with its own sub-nav — *Time Off · My Time · Overview · Management · Reporting · Configuration* — tabs that exist only inside that app, distinct from the global navbar.
+CoreERP resolved this differently than the tab-strip approach originally sketched below (kept for context — it's what got superseded, not what shipped). In Odoo, opening an app never drops you straight into a record table: Accounting opens to a kanban-card dashboard, Time Off opens with its own sub-nav (*Time Off · My Time · Overview · Management · Reporting · Configuration*) that only exists inside that app.
 
-CoreERP's dashboard already does a version of the *company-level* version of this (the "— overview" section with `StatCard`s for revenue/expenses/employees/stock), but only at the top level. Once you click into `/dashboard/hr` or `/dashboard/procurement`, you land straight on the Departments table — there's no HR-specific overview screen first, and no sub-nav distinguishing "HR's dashboard" from "HR's employee list" from "HR's payroll runs" (payroll and leave/attendance today are just links in a paragraph of text on the HR page).
+**Status: shipped, as a left sidebar rather than a tab strip.** `ModuleShell.tsx` renders a left `<aside>` populated from a per-module nav config (`MODULE_NAV` in that file) — e.g. HR: *Overview · Attendance · Leave & Contracts · Payroll*; Accounting: *Overview · Banking · Petty Cash · Budgets · Fixed Assets*; Sales & CRM: *Sales & CRM · Leads & Opportunities* (the `sales` and `crm` routes share one module). Every page under a module renders inside `<ModuleShell moduleKey="...">`, so the sidebar is present and correctly scoped on every route — nothing links outside its own module, and the brand/home link in the top bar is the only way back to the launcher grid to switch modules. Single-page modules (Expenses, Tasks, Calendar, Procurement) still get a sidebar, just with one "Overview" entry, for visual consistency.
 
-**What changing this takes**, concretely, per module:
-- A `<ModuleLayout appKey="hr" tabs={[...]}>` shell component: renders a second-level tab strip (mirroring Odoo's per-app section tabs) — e.g. for HR: *Overview · Employees · Payroll · Leave & Attendance · Recruitment*. `/dashboard/hr` becomes that tab strip's *Overview* tab; the existing employee table moves to `/dashboard/hr/employees`; `/dashboard/hr/payroll` and `/dashboard/hr/attendance` (which already exist as separate pages) become tabs instead of footnote links.
-- A small `<DashboardCard>` primitive (title, one primary stat, a couple of quick-action buttons, optionally a tiny trend) — reusable across every module's Overview tab, the CoreERP equivalent of Odoo's Accounting Dashboard cards. HR's Overview could show "Employees" / "Open leave requests" / "Latest payroll run status" as three cards; Procurement's could show "Open purchase requests" / "Pending approvals" / "This month's spend."
-- This is additive, not a rewrite: existing pages (the Employees table, the Payroll page) don't change internally, they just move one level deeper in the URL tree and gain a sibling Overview tab.
+What this doc originally proposed instead (a `<ModuleLayout appKey="hr" tabs={[...]}>` top tab strip + per-module `<DashboardCard>` KPI tiles as a dedicated Overview screen) did not ship — each module's existing landing page (the Departments/Employees table for HR, the Chart of Accounts for Accounting, etc.) remains the entry point, now just wrapped in the sidebar shell rather than gaining a separate dashboard-card screen in front of it. That KPI-dashboard-per-module idea is still open if wanted later; it would slot in as the sidebar's "Overview" page content rather than requiring new navigation infrastructure, since the nav shell itself is now already scoped per module.
 
 ---
 
@@ -114,9 +109,7 @@ Odoo unifies free-text search, filter chips, group-by, and named "favorites" (sa
 
 Odoo is Bootstrap underneath, with a heavy SCSS variable-override layer rather than a from-scratch design system: `addons/web/static/src/scss/primary_variables.scss` defines the actual tokens (a full `$o-gray-100`...`$o-gray-900` scale, rem-based font sizes, brand colors) as `!default` SCSS variables consumed before Bootstrap imports them; component-scoped `.scss` files (e.g. `list_renderer.scss`) sit next to each component rather than one global stylesheet.
 
-CoreERP today has *no* token layer at all — every page hand-writes `color: "#666"`, `padding: "6px 4px"`, `border: "1px solid #eee"` inline, independently, page by page. The specific hex/pixel values are already consistent by convention (whoever wrote each page copied the pattern from the last one), which is exactly the smell of "this should be tokens, not repetition."
-
-**What adopting this takes**: a `tokens.ts` (or CSS custom properties) capturing the handful of values already in de facto use — the gray scale (`#666`, `#999`, `#eee`, `#ddd`), spacing (`4px`/`6px`/`8px`/`16px`/`24px`/`40px` show up constantly), border-radius, the status colors already duplicated per page (`STATUS_COLORS` maps redefined nearly identically in Expenses, Leave Requests, Payroll Runs, Attendance) — collapsed into one shared source, then a light component library (`<Table>`, `<Badge status>`, `<Button variant>`) built on top of the tokens rather than raw `<table>`/`<button style={{...}}>`. This is the lowest-risk, highest-visual-payoff piece to start with, and doesn't depend on §5's bigger view-engine work at all.
+**Status: shipped.** `globals.css` now carries the token layer this section proposed — a gray scale (`--gray-50`...`--gray-900`), brand colors (`--brand-50`...`--brand-700`), status colors (`--status-info/warn/danger/success`), a spacing scale (`--space-1`...`--space-10`), radius and shadow tokens, and `--launcher-gradient`. `src/styles/shared.module.css` is the light component library built on top: `.page`/`.pageHeader`/`.pageTitle`/`.card`/`.section` for layout, `.btn` (+ `.btnPrimary`/`.btnDanger`/`.btnGhost`/`.btnSmall`), `.input`/`.select`/`.textarea`/`.formGrid`, `.table` (styles bare `<th>`/`<td>` automatically), and `.badge` (+ `.badgeSuccess`/`.badgeWarn`/`.badgeDanger`/`.badgeInfo` — replacing the near-identical `STATUS_COLORS` maps that used to be redefined per page in Expenses, Payroll, Attendance, Audit Log). Every page under `/dashboard` now imports this module instead of hand-writing `color: "#666"`/`padding: "6px 4px"` inline; `src/styles/auth.module.css` does the same job for Login/Signup. Inline `style={{...}}` still appears for genuinely one-off layout (e.g. `gridColumn: "1 / -1"` on a specific form field, or the Calendar page's bespoke month-grid cell coloring) — that's intentional, not leftover debt.
 
 ---
 
@@ -132,8 +125,8 @@ Odoo keeps an in-memory action stack (`core/browser/router.js` + each view's `br
 
 Roughly cheapest-and-most-visible first, each step usable and shippable on its own — no big-bang rewrite:
 
-1. **Design tokens** (§10) — a few hours, touches nothing structurally, immediately makes every future page more consistent.
-2. **Per-module landing dashboard + sub-nav** (§4) — the two things the user asked for directly. Start with one module (HR is the natural pilot — it already has the most sub-pages: Employees, Payroll, Leave & Attendance).
+1. ~~**Design tokens** (§10)~~ — shipped: `globals.css` tokens + `shared.module.css` + `auth.module.css`, applied to every `/dashboard` page and Login/Signup.
+2. ~~**Per-module landing sub-nav** (§4)~~ — shipped, as a left sidebar (`ModuleShell.tsx`) rather than the tab-strip originally sketched here. The per-module *dashboard-card* KPI screen part of the original §4 proposal did not ship — each module still lands on its existing table/list page, now just inside the sidebar shell.
 3. **Shared `<ListView>`/`<RecordForm>`** (§5, §6) — the big one. Worth prototyping against one already-simple page (e.g. Departments or Positions) before rolling out module by module.
 4. **Filter sidebar + grouping** (§7) — natural extension of step 3, not a separate effort.
 5. **Statusbar / smart-button visual treatment** (§8) — cosmetic on top of data that already exists; can happen anytime after step 3.

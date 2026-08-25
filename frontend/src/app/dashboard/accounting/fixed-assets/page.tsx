@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type FixedAsset } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const EMPTY_FORM = {
   name: "",
@@ -110,170 +111,161 @@ export default function FixedAssetsPage() {
     }
   }
 
-  if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
-  if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
+  if (sessionError) return <main style={{ padding: 40 }}>{sessionError}</main>;
+  if (!me) return <main style={{ padding: 40 }}>Loading…</main>;
 
   const canManage = activeMembership?.permissions.includes("accounting.manage") ?? false;
 
   return (
-    <main style={{ maxWidth: 1100, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
-
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
+    <ModuleShell moduleKey="accounting" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Fixed assets</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+          </div>
+        </div>
+        <p className={shared.hint} style={{ marginBottom: 12 }}>
+          Straight-line depreciation only. Click &quot;Run depreciation&quot; once per calendar
+          month per asset to post that month&apos;s Depreciation Expense.
         </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Fixed assets — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/accounting">&larr; Back to Accounting</a>
-          </p>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            Straight-line depreciation only. Click &quot;Run depreciation&quot; once per calendar
-            month per asset to post that month&apos;s Depreciation Expense.
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-          {error && <p style={{ color: "crimson" }}>{error}</p>}
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
+        {error && <p className={shared.errorText}>{error}</p>}
 
-          <section style={{ marginTop: 24, marginBottom: 40 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Category</th>
-                  <th style={{ padding: "6px 4px" }}>Cost</th>
-                  <th style={{ padding: "6px 4px" }}>Accum. depreciation</th>
-                  <th style={{ padding: "6px 4px" }}>Book value</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}></th>
-                  {canManage && <th></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {assets?.map((a) => (
-                  <tr key={a.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{a.name}</td>
-                    <td style={{ padding: "6px 4px" }}>{a.category}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(a.cost_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(a.accumulated_depreciation_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{formatCents(a.book_value_cents)}</td>
-                    <td style={{ padding: "6px 4px" }}>{a.status === "active" ? "Active" : "Disposed"}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {a.status === "active" && a.book_value_cents > a.salvage_value_cents && (
-                        <button
-                          type="button"
-                          disabled={depreciatingId === a.id}
-                          onClick={() => handleDepreciate(a.id)}
-                          style={{ padding: "4px 10px" }}
-                        >
-                          Run depreciation
-                        </button>
-                      )}
-                    </td>
-                    {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions
-                          onEdit={() => startEdit(a)}
-                          onDelete={() => handleDelete(a.id)}
-                          disabled={working}
-                        />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {assets?.length === 0 && (
-                  <tr>
-                    <td colSpan={8} style={{ padding: "6px 4px", color: "#999" }}>
-                      No fixed assets yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {canManage && (
-              <form
-                onSubmit={handleSubmit}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 900,
-                }}
-              >
-                <input
-                  placeholder="Name (e.g. Delivery van)"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Category"
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  type="date"
-                  required
-                  value={form.purchase_date}
-                  onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Cost"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={form.cost}
-                  onChange={(e) => setForm({ ...form, cost: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Salvage value"
-                  type="number"
-                  step="0.01"
-                  value={form.salvage_value}
-                  onChange={(e) => setForm({ ...form, salvage_value: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Useful life (months)"
-                  type="number"
-                  required
-                  value={form.useful_life_months}
-                  onChange={(e) => setForm({ ...form, useful_life_months: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
-                  <button
-                    type="submit"
-                    disabled={working || !form.name || !form.purchase_date}
-                    style={{ padding: "8px 16px" }}
-                  >
-                    {editingId ? "Save changes" : "Add fixed asset"}
-                  </button>
-                  {editingId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(null);
-                        setForm(EMPTY_FORM);
-                      }}
-                      style={{ padding: "8px 16px" }}
+        <div className={shared.card}>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Cost</th>
+                <th>Accum. depreciation</th>
+                <th>Book value</th>
+                <th>Status</th>
+                <th></th>
+                {canManage && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {assets?.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.name}</td>
+                  <td>{a.category}</td>
+                  <td>{formatCents(a.cost_cents)}</td>
+                  <td>{formatCents(a.accumulated_depreciation_cents)}</td>
+                  <td>{formatCents(a.book_value_cents)}</td>
+                  <td>
+                    <span
+                      className={`${shared.badge} ${a.status === "active" ? shared.badgeSuccess : shared.badgeInfo}`}
                     >
-                      Cancel
-                    </button>
+                      {a.status === "active" ? "Active" : "Disposed"}
+                    </span>
+                  </td>
+                  <td>
+                    {a.status === "active" && a.book_value_cents > a.salvage_value_cents && (
+                      <button
+                        type="button"
+                        disabled={depreciatingId === a.id}
+                        onClick={() => handleDepreciate(a.id)}
+                        className={`${shared.btn} ${shared.btnSmall}`}
+                      >
+                        Run depreciation
+                      </button>
+                    )}
+                  </td>
+                  {canManage && (
+                    <td style={{ textAlign: "right" }}>
+                      <RowActions
+                        onEdit={() => startEdit(a)}
+                        onDelete={() => handleDelete(a.id)}
+                        disabled={working}
+                      />
+                    </td>
                   )}
-                </div>
-              </form>
-            )}
-          </section>
-        </>
-      )}
-    </main>
+                </tr>
+              ))}
+              {assets?.length === 0 && (
+                <tr>
+                  <td colSpan={8} className={shared.tableMuted}>
+                    No fixed assets yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {canManage && (
+            <form onSubmit={handleSubmit} className={shared.formGrid} style={{ marginTop: 16 }}>
+              <input
+                placeholder="Name (e.g. Delivery van)"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                placeholder="Category"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                type="date"
+                required
+                value={form.purchase_date}
+                onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                placeholder="Cost"
+                type="number"
+                step="0.01"
+                required
+                value={form.cost}
+                onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                placeholder="Salvage value"
+                type="number"
+                step="0.01"
+                value={form.salvage_value}
+                onChange={(e) => setForm({ ...form, salvage_value: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                placeholder="Useful life (months)"
+                type="number"
+                required
+                value={form.useful_life_months}
+                onChange={(e) => setForm({ ...form, useful_life_months: e.target.value })}
+                className={shared.input}
+              />
+              <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                <button
+                  type="submit"
+                  disabled={working || !form.name || !form.purchase_date}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
+                  {editingId ? "Save changes" : "Add fixed asset"}
+                </button>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(EMPTY_FORM);
+                    }}
+                    className={shared.btn}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

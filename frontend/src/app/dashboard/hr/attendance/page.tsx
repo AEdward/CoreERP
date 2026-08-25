@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { RowActions } from "@/components/RowActions";
 import { api, ApiError, type AttendanceRecord, type EmployeePickerEntry } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const STATUS_LABELS: Record<AttendanceRecord["status"], string> = {
   present: "Present",
@@ -13,11 +14,11 @@ const STATUS_LABELS: Record<AttendanceRecord["status"], string> = {
   half_day: "Half day",
 };
 
-const STATUS_COLORS: Record<AttendanceRecord["status"], string> = {
-  present: "#2e7d32",
-  absent: "#c62828",
-  late: "#e65100",
-  half_day: "#1565c0",
+const STATUS_BADGES: Record<AttendanceRecord["status"], string> = {
+  present: shared.badgeSuccess,
+  absent: shared.badgeDanger,
+  late: shared.badgeWarn,
+  half_day: shared.badgeInfo,
 };
 
 const EMPTY_FORM = {
@@ -124,180 +125,175 @@ export default function AttendancePage() {
   const employeeName = (id: number) => employees?.find((e) => e.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 900, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <ModuleShell moduleKey="hr" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>Attendance</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+            <p className={shared.hint} style={{ marginTop: 4 }}>
+              <a href="/dashboard/hr">&larr; Back to HR</a>
+            </p>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>Attendance — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/hr">&larr; Back to HR</a>
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          <section style={{ marginTop: 24, marginBottom: 40 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Employee</th>
-                  <th style={{ padding: "6px 4px" }}>Date</th>
-                  <th style={{ padding: "6px 4px" }}>Clock in/out</th>
-                  <th style={{ padding: "6px 4px" }}>Worked</th>
-                  <th style={{ padding: "6px 4px" }}>Overtime</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th style={{ padding: "6px 4px" }}>Source</th>
-                  {canManage && <th></th>}
+        <div className={shared.card}>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Date</th>
+                <th>Clock in/out</th>
+                <th>Worked</th>
+                <th>Overtime</th>
+                <th>Status</th>
+                <th>Source</th>
+                {canManage && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {records?.map((r) => (
+                <tr key={r.id}>
+                  <td>{employeeName(r.employee)}</td>
+                  <td>{r.date}</td>
+                  <td>
+                    {r.clock_in ?? "—"} – {r.clock_out ?? "—"}
+                  </td>
+                  <td>{r.worked_hours}h</td>
+                  <td>{r.overtime_hours}h</td>
+                  <td>
+                    <span className={`${shared.badge} ${STATUS_BADGES[r.status]}`}>
+                      {STATUS_LABELS[r.status]}
+                    </span>
+                  </td>
+                  <td className={shared.tableMuted}>
+                    {r.source === "device_import" ? "Device" : "Manual"}
+                  </td>
+                  {canManage && (
+                    <td style={{ textAlign: "right" }}>
+                      <RowActions onDelete={() => handleDelete(r.id)} disabled={working} />
+                    </td>
+                  )}
                 </tr>
-              </thead>
-              <tbody>
-                {records?.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{employeeName(r.employee)}</td>
-                    <td style={{ padding: "6px 4px" }}>{r.date}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {r.clock_in ?? "—"} – {r.clock_out ?? "—"}
-                    </td>
-                    <td style={{ padding: "6px 4px" }}>{r.worked_hours}h</td>
-                    <td style={{ padding: "6px 4px" }}>{r.overtime_hours}h</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      <span style={{ color: STATUS_COLORS[r.status], fontWeight: 600 }}>
-                        {STATUS_LABELS[r.status]}
-                      </span>
-                    </td>
-                    <td style={{ padding: "6px 4px", color: "#999" }}>
-                      {r.source === "device_import" ? "Device" : "Manual"}
-                    </td>
-                    {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions onDelete={() => handleDelete(r.id)} disabled={working} />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {records?.length === 0 && (
-                  <tr>
-                    <td colSpan={8} style={{ padding: "6px 4px", color: "#999" }}>
-                      No attendance records yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              ))}
+              {records?.length === 0 && (
+                <tr>
+                  <td colSpan={8} className={shared.tableMuted}>
+                    No attendance records yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
 
-            {canManage && (
-              <form
-                onSubmit={handleAdd}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                  gap: 8,
-                  maxWidth: 800,
-                }}
+          {canManage && (
+            <form onSubmit={handleAdd} className={shared.formGrid} style={{ marginTop: 16 }}>
+              <select
+                required
+                value={form.employee}
+                onChange={(e) => setForm({ ...form, employee: e.target.value })}
+                className={shared.select}
               >
-                <select
-                  required
-                  value={form.employee}
-                  onChange={(e) => setForm({ ...form, employee: e.target.value })}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">Employee…</option>
-                  {employees?.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="date"
-                  required
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  type="time"
-                  placeholder="Clock in"
-                  value={form.clock_in}
-                  onChange={(e) => setForm({ ...form, clock_in: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  type="time"
-                  placeholder="Clock out"
-                  value={form.clock_out}
-                  onChange={(e) => setForm({ ...form, clock_out: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <select
-                  value={form.status}
-                  onChange={(e) =>
-                    setForm({ ...form, status: e.target.value as AttendanceRecord["status"] })
-                  }
-                  style={{ padding: 8 }}
-                >
-                  <option value="present">Present</option>
-                  <option value="absent">Absent</option>
-                  <option value="late">Late</option>
-                  <option value="half_day">Half day</option>
-                </select>
-                <input
-                  placeholder="Notes (optional)"
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  style={{ padding: 8, gridColumn: "1 / -1" }}
-                />
-                <button
-                  type="submit"
-                  disabled={working || !form.employee || !form.date}
-                  style={{ padding: "8px 16px" }}
-                >
-                  Record attendance
-                </button>
-                {error && <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{error}</p>}
-              </form>
-            )}
+                <option value="">Employee…</option>
+                {employees?.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="date"
+                required
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                type="time"
+                placeholder="Clock in"
+                value={form.clock_in}
+                onChange={(e) => setForm({ ...form, clock_in: e.target.value })}
+                className={shared.input}
+              />
+              <input
+                type="time"
+                placeholder="Clock out"
+                value={form.clock_out}
+                onChange={(e) => setForm({ ...form, clock_out: e.target.value })}
+                className={shared.input}
+              />
+              <select
+                value={form.status}
+                onChange={(e) =>
+                  setForm({ ...form, status: e.target.value as AttendanceRecord["status"] })
+                }
+                className={shared.select}
+              >
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="late">Late</option>
+                <option value="half_day">Half day</option>
+              </select>
+              <input
+                placeholder="Notes (optional)"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className={shared.input}
+                style={{ gridColumn: "1 / -1" }}
+              />
+              <button
+                type="submit"
+                disabled={working || !form.employee || !form.date}
+                className={`${shared.btn} ${shared.btnPrimary}`}
+              >
+                Record attendance
+              </button>
+              {error && (
+                <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                  {error}
+                </p>
+              )}
+            </form>
+          )}
 
-            {canManage && (
-              <div style={{ marginTop: 24 }}>
-                <button
-                  type="button"
-                  onClick={() => setImportOpen(!importOpen)}
-                  style={{ padding: "6px 12px", fontSize: 13 }}
-                >
-                  {importOpen ? "Hide" : "Bulk import from device"}
-                </button>
-                {importOpen && (
-                  <form onSubmit={handleImport} style={{ marginTop: 8, maxWidth: 700 }}>
-                    <p style={{ fontSize: 12, color: "#999" }}>
-                      Paste a JSON array of records exported from a biometric attendance device,
-                      e.g. <code>{`[{"employee": 1, "date": "2026-08-01", "clock_in": "08:00", "clock_out": "17:00"}]`}</code>
-                    </p>
-                    <textarea
-                      value={importText}
-                      onChange={(e) => setImportText(e.target.value)}
-                      rows={6}
-                      style={{ width: "100%", padding: 8, fontFamily: "monospace", fontSize: 12 }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={importWorking || !importText}
-                      style={{ padding: "8px 16px", marginTop: 8 }}
-                    >
-                      Import
-                    </button>
-                    {importError && <p style={{ color: "crimson" }}>{importError}</p>}
-                  </form>
-                )}
-              </div>
-            )}
-          </section>
-        </>
-      )}
-    </main>
+          {canManage && (
+            <div style={{ marginTop: 24 }}>
+              <button
+                type="button"
+                onClick={() => setImportOpen(!importOpen)}
+                className={`${shared.btn} ${shared.btnSmall}`}
+              >
+                {importOpen ? "Hide" : "Bulk import from device"}
+              </button>
+              {importOpen && (
+                <form onSubmit={handleImport} style={{ marginTop: 8, maxWidth: 700 }}>
+                  <p className={shared.hint}>
+                    Paste a JSON array of records exported from a biometric attendance device,
+                    e.g. <code>{`[{"employee": 1, "date": "2026-08-01", "clock_in": "08:00", "clock_out": "17:00"}]`}</code>
+                  </p>
+                  <textarea
+                    value={importText}
+                    onChange={(e) => setImportText(e.target.value)}
+                    rows={6}
+                    className={shared.textarea}
+                    style={{ width: "100%", fontFamily: "monospace" }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={importWorking || !importText}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
+                    style={{ marginTop: 8 }}
+                  >
+                    Import
+                  </button>
+                  {importError && <p className={shared.errorText}>{importError}</p>}
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </ModuleShell>
   );
 }

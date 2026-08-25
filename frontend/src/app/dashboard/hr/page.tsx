@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { ModuleShell } from "@/components/ModuleShell";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { DocumentsPanel } from "@/components/DocumentsPanel";
 import { NotesPanel } from "@/components/NotesPanel";
@@ -16,6 +16,7 @@ import {
   type ShiftTemplate,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import shared from "@/styles/shared.module.css";
 
 const STATUS_LABELS: Record<Employee["status"], string> = {
   active: "Active",
@@ -250,35 +251,32 @@ export default function HrPage() {
   const shiftName = (id: number | null) => shifts?.find((s) => s.id === id)?.name ?? "—";
 
   return (
-    <main style={{ maxWidth: 960, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
-      <AppHeader activeMembership={activeMembership} />
+    <ModuleShell moduleKey="hr" activeMembership={activeMembership}>
+      <div className={shared.page}>
+        <div className={shared.pageHeader}>
+          <div>
+            <h1 className={shared.pageTitle}>HR</h1>
+            <p className={shared.pageSubtitle}>{activeMembership?.company.name}</p>
+            <p className={shared.hint} style={{ marginTop: 4 }}>
+              <a href="/dashboard/hr/leave-and-contracts">Leave requests & employee contracts &rarr;</a>
+              {" · "}
+              <a href="/dashboard/hr/payroll">Payroll &rarr;</a>
+            </p>
+          </div>
+        </div>
+        {loadError && <p className={shared.errorText}>{loadError}</p>}
 
-      {!activeMembership ? (
-        <p style={{ color: "#666" }}>
-          Pick an active company on the <a href="/dashboard">dashboard</a> first.
-        </p>
-      ) : (
-        <>
-          <h1 style={{ fontSize: 20 }}>HR — {activeMembership.company.name}</h1>
-          <p style={{ color: "#666", fontSize: 13 }}>
-            <a href="/dashboard/hr/leave-and-contracts">Leave requests & employee contracts &rarr;</a>
-            {" · "}
-            <a href="/dashboard/hr/payroll">Payroll &rarr;</a>
-          </p>
-          {loadError && <p style={{ color: "crimson" }}>{loadError}</p>}
-
-          <section style={{ marginTop: 24 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Departments
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Departments</h2>
+          <div className={shared.card}>
+            <table className={shared.table}>
               <tbody>
                 {departments?.map((d) => (
-                  <tr key={d.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{d.name}</td>
-                    <td style={{ padding: "6px 4px", color: "#666" }}>{branchName(d.branch)}</td>
+                  <tr key={d.id}>
+                    <td>{d.name}</td>
+                    <td className={shared.tableMuted}>{branchName(d.branch)}</td>
                     {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
+                      <td style={{ textAlign: "right" }}>
                         <RowActions
                           onEdit={() => startEditDepartment(d)}
                           onDelete={() => handleDeleteDepartment(d.id)}
@@ -290,7 +288,7 @@ export default function HrPage() {
                 ))}
                 {departments?.length === 0 && (
                   <tr>
-                    <td colSpan={3} style={{ padding: "6px 4px", color: "#999" }}>
+                    <td colSpan={3} className={shared.tableMuted}>
                       No departments yet.
                     </td>
                   </tr>
@@ -298,17 +296,18 @@ export default function HrPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleAddDepartment} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <form onSubmit={handleAddDepartment} className={shared.formRow} style={{ marginTop: 12 }}>
                 <input
                   placeholder="New department name"
                   value={newDeptName}
                   onChange={(e) => setNewDeptName(e.target.value)}
-                  style={{ padding: 8, flex: 1, maxWidth: 280 }}
+                  className={shared.input}
+                  style={{ flex: 1, maxWidth: 280 }}
                 />
                 <select
                   value={deptBranch}
                   onChange={(e) => setDeptBranch(e.target.value)}
-                  style={{ padding: 8 }}
+                  className={shared.select}
                 >
                   <option value="">No branch</option>
                   {branches?.map((b) => (
@@ -320,7 +319,7 @@ export default function HrPage() {
                 <button
                   type="submit"
                   disabled={deptWorking || !newDeptName}
-                  style={{ padding: "8px 16px" }}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
                 >
                   {editingDeptId ? "Save changes" : "Add department"}
                 </button>
@@ -332,358 +331,357 @@ export default function HrPage() {
                       setNewDeptName("");
                       setDeptBranch("");
                     }}
-                    style={{ padding: "8px 16px" }}
+                    className={shared.btn}
                   >
                     Cancel
                   </button>
                 )}
               </form>
             )}
-          </section>
+          </div>
+        </div>
 
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Positions
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
-              <tbody>
-                {positions?.map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{p.title}</td>
-                    <td style={{ padding: "6px 4px", color: "#666" }}>{departmentName(p.department)}</td>
-                    {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions
-                          onDelete={() => handleDeletePosition(p.id)}
-                          disabled={positionWorking}
-                        />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {positions?.length === 0 && (
-                  <tr>
-                    <td colSpan={3} style={{ padding: "6px 4px", color: "#999" }}>
-                      No positions yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {canManage && (
-              <form onSubmit={handleAddPosition} style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                <input
-                  placeholder="New position title (e.g. Sales Manager)"
-                  value={newPositionTitle}
-                  onChange={(e) => setNewPositionTitle(e.target.value)}
-                  style={{ padding: 8, flex: 1, maxWidth: 280 }}
-                />
-                <select
-                  value={positionDept}
-                  onChange={(e) => setPositionDept(e.target.value)}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">No department</option>
-                  {departments?.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  disabled={positionWorking || !newPositionTitle}
-                  style={{ padding: "8px 16px" }}
-                >
-                  Add position
-                </button>
-              </form>
-            )}
-          </section>
-
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Shifts
-            </h2>
-            <p style={{ color: "#666", fontSize: 13 }}>
-              <a href="/dashboard/hr/attendance">Attendance records &rarr;</a>
-            </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Hours</th>
-                  <th style={{ padding: "6px 4px" }}>Break</th>
-                  <th style={{ padding: "6px 4px" }}>Scheduled</th>
-                  {canManage && <th></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {shifts?.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>{s.name}</td>
-                    <td style={{ padding: "6px 4px" }}>
-                      {s.start_time}–{s.end_time}
-                    </td>
-                    <td style={{ padding: "6px 4px" }}>{s.break_minutes} min</td>
-                    <td style={{ padding: "6px 4px" }}>{s.scheduled_hours}h</td>
-                    {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions onDelete={() => handleDeleteShift(s.id)} disabled={shiftWorking} />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {shifts?.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ padding: "6px 4px", color: "#999" }}>
-                      No shifts yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {canManage && (
-              <form onSubmit={handleAddShift} style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                <input
-                  placeholder="Shift name (e.g. Day Shift)"
-                  value={shiftForm.name}
-                  onChange={(e) => setShiftForm({ ...shiftForm, name: e.target.value })}
-                  style={{ padding: 8, flex: 1, maxWidth: 200 }}
-                />
-                <input
-                  type="time"
-                  required
-                  value={shiftForm.start_time}
-                  onChange={(e) => setShiftForm({ ...shiftForm, start_time: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  type="time"
-                  required
-                  value={shiftForm.end_time}
-                  onChange={(e) => setShiftForm({ ...shiftForm, end_time: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Break (min)"
-                  type="number"
-                  value={shiftForm.break_minutes}
-                  onChange={(e) => setShiftForm({ ...shiftForm, break_minutes: e.target.value })}
-                  style={{ padding: 8, width: 100 }}
-                />
-                <button
-                  type="submit"
-                  disabled={shiftWorking || !shiftForm.name || !shiftForm.start_time || !shiftForm.end_time}
-                  style={{ padding: "8px 16px" }}
-                >
-                  Add shift
-                </button>
-              </form>
-            )}
-          </section>
-
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: 14, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
-              Employees
-            </h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                  <th style={{ padding: "6px 4px" }}>Name</th>
-                  <th style={{ padding: "6px 4px" }}>Position</th>
-                  <th style={{ padding: "6px 4px" }}>Department</th>
-                  <th style={{ padding: "6px 4px" }}>Branch</th>
-                  <th style={{ padding: "6px 4px" }}>Shift</th>
-                  <th style={{ padding: "6px 4px" }}>Status</th>
-                  <th></th>
-                  {canManage && <th></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {employees?.map((emp) => (
-                  <tr key={emp.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "6px 4px" }}>
-                      {emp.first_name} {emp.last_name}
-                    </td>
-                    <td style={{ padding: "6px 4px" }}>{positionTitle(emp.position)}</td>
-                    <td style={{ padding: "6px 4px" }}>{departmentName(emp.department)}</td>
-                    <td style={{ padding: "6px 4px" }}>{branchName(emp.branch)}</td>
-                    <td style={{ padding: "6px 4px" }}>{shiftName(emp.shift)}</td>
-                    <td style={{ padding: "6px 4px" }}>{STATUS_LABELS[emp.status]}</td>
-                    <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                      <span style={{ display: "inline-flex", gap: 6 }}>
-                        <DocumentsPanel
-                          target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
-                          canManage={canManage}
-                        />
-                        <NotesPanel
-                          target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
-                          canManage={canManage}
-                        />
-                        <ActivityPanel target={{ appLabel: "hr", model: "employee", objectId: emp.id }} />
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td style={{ padding: "6px 4px", textAlign: "right" }}>
-                        <RowActions
-                          onEdit={() => startEditEmployee(emp)}
-                          onDelete={() => handleDeleteEmployee(emp.id)}
-                          disabled={empWorking}
-                        />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {employees?.length === 0 && (
-                  <tr>
-                    <td colSpan={8} style={{ padding: "6px 4px", color: "#999" }}>
-                      No employees yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {canManage && (
-              <form
-                onSubmit={handleAddEmployee}
-                style={{
-                  marginTop: 16,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 8,
-                  maxWidth: 720,
-                }}
-              >
-                <input
-                  placeholder="First name"
-                  required
-                  value={empForm.first_name}
-                  onChange={(e) => setEmpForm({ ...empForm, first_name: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Last name"
-                  required
-                  value={empForm.last_name}
-                  onChange={(e) => setEmpForm({ ...empForm, last_name: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Email"
-                  type="email"
-                  value={empForm.email}
-                  onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  placeholder="Phone"
-                  value={empForm.phone}
-                  onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <select
-                  value={empForm.position}
-                  onChange={(e) => setEmpForm({ ...empForm, position: e.target.value })}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">No position</option>
+          <div className={shared.section}>
+            <h2 className={shared.sectionTitle}>Positions</h2>
+            <div className={shared.card}>
+              <table className={shared.table}>
+                <tbody>
                   {positions?.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}
-                    </option>
+                    <tr key={p.id}>
+                      <td>{p.title}</td>
+                      <td className={shared.tableMuted}>{departmentName(p.department)}</td>
+                      {canManage && (
+                        <td style={{ textAlign: "right" }}>
+                          <RowActions
+                            onDelete={() => handleDeletePosition(p.id)}
+                            disabled={positionWorking}
+                          />
+                        </td>
+                      )}
+                    </tr>
                   ))}
-                </select>
-                <select
-                  value={empForm.department}
-                  onChange={(e) => setEmpForm({ ...empForm, department: e.target.value })}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">No department</option>
-                  {departments?.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={empForm.branch}
-                  onChange={(e) => setEmpForm({ ...empForm, branch: e.target.value })}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">No branch</option>
-                  {branches?.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={empForm.shift}
-                  onChange={(e) => setEmpForm({ ...empForm, shift: e.target.value })}
-                  style={{ padding: 8 }}
-                >
-                  <option value="">No shift</option>
-                  {shifts?.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  placeholder="Salary (e.g. 50000)"
-                  type="number"
-                  value={empForm.salary_cents}
-                  onChange={(e) => setEmpForm({ ...empForm, salary_cents: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <input
-                  type="date"
-                  value={empForm.joining_date}
-                  onChange={(e) => setEmpForm({ ...empForm, joining_date: e.target.value })}
-                  style={{ padding: 8 }}
-                />
-                <select
-                  value={empForm.status}
-                  onChange={(e) =>
-                    setEmpForm({ ...empForm, status: e.target.value as Employee["status"] })
-                  }
-                  style={{ padding: 8 }}
-                >
-                  <option value="active">Active</option>
-                  <option value="on_leave">On leave</option>
-                  <option value="terminated">Terminated</option>
-                </select>
-                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                  {positions?.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className={shared.tableMuted}>
+                        No positions yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              {canManage && (
+                <form onSubmit={handleAddPosition} className={shared.formRow} style={{ marginTop: 12 }}>
+                  <input
+                    placeholder="New position title (e.g. Sales Manager)"
+                    value={newPositionTitle}
+                    onChange={(e) => setNewPositionTitle(e.target.value)}
+                    className={shared.input}
+                    style={{ flex: 1, maxWidth: 280 }}
+                  />
+                  <select
+                    value={positionDept}
+                    onChange={(e) => setPositionDept(e.target.value)}
+                    className={shared.select}
+                  >
+                    <option value="">No department</option>
+                    {departments?.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="submit"
-                    disabled={empWorking || !empForm.first_name || !empForm.last_name}
-                    style={{ padding: "8px 16px" }}
+                    disabled={positionWorking || !newPositionTitle}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
                   >
-                    {editingEmpId ? "Save changes" : "Add employee"}
+                    Add position
                   </button>
-                  {editingEmpId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingEmpId(null);
-                        setEmpForm(EMPTY_EMPLOYEE_FORM);
-                      }}
-                      style={{ padding: "8px 16px" }}
-                    >
-                      Cancel
-                    </button>
+                </form>
+              )}
+            </div>
+          </div>
+
+          <div className={shared.section}>
+            <h2 className={shared.sectionTitle}>Shifts</h2>
+            <p className={shared.hint}>
+              <a href="/dashboard/hr/attendance">Attendance records &rarr;</a>
+            </p>
+            <div className={shared.card}>
+              <table className={shared.table}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Hours</th>
+                    <th>Break</th>
+                    <th>Scheduled</th>
+                    {canManage && <th></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {shifts?.map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.name}</td>
+                      <td>
+                        {s.start_time}–{s.end_time}
+                      </td>
+                      <td>{s.break_minutes} min</td>
+                      <td>{s.scheduled_hours}h</td>
+                      {canManage && (
+                        <td style={{ textAlign: "right" }}>
+                          <RowActions onDelete={() => handleDeleteShift(s.id)} disabled={shiftWorking} />
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {shifts?.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className={shared.tableMuted}>
+                        No shifts yet.
+                      </td>
+                    </tr>
                   )}
-                </div>
-                {empError && (
-                  <p style={{ color: "crimson", gridColumn: "1 / -1", margin: 0 }}>{empError}</p>
-                )}
-              </form>
-            )}
-          </section>
-        </>
-      )}
-    </main>
+                </tbody>
+              </table>
+              {canManage && (
+                <form onSubmit={handleAddShift} className={shared.formRow} style={{ marginTop: 12 }}>
+                  <input
+                    placeholder="Shift name (e.g. Day Shift)"
+                    value={shiftForm.name}
+                    onChange={(e) => setShiftForm({ ...shiftForm, name: e.target.value })}
+                    className={shared.input}
+                    style={{ flex: 1, maxWidth: 200 }}
+                  />
+                  <input
+                    type="time"
+                    required
+                    value={shiftForm.start_time}
+                    onChange={(e) => setShiftForm({ ...shiftForm, start_time: e.target.value })}
+                    className={shared.input}
+                  />
+                  <input
+                    type="time"
+                    required
+                    value={shiftForm.end_time}
+                    onChange={(e) => setShiftForm({ ...shiftForm, end_time: e.target.value })}
+                    className={shared.input}
+                  />
+                  <input
+                    placeholder="Break (min)"
+                    type="number"
+                    value={shiftForm.break_minutes}
+                    onChange={(e) => setShiftForm({ ...shiftForm, break_minutes: e.target.value })}
+                    className={shared.input}
+                    style={{ width: 100 }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={shiftWorking || !shiftForm.name || !shiftForm.start_time || !shiftForm.end_time}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
+                  >
+                    Add shift
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+
+          <div className={shared.section}>
+            <h2 className={shared.sectionTitle}>Employees</h2>
+            <div className={shared.card}>
+              <table className={shared.table}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Department</th>
+                    <th>Branch</th>
+                    <th>Shift</th>
+                    <th>Status</th>
+                    <th></th>
+                    {canManage && <th></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees?.map((emp) => (
+                    <tr key={emp.id}>
+                      <td>
+                        {emp.first_name} {emp.last_name}
+                      </td>
+                      <td>{positionTitle(emp.position)}</td>
+                      <td>{departmentName(emp.department)}</td>
+                      <td>{branchName(emp.branch)}</td>
+                      <td>{shiftName(emp.shift)}</td>
+                      <td>{STATUS_LABELS[emp.status]}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <span style={{ display: "inline-flex", gap: 6 }}>
+                          <DocumentsPanel
+                            target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
+                            canManage={canManage}
+                          />
+                          <NotesPanel
+                            target={{ appLabel: "hr", model: "employee", objectId: emp.id }}
+                            canManage={canManage}
+                          />
+                          <ActivityPanel target={{ appLabel: "hr", model: "employee", objectId: emp.id }} />
+                        </span>
+                      </td>
+                      {canManage && (
+                        <td style={{ textAlign: "right" }}>
+                          <RowActions
+                            onEdit={() => startEditEmployee(emp)}
+                            onDelete={() => handleDeleteEmployee(emp.id)}
+                            disabled={empWorking}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {employees?.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className={shared.tableMuted}>
+                        No employees yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              {canManage && (
+                <form onSubmit={handleAddEmployee} className={shared.formGrid} style={{ marginTop: 16 }}>
+                  <input
+                    placeholder="First name"
+                    required
+                    value={empForm.first_name}
+                    onChange={(e) => setEmpForm({ ...empForm, first_name: e.target.value })}
+                    className={shared.input}
+                  />
+                  <input
+                    placeholder="Last name"
+                    required
+                    value={empForm.last_name}
+                    onChange={(e) => setEmpForm({ ...empForm, last_name: e.target.value })}
+                    className={shared.input}
+                  />
+                  <input
+                    placeholder="Email"
+                    type="email"
+                    value={empForm.email}
+                    onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })}
+                    className={shared.input}
+                  />
+                  <input
+                    placeholder="Phone"
+                    value={empForm.phone}
+                    onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })}
+                    className={shared.input}
+                  />
+                  <select
+                    value={empForm.position}
+                    onChange={(e) => setEmpForm({ ...empForm, position: e.target.value })}
+                    className={shared.select}
+                  >
+                    <option value="">No position</option>
+                    {positions?.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={empForm.department}
+                    onChange={(e) => setEmpForm({ ...empForm, department: e.target.value })}
+                    className={shared.select}
+                  >
+                    <option value="">No department</option>
+                    {departments?.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={empForm.branch}
+                    onChange={(e) => setEmpForm({ ...empForm, branch: e.target.value })}
+                    className={shared.select}
+                  >
+                    <option value="">No branch</option>
+                    {branches?.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={empForm.shift}
+                    onChange={(e) => setEmpForm({ ...empForm, shift: e.target.value })}
+                    className={shared.select}
+                  >
+                    <option value="">No shift</option>
+                    {shifts?.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    placeholder="Salary (e.g. 50000)"
+                    type="number"
+                    value={empForm.salary_cents}
+                    onChange={(e) => setEmpForm({ ...empForm, salary_cents: e.target.value })}
+                    className={shared.input}
+                  />
+                  <input
+                    type="date"
+                    value={empForm.joining_date}
+                    onChange={(e) => setEmpForm({ ...empForm, joining_date: e.target.value })}
+                    className={shared.input}
+                  />
+                  <select
+                    value={empForm.status}
+                    onChange={(e) =>
+                      setEmpForm({ ...empForm, status: e.target.value as Employee["status"] })
+                    }
+                    className={shared.select}
+                  >
+                    <option value="active">Active</option>
+                    <option value="on_leave">On leave</option>
+                    <option value="terminated">Terminated</option>
+                  </select>
+                  <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                    <button
+                      type="submit"
+                      disabled={empWorking || !empForm.first_name || !empForm.last_name}
+                      className={`${shared.btn} ${shared.btnPrimary}`}
+                    >
+                      {editingEmpId ? "Save changes" : "Add employee"}
+                    </button>
+                    {editingEmpId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingEmpId(null);
+                          setEmpForm(EMPTY_EMPLOYEE_FORM);
+                        }}
+                        className={shared.btn}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                  {empError && (
+                    <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                      {empError}
+                    </p>
+                  )}
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+    </ModuleShell>
   );
 }
+
+
+

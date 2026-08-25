@@ -1,7 +1,8 @@
 /* Odoo-style app launcher — the landing screen after login.
    Full-bleed gradient background, a minimal top bar (no text-link nav —
-   that's still AppHeader's job on every other page), and a big centered
-   grid of app tiles. See docs/FRONTEND_DESIGN.md §2-3. */
+   every other page gets its own scoped left sidebar from ModuleShell
+   instead), and a big centered grid of app tiles. See
+   docs/FRONTEND_DESIGN.md §2-3. */
 
 .shell {
   min-height: 100vh;

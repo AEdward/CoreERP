@@ -6,9 +6,10 @@ import { api, type Notification } from "@/lib/api";
 
 const POLL_MS = 30_000;
 
-/** Self-contained bell icon + unread badge + dropdown — mounted in
- * AppHeader so it's on every /dashboard page. Only polls when there's
- * an active company, since notifications are company-scoped. */
+/** Self-contained bell icon + unread badge + dropdown — mounted in the
+ * launcher and ModuleShell top bars so it's on every /dashboard page.
+ * Only polls when there's an active company, since notifications are
+ * company-scoped. */
 export function NotificationBell({ active }: { active: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
