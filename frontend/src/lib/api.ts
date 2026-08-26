@@ -1686,10 +1686,16 @@ export const api = {
 
   // --- CRM ---
   listCustomers: () => request<Customer[]>("/api/crm/customers/"),
-  createCustomer: (data: Partial<Customer>) =>
-    request<Customer>("/api/crm/customers/", { method: "POST", body: JSON.stringify(data) }),
-  updateCustomer: (id: number, data: Partial<Customer>) =>
-    request<Customer>(`/api/crm/customers/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  createCustomer: (data: Partial<Customer> | FormData) =>
+    request<Customer>("/api/crm/customers/", {
+      method: "POST",
+      body: data instanceof FormData ? data : JSON.stringify(data),
+    }),
+  updateCustomer: (id: number, data: Partial<Customer> | FormData) =>
+    request<Customer>(`/api/crm/customers/${id}/`, {
+      method: "PATCH",
+      body: data instanceof FormData ? data : JSON.stringify(data),
+    }),
   deleteCustomer: (id: number) => request<void>(`/api/crm/customers/${id}/`, { method: "DELETE" }),
   listContacts: (customerId?: number) =>
     request<Contact[]>(`/api/crm/contacts/${customerId ? `?customer=${customerId}` : ""}`),
