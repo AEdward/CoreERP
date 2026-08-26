@@ -88,6 +88,7 @@
   background: white;
   border-right: 1px solid var(--gray-200);
   padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
 }
 
 .sidebarTitle {
@@ -98,6 +99,10 @@
   color: var(--gray-400);
   padding: 0 var(--space-2);
   margin-bottom: var(--space-2);
+}
+
+.navGroup + .navGroup {
+  margin-top: var(--space-4);
 }
 
 .navList {

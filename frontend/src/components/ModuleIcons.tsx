@@ -122,6 +122,109 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  // Section J: Hotel & Hospitality, ported from AEdward/MiranErp.
+  hotel: {
+    a: "#7c3aed",
+    b: "#f59e0b",
+    render: (a, b) => (
+      <>
+        <rect x="6" y="20" width="36" height="18" rx="4" fill={a} opacity="0.9" />
+        <rect x="10" y="10" width="12" height="14" rx="3" fill={b} />
+        <rect x="26" y="10" width="12" height="14" rx="3" fill={b} opacity="0.7" />
+      </>
+    ),
+  },
+  housekeeping: {
+    a: "#0ea5e9",
+    b: "#f472b6",
+    render: (a, b) => (
+      <>
+        <circle cx="24" cy="24" r="16" fill={a} opacity="0.9" />
+        <path d="M17 26 l5 5 10 -12" stroke={b} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </>
+    ),
+  },
+  maintenance: {
+    a: "#64748b",
+    b: "#f59e0b",
+    render: (a, b) => (
+      <>
+        <path
+          d="M30 10 a8 8 0 1 0 6 14 l-4 -4 2 -6 6 -2 4 4 a8 8 0 0 0 -14 -6 z"
+          fill={a}
+        />
+        <rect x="8" y="30" width="18" height="8" rx="4" fill={b} transform="rotate(-45 17 34)" />
+      </>
+    ),
+  },
+  conference: {
+    a: "#0d9488",
+    b: "#6366f1",
+    render: (a, b) => (
+      <>
+        <circle cx="16" cy="16" r="7" fill={a} />
+        <circle cx="32" cy="16" r="7" fill={b} opacity="0.85" />
+        <rect x="8" y="26" width="32" height="12" rx="4" fill={a} opacity="0.6" />
+      </>
+    ),
+  },
+  gym: {
+    a: "#dc2626",
+    b: "#1e293b",
+    render: (a, b) => (
+      <>
+        <rect x="6" y="20" width="8" height="8" rx="2" fill={b} />
+        <rect x="34" y="20" width="8" height="8" rx="2" fill={b} />
+        <rect x="14" y="22" width="20" height="4" rx="2" fill={a} />
+      </>
+    ),
+  },
+  laundry: {
+    a: "#0891b2",
+    b: "white",
+    render: (a) => (
+      <>
+        <rect x="8" y="6" width="32" height="36" rx="6" fill={a} opacity="0.9" />
+        <circle cx="24" cy="26" r="10" fill="white" opacity="0.9" />
+        <circle cx="24" cy="26" r="5" fill={a} />
+      </>
+    ),
+  },
+  spa: {
+    a: "#16a34a",
+    b: "#0ea5e9",
+    render: (a, b) => (
+      <>
+        <path d="M24 8 C10 16 10 32 24 40 C38 32 38 16 24 8 Z" fill={a} opacity="0.9" />
+        <circle cx="24" cy="26" r="6" fill={b} opacity="0.85" />
+      </>
+    ),
+  },
+  loyalty: {
+    a: "#eab308",
+    b: "#e11d48",
+    render: (a, b) => (
+      <>
+        <path
+          d="M24 6 L29 18 L42 19 L32 27 L36 40 L24 33 L12 40 L16 27 L6 19 L19 18 Z"
+          fill={a}
+        />
+        <circle cx="24" cy="24" r="5" fill={b} opacity="0.85" />
+      </>
+    ),
+  },
+  pos: {
+    a: "#2563eb",
+    b: "#f97316",
+    render: (a, b) => (
+      <>
+        <rect x="8" y="14" width="32" height="20" rx="4" fill={a} opacity="0.9" />
+        <rect x="14" y="20" width="20" height="4" rx="2" fill="white" opacity="0.85" />
+        <circle cx="16" cy="40" r="3" fill={b} />
+        <circle cx="32" cy="40" r="3" fill={b} />
+      </>
+    ),
+  },
 };
 
 export function ModuleIcon({ moduleKey, muted, size = 44 }: { moduleKey: string; muted?: boolean; size?: number }) {

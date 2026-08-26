@@ -35,6 +35,36 @@ const MODULE_TILES = [
   { key: "expenses", label: "Expenses", permission: "expenses.view", href: "/dashboard/expenses" },
   { key: "tasks", label: "Tasks", permission: "tasks.view", href: "/dashboard/tasks" },
   { key: "calendar", label: "Calendar", permission: "calendar.view", href: "/dashboard/calendar" },
+  // Section J: Hotel & Hospitality, ported from AEdward/MiranErp.
+  { key: "hotel", label: "Hotel", permission: "hotel.view", href: "/dashboard/hotel" },
+  {
+    key: "housekeeping",
+    label: "Housekeeping",
+    permission: "housekeeping.view",
+    href: "/dashboard/housekeeping",
+  },
+  {
+    key: "maintenance",
+    label: "Maintenance",
+    permission: "maintenance.view",
+    href: "/dashboard/maintenance",
+  },
+  { key: "pos", label: "POS", permission: "pos.view", href: "/dashboard/pos" },
+  {
+    key: "conference",
+    label: "Conference & Events",
+    permission: "conference.view",
+    href: "/dashboard/conference",
+  },
+  { key: "spa", label: "Spa", permission: "spa.view", href: "/dashboard/spa" },
+  { key: "gym", label: "Gym", permission: "gym.view", href: "/dashboard/gym" },
+  { key: "laundry", label: "Laundry", permission: "laundry.view", href: "/dashboard/laundry" },
+  {
+    key: "loyalty",
+    label: "Guest Loyalty",
+    permission: "loyalty.view",
+    href: "/dashboard/loyalty",
+  },
 ];
 
 function formatCents(cents: number) {
