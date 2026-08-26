@@ -111,6 +111,17 @@ export interface Branch {
   created_at: string;
 }
 
+// --- Cost Centers ---
+
+export interface CostCenter {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 // --- HR ---
 
 export interface Department {
@@ -273,6 +284,7 @@ export interface TaxRate {
   code: string;
   rate_percent: string;
   is_default: boolean;
+  applies_to_room_charges: boolean;
   is_active: boolean;
   created_at: string;
 }
@@ -356,6 +368,23 @@ export interface Customer {
   email: string;
   type: "individual" | "business" | "government" | "vip";
   address: string;
+  id_type: "" | "national_id" | "passport" | "driving_license";
+  id_number: string;
+  nationality: string;
+  id_expiry_date: string | null;
+  id_document: string | null;
+  is_registered: boolean;
+  created_at: string;
+}
+
+export interface TravelAgency {
+  id: number;
+  name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  commission_rate_percent: string;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -774,6 +803,584 @@ export interface ApprovalRequestEntry {
   created_at: string;
 }
 
+export interface PublicMenu {
+  company_name: string;
+  table_name: string | null;
+  items: {
+    id: number;
+    name: string;
+    description: string;
+    category: string;
+    price_cents: number;
+  }[];
+}
+
+// --- Hotel: Front Office & Room Management ---
+
+export interface Building {
+  id: number;
+  name: string;
+  branch: number | null;
+  created_at: string;
+}
+
+export interface Floor {
+  id: number;
+  building: number;
+  name: string;
+  level: number;
+  created_at: string;
+}
+
+export interface RoomType {
+  id: number;
+  name: string;
+  description: string;
+  base_rate_cents: number;
+  max_occupancy: number;
+  amenities: string;
+  created_at: string;
+}
+
+export interface SeasonalRate {
+  id: number;
+  room_type: number;
+  room_type_name: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  rate_cents: number;
+  created_at: string;
+}
+
+export interface SuggestedRate {
+  base_rate_cents: number;
+  occupancy_percent: number;
+  surge_percent: number;
+  suggested_rate_cents: number;
+  seasonal_rate_name: string | null;
+}
+
+export type RoomStatus =
+  | "available"
+  | "occupied"
+  | "dirty"
+  | "clean"
+  | "inspected"
+  | "out_of_order"
+  | "maintenance";
+
+export interface Room {
+  id: number;
+  floor: number;
+  room_type: number;
+  room_type_name: string;
+  number: string;
+  status: RoomStatus;
+  created_at: string;
+}
+
+export interface RoomStatusLog {
+  id: number;
+  room: number;
+  status: RoomStatus;
+  changed_by: number | null;
+  changed_by_name: string | null;
+  created_at: string;
+}
+
+export type ReservationStatus = "confirmed" | "checked_in" | "checked_out" | "cancelled" | "no_show";
+
+export interface RoomTransfer {
+  id: number;
+  from_room: number;
+  from_room_number: string;
+  to_room: number;
+  to_room_number: string;
+  reason: string;
+  created_at: string;
+}
+
+export interface Reservation {
+  id: number;
+  guest: number;
+  guest_name: string;
+  room_type: number;
+  room_type_name: string;
+  room: number | null;
+  room_number: string | null;
+  source: "website" | "walk_in" | "phone" | "travel_agency" | "group";
+  travel_agency: number | null;
+  travel_agency_name: string;
+  commission_cents: number;
+  group: number | null;
+  group_name: string;
+  status: ReservationStatus;
+  check_in_date: string;
+  check_out_date: string;
+  adults: number;
+  children: number;
+  rate_cents: number;
+  confirmation_number: string;
+  room_transfers: RoomTransfer[];
+  late_checkout_approved: boolean;
+  early_checkin_approved: boolean;
+  created_at: string;
+}
+
+export interface RoomBlock {
+  id: number;
+  room: number;
+  room_number: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  created_by: number | null;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface GroupReservation {
+  id: number;
+  name: string;
+  organizer: number;
+  organizer_name: string;
+  check_in_date: string;
+  check_out_date: string;
+  notes: string;
+  reservations: Reservation[];
+  created_at: string;
+}
+
+export interface FolioCharge {
+  id: number;
+  folio: number;
+  source_module: "room" | "restaurant" | "bar" | "spa" | "laundry" | "conference" | "misc";
+  description: string;
+  amount_cents: number;
+  tax_amount_cents: number;
+  created_at: string;
+}
+
+export interface GuestPayment {
+  id: number;
+  folio: number;
+  method: "cash" | "card" | "mobile_money" | "bank_transfer";
+  amount_cents: number;
+  reference: string;
+  received_by: number | null;
+  received_by_name: string;
+  created_at: string;
+}
+
+export interface GuestRefund {
+  id: number;
+  folio: number;
+  payment: number | null;
+  amount_cents: number;
+  reason: string;
+  issued_by: number | null;
+  issued_by_name: string;
+  created_at: string;
+}
+
+export interface GuestFolio {
+  id: number;
+  reservation: number;
+  status: "open" | "closed";
+  balance_cents: number;
+  charges: FolioCharge[];
+  payments: GuestPayment[];
+  refunds: GuestRefund[];
+  created_at: string;
+}
+
+// --- Housekeeping ---
+
+export type HousekeepingTaskType = "cleaning" | "inspection" | "linen" | "lost_and_found";
+export type HousekeepingTaskStatus = "pending" | "in_progress" | "done" | "cancelled";
+
+export interface HousekeepingTask {
+  id: number;
+  room: number;
+  room_number: string;
+  task_type: HousekeepingTaskType;
+  status: HousekeepingTaskStatus;
+  assigned_to: number | null;
+  assigned_to_name: string | null;
+  notes: string;
+  scheduled_date: string | null;
+  created_at: string;
+}
+
+// --- Maintenance ---
+
+export type WorkOrderPriority = "low" | "medium" | "high" | "urgent";
+export type WorkOrderStatus = "open" | "in_progress" | "completed" | "cancelled";
+
+export interface WorkOrderPart {
+  id: number;
+  work_order: number;
+  item: number;
+  item_name: string;
+  warehouse: number;
+  warehouse_name: string;
+  quantity: number;
+  movement: number;
+  created_at: string;
+}
+
+export interface WorkOrder {
+  id: number;
+  room: number;
+  room_number: string;
+  asset: number | null;
+  asset_name: string | null;
+  title: string;
+  description: string;
+  priority: WorkOrderPriority;
+  status: WorkOrderStatus;
+  reported_by: number | null;
+  reported_by_name: string | null;
+  assigned_to: number | null;
+  assigned_to_name: string | null;
+  resolved_at: string | null;
+  schedule: number | null;
+  parts_used: WorkOrderPart[];
+  created_at: string;
+}
+
+export interface MaintenanceSchedule {
+  id: number;
+  room: number;
+  room_number: string;
+  title: string;
+  description: string;
+  priority: WorkOrderPriority;
+  frequency_days: number;
+  next_due_date: string;
+  is_active: boolean;
+  is_due: boolean;
+  created_at: string;
+}
+
+export type AssetCategory = "furniture" | "electronics" | "hvac" | "kitchen_equipment" | "vehicle" | "other";
+export type AssetStatus = "in_service" | "under_maintenance" | "retired";
+
+export interface Asset {
+  id: number;
+  name: string;
+  category: AssetCategory;
+  room: number | null;
+  room_number: string | null;
+  location: string;
+  serial_number: string;
+  purchase_date: string | null;
+  purchase_cost_cents: number | null;
+  useful_life_years: number | null;
+  warranty_expiry_date: string | null;
+  status: AssetStatus;
+  notes: string;
+  created_at: string;
+}
+
+// --- POS (Restaurant / Bar) ---
+
+export type TableArea = "restaurant" | "bar" | "outdoor";
+export type TableStatus = "available" | "occupied" | "reserved";
+
+export interface PosTable {
+  id: number;
+  name: string;
+  area: TableArea;
+  capacity: number;
+  status: TableStatus;
+  created_at: string;
+}
+
+export type OrderStatus = "open" | "paid" | "charged_to_room" | "cancelled";
+export type KitchenStatus = "queued" | "preparing" | "ready" | "served";
+
+export interface PosOrderLine {
+  id: number;
+  order: number;
+  item: number;
+  item_name: string;
+  item_prep_time_minutes: number | null;
+  quantity: number;
+  unit_price_cents: number;
+  kitchen_status: KitchenStatus;
+  is_rush: boolean;
+  started_preparing_at: string | null;
+  ready_at: string | null;
+  line_total_cents: number;
+  created_at: string;
+}
+
+export interface PosOrder {
+  id: number;
+  table: number | null;
+  table_name: string | null;
+  reservation: number | null;
+  guest: number | null;
+  guest_name: string | null;
+  is_vip_guest: boolean;
+  tab_name: string;
+  server: number | null;
+  server_name: string | null;
+  status: OrderStatus;
+  discount_cents: number;
+  promotion: number | null;
+  promotion_name: string | null;
+  receipt_number: string;
+  subtotal_cents: number;
+  total_cents: number;
+  split_from: number | null;
+  lines: PosOrderLine[];
+  closed_at: string | null;
+  created_at: string;
+}
+
+export interface HappyHourRule {
+  id: number;
+  name: string;
+  category: string;
+  day_of_week: number | null;
+  start_time: string;
+  end_time: string;
+  discount_percent: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Promotion {
+  id: number;
+  name: string;
+  discount_percent: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SuggestedPrice {
+  base_price_cents: number;
+  suggested_price_cents: number;
+  happy_hour_name: string | null;
+  discount_percent: number;
+}
+
+// --- Laundry ---
+
+export type LaundryCategory = "guest" | "hotel_linen";
+export type LaundryTrackingStatus = "received" | "washing" | "ready" | "delivered";
+export type LaundryStatus = "open" | "paid" | "charged_to_room" | "cancelled";
+
+export interface LaundryOrderLine {
+  id: number;
+  order: number;
+  item: number;
+  item_name: string;
+  quantity: number;
+  unit_price_cents: number;
+  line_total_cents: number;
+  created_at: string;
+}
+
+export interface LaundryOrder {
+  id: number;
+  category: LaundryCategory;
+  reservation: number | null;
+  guest: number | null;
+  guest_name: string | null;
+  tracking_status: LaundryTrackingStatus;
+  status: LaundryStatus;
+  receipt_number: string;
+  total_cents: number;
+  lines: LaundryOrderLine[];
+  notes: string;
+  closed_at: string | null;
+  created_at: string;
+}
+
+// --- Spa ---
+
+export type SpaBookingStatus = "open" | "paid" | "charged_to_room" | "cancelled";
+export type SpaTreatmentStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+
+export interface SpaBookingLine {
+  id: number;
+  booking: number;
+  treatment: number;
+  treatment_name: string;
+  therapist: number | null;
+  therapist_name: string | null;
+  scheduled_at: string | null;
+  duration_minutes: number;
+  quantity: number;
+  unit_price_cents: number;
+  status: SpaTreatmentStatus;
+  line_total_cents: number;
+  created_at: string;
+}
+
+export interface SpaBooking {
+  id: number;
+  reservation: number | null;
+  guest: number | null;
+  guest_name: string | null;
+  status: SpaBookingStatus;
+  receipt_number: string;
+  total_cents: number;
+  lines: SpaBookingLine[];
+  notes: string;
+  closed_at: string | null;
+  created_at: string;
+}
+
+// --- Gym ---
+
+export type GymBillingStatus = "open" | "paid" | "charged_to_room" | "cancelled";
+export type GymPlanType = "monthly" | "annual";
+export type GymMembershipStatus = "pending" | "active" | "expired" | "cancelled";
+export type GymActivityStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+
+export interface GymMembership {
+  id: number;
+  guest: number | null;
+  guest_name: string | null;
+  reservation: number | null;
+  plan_type: GymPlanType;
+  start_date: string;
+  end_date: string;
+  price_cents: number;
+  status: GymBillingStatus;
+  membership_status: GymMembershipStatus;
+  receipt_number: string;
+  closed_at: string | null;
+  created_at: string;
+}
+
+export interface GymBookingLine {
+  id: number;
+  booking: number;
+  activity: number;
+  activity_name: string;
+  trainer: number | null;
+  trainer_name: string | null;
+  scheduled_at: string | null;
+  duration_minutes: number;
+  quantity: number;
+  unit_price_cents: number;
+  status: GymActivityStatus;
+  line_total_cents: number;
+  created_at: string;
+}
+
+export interface GymBooking {
+  id: number;
+  reservation: number | null;
+  guest: number | null;
+  guest_name: string | null;
+  status: GymBillingStatus;
+  receipt_number: string;
+  total_cents: number;
+  lines: GymBookingLine[];
+  notes: string;
+  closed_at: string | null;
+  created_at: string;
+}
+
+// --- Conference ---
+
+export type ConferenceStatus = "open" | "paid" | "charged_to_room" | "cancelled";
+export type ConferenceEventType = "corporate" | "wedding" | "other";
+export type ConferenceSeatingPlan = "theater" | "classroom" | "banquet" | "u_shape" | "boardroom";
+
+export interface ConferenceHall {
+  id: number;
+  name: string;
+  capacity: number;
+  day_rate_cents: number;
+  description: string;
+  created_at: string;
+}
+
+export interface ConferenceBookingLine {
+  id: number;
+  booking: number;
+  item: number;
+  item_name: string;
+  quantity: number;
+  unit_price_cents: number;
+  line_total_cents: number;
+  created_at: string;
+}
+
+export interface ConferenceBooking {
+  id: number;
+  hall: number;
+  hall_name: string;
+  reservation: number | null;
+  guest: number | null;
+  guest_name: string | null;
+  event_name: string;
+  event_type: ConferenceEventType;
+  seating_plan: ConferenceSeatingPlan;
+  attendees: number;
+  start_at: string;
+  end_at: string;
+  status: ConferenceStatus;
+  receipt_number: string;
+  hall_rate_cents: number;
+  total_cents: number;
+  lines: ConferenceBookingLine[];
+  notes: string;
+  closed_at: string | null;
+  created_at: string;
+}
+
+// --- Loyalty ---
+
+export interface LoyaltyTier {
+  id: number;
+  name: string;
+  min_points: number;
+  benefits: string;
+  discount_percent: string;
+  created_at: string;
+}
+
+export interface LoyaltyReward {
+  id: number;
+  name: string;
+  points_cost: number;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LoyaltyMember {
+  id: number;
+  guest: number;
+  guest_name: string;
+  points_balance: number;
+  tier_name: string | null;
+  created_at: string;
+}
+
+export interface LoyaltyTransaction {
+  id: number;
+  member: number;
+  member_guest_name: string;
+  points: number;
+  reason: string;
+  reservation: number | null;
+  reward: number | null;
+  reward_name: string | null;
+  created_at: string;
+}
+
 // --- Audit log ---
 
 export interface AuditLogEntry {
@@ -899,6 +1506,14 @@ export const api = {
   updateBranch: (id: number, data: Partial<Branch>) =>
     request<Branch>(`/api/branches/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteBranch: (id: number) => request<void>(`/api/branches/${id}/`, { method: "DELETE" }),
+
+  // --- Cost Centers ---
+  listCostCenters: () => request<CostCenter[]>("/api/cost-centers/"),
+  createCostCenter: (data: Partial<CostCenter>) =>
+    request<CostCenter>("/api/cost-centers/", { method: "POST", body: JSON.stringify(data) }),
+  updateCostCenter: (id: number, data: Partial<CostCenter>) =>
+    request<CostCenter>(`/api/cost-centers/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteCostCenter: (id: number) => request<void>(`/api/cost-centers/${id}/`, { method: "DELETE" }),
 
   // --- HR ---
   listDepartments: () => request<Department[]>("/api/hr/departments/"),
@@ -1098,6 +1713,12 @@ export const api = {
     request<Opportunity>(`/api/crm/opportunities/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteOpportunity: (id: number) =>
     request<void>(`/api/crm/opportunities/${id}/`, { method: "DELETE" }),
+  listTravelAgencies: () => request<TravelAgency[]>("/api/crm/travel-agencies/"),
+  createTravelAgency: (data: Partial<TravelAgency>) =>
+    request<TravelAgency>("/api/crm/travel-agencies/", { method: "POST", body: JSON.stringify(data) }),
+  updateTravelAgency: (id: number, data: Partial<TravelAgency>) =>
+    request<TravelAgency>(`/api/crm/travel-agencies/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteTravelAgency: (id: number) => request<void>(`/api/crm/travel-agencies/${id}/`, { method: "DELETE" }),
 
   // --- Suppliers ---
   listSuppliers: () => request<Supplier[]>("/api/suppliers/suppliers/"),
@@ -1489,4 +2110,393 @@ export const api = {
 
   // --- Company dashboard summary ---
   companySummary: () => request<CompanySummary>("/api/dashboard/summary/"),
+
+  // --- Hotel: Room Management ---
+  listBuildings: () => request<Building[]>("/api/hotel/buildings/"),
+  createBuilding: (data: { name: string; branch?: number | null }) =>
+    request<Building>("/api/hotel/buildings/", { method: "POST", body: JSON.stringify(data) }),
+  listFloors: () => request<Floor[]>("/api/hotel/floors/"),
+  createFloor: (data: { building: number; name: string; level?: number }) =>
+    request<Floor>("/api/hotel/floors/", { method: "POST", body: JSON.stringify(data) }),
+  listRoomTypes: () => request<RoomType[]>("/api/hotel/room-types/"),
+  createRoomType: (data: Partial<RoomType>) =>
+    request<RoomType>("/api/hotel/room-types/", { method: "POST", body: JSON.stringify(data) }),
+  getSuggestedRate: (roomTypeId: number, checkInDate: string, checkOutDate: string) =>
+    request<SuggestedRate>(
+      `/api/hotel/room-types/${roomTypeId}/suggested_rate/?check_in_date=${checkInDate}&check_out_date=${checkOutDate}`
+    ),
+  listSeasonalRates: () => request<SeasonalRate[]>("/api/hotel/seasonal-rates/"),
+  createSeasonalRate: (data: Partial<SeasonalRate>) =>
+    request<SeasonalRate>("/api/hotel/seasonal-rates/", { method: "POST", body: JSON.stringify(data) }),
+  updateSeasonalRate: (id: number, data: Partial<SeasonalRate>) =>
+    request<SeasonalRate>(`/api/hotel/seasonal-rates/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteSeasonalRate: (id: number) => request<void>(`/api/hotel/seasonal-rates/${id}/`, { method: "DELETE" }),
+  listRooms: () => request<Room[]>("/api/hotel/rooms/"),
+  createRoom: (data: { floor: number; room_type: number; number: string }) =>
+    request<Room>("/api/hotel/rooms/", { method: "POST", body: JSON.stringify(data) }),
+  setRoomStatus: (id: number, roomStatus: RoomStatus) =>
+    request<Room>(`/api/hotel/rooms/${id}/set_status/`, {
+      method: "POST",
+      body: JSON.stringify({ status: roomStatus }),
+    }),
+  listRoomStatusLogs: (roomId: number) =>
+    request<RoomStatusLog[]>(`/api/hotel/room-status-logs/?room=${roomId}`),
+  listRoomBlocks: () => request<RoomBlock[]>("/api/hotel/room-blocks/"),
+  createRoomBlock: (data: { room: number; start_date: string; end_date: string; reason?: string }) =>
+    request<RoomBlock>("/api/hotel/room-blocks/", { method: "POST", body: JSON.stringify(data) }),
+  deleteRoomBlock: (id: number) => request<void>(`/api/hotel/room-blocks/${id}/`, { method: "DELETE" }),
+
+  // --- Hotel: Front Office ---
+  listReservations: () => request<Reservation[]>("/api/hotel/reservations/"),
+  createReservation: (data: {
+    guest: number;
+    room_type: number;
+    room?: number | null;
+    source: Reservation["source"];
+    travel_agency?: number | null;
+    check_in_date: string;
+    check_out_date: string;
+    adults?: number;
+    children?: number;
+    rate_cents?: number;
+  }) => request<Reservation>("/api/hotel/reservations/", { method: "POST", body: JSON.stringify(data) }),
+  assignReservationRoom: (id: number, room: number) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ room }),
+    }),
+  checkInReservation: (id: number) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/check_in/`, { method: "POST" }),
+  checkOutReservation: (id: number) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/check_out/`, { method: "POST" }),
+  cancelReservation: (id: number) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/cancel/`, { method: "POST" }),
+  transferReservationRoom: (id: number, room: number, reason?: string) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/transfer_room/`, {
+      method: "POST",
+      body: JSON.stringify({ room, reason: reason ?? "" }),
+    }),
+  markReservationNoShow: (id: number) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/mark_no_show/`, { method: "POST" }),
+  approveLateCheckout: (id: number, feeCents?: number) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/approve_late_checkout/`, {
+      method: "POST",
+      body: JSON.stringify({ fee_cents: feeCents ?? 0 }),
+    }),
+  approveEarlyCheckin: (id: number) =>
+    request<Reservation>(`/api/hotel/reservations/${id}/approve_early_checkin/`, { method: "POST" }),
+  listGroupReservations: () => request<GroupReservation[]>("/api/hotel/group-reservations/"),
+  createGroupReservation: (data: {
+    name: string;
+    organizer: number;
+    check_in_date: string;
+    check_out_date: string;
+    notes?: string;
+    rooms: { guest: number; room_type: number; room?: number | null; adults?: number; children?: number }[];
+  }) =>
+    request<GroupReservation>("/api/hotel/group-reservations/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  checkInGroup: (id: number) =>
+    request<{ checked_in: number[]; skipped: { reservation: number; detail: unknown }[] }>(
+      `/api/hotel/group-reservations/${id}/check_in_all/`,
+      { method: "POST" }
+    ),
+  checkOutGroup: (id: number) =>
+    request<{ checked_out: number[]; skipped: { reservation: number; detail: unknown }[] }>(
+      `/api/hotel/group-reservations/${id}/check_out_all/`,
+      { method: "POST" }
+    ),
+
+  // --- Hotel: Guest Folios ---
+  listFolios: () => request<GuestFolio[]>("/api/hotel/folios/"),
+  folioPdfUrl: (id: number) => `${API_URL}/api/hotel/folios/${id}/pdf/`,
+  createFolioCharge: (data: {
+    folio: number;
+    source_module: FolioCharge["source_module"];
+    description: string;
+    amount_cents: number;
+  }) =>
+    request<FolioCharge>("/api/hotel/folio-charges/", { method: "POST", body: JSON.stringify(data) }),
+  listGuestPayments: () => request<GuestPayment[]>("/api/hotel/guest-payments/"),
+  createGuestPayment: (data: { folio: number; method: GuestPayment["method"]; amount_cents: number; reference?: string }) =>
+    request<GuestPayment>("/api/hotel/guest-payments/", { method: "POST", body: JSON.stringify(data) }),
+  listGuestRefunds: () => request<GuestRefund[]>("/api/hotel/guest-refunds/"),
+  createGuestRefund: (data: { folio: number; payment?: number | null; amount_cents: number; reason?: string }) =>
+    request<GuestRefund>("/api/hotel/guest-refunds/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Housekeeping ---
+  listHousekeepingTasks: () => request<HousekeepingTask[]>("/api/housekeeping/tasks/"),
+  createHousekeepingTask: (data: {
+    room: number;
+    task_type: HousekeepingTaskType;
+    assigned_to?: number | null;
+    notes?: string;
+    scheduled_date?: string | null;
+  }) =>
+    request<HousekeepingTask>("/api/housekeeping/tasks/", { method: "POST", body: JSON.stringify(data) }),
+  startHousekeepingTask: (id: number) =>
+    request<HousekeepingTask>(`/api/housekeeping/tasks/${id}/start/`, { method: "POST" }),
+  completeHousekeepingTask: (id: number) =>
+    request<HousekeepingTask>(`/api/housekeeping/tasks/${id}/complete/`, { method: "POST" }),
+  cancelHousekeepingTask: (id: number) =>
+    request<HousekeepingTask>(`/api/housekeeping/tasks/${id}/cancel/`, { method: "POST" }),
+
+  // --- Maintenance ---
+  listWorkOrders: () => request<WorkOrder[]>("/api/maintenance/work-orders/"),
+  createWorkOrder: (data: {
+    room: number;
+    asset?: number | null;
+    title: string;
+    description?: string;
+    priority?: WorkOrderPriority;
+    assigned_to?: number | null;
+  }) =>
+    request<WorkOrder>("/api/maintenance/work-orders/", { method: "POST", body: JSON.stringify(data) }),
+  resolveWorkOrder: (id: number) =>
+    request<WorkOrder>(`/api/maintenance/work-orders/${id}/resolve/`, { method: "POST" }),
+  listMaintenanceSchedules: () => request<MaintenanceSchedule[]>("/api/maintenance/schedules/"),
+  createMaintenanceSchedule: (data: {
+    room: number;
+    title: string;
+    description?: string;
+    priority?: WorkOrderPriority;
+    frequency_days: number;
+    next_due_date: string;
+  }) =>
+    request<MaintenanceSchedule>("/api/maintenance/schedules/", { method: "POST", body: JSON.stringify(data) }),
+  updateMaintenanceSchedule: (id: number, data: Partial<MaintenanceSchedule>) =>
+    request<MaintenanceSchedule>(`/api/maintenance/schedules/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  generateWorkOrderFromSchedule: (id: number) =>
+    request<WorkOrder>(`/api/maintenance/schedules/${id}/generate_work_order/`, { method: "POST" }),
+  listAssets: () => request<Asset[]>("/api/maintenance/assets/"),
+  createAsset: (data: Partial<Asset>) =>
+    request<Asset>("/api/maintenance/assets/", { method: "POST", body: JSON.stringify(data) }),
+  updateAsset: (id: number, data: Partial<Asset>) =>
+    request<Asset>(`/api/maintenance/assets/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteAsset: (id: number) => request<void>(`/api/maintenance/assets/${id}/`, { method: "DELETE" }),
+  useWorkOrderPart: (workOrderId: number, data: { item: number; warehouse: number; quantity: number }) =>
+    request<WorkOrderPart>(`/api/maintenance/work-orders/${workOrderId}/use_part/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // --- POS ---
+  getPublicMenu: (companyId: number, tableId?: number | null) =>
+    request<PublicMenu>(
+      `/api/pos/public/menu/?company=${companyId}${tableId ? `&table=${tableId}` : ""}`
+    ),
+  listTables: () => request<PosTable[]>("/api/pos/tables/"),
+  createTable: (data: { name: string; area: TableArea; capacity?: number }) =>
+    request<PosTable>("/api/pos/tables/", { method: "POST", body: JSON.stringify(data) }),
+  listOrders: () => request<PosOrder[]>("/api/pos/orders/"),
+  createOrder: (data: {
+    table?: number | null;
+    reservation?: number | null;
+    guest?: number | null;
+    tab_name?: string;
+    lines: { item: number; quantity: number; unit_price_cents: number }[];
+  }) => request<PosOrder>("/api/pos/orders/", { method: "POST", body: JSON.stringify(data) }),
+  addOrderLine: (data: { order: number; item: number; quantity: number; unit_price_cents: number }) =>
+    request<PosOrderLine>("/api/pos/order-lines/", { method: "POST", body: JSON.stringify(data) }),
+  getSuggestedPrice: (itemId: number) =>
+    request<SuggestedPrice>(`/api/pos/order-lines/suggested_price/?item=${itemId}`),
+  chargeOrderToRoom: (id: number) =>
+    request<PosOrder>(`/api/pos/orders/${id}/charge_to_room/`, { method: "POST" }),
+  markOrderPaid: (id: number) => request<PosOrder>(`/api/pos/orders/${id}/mark_paid/`, { method: "POST" }),
+  cancelOrder: (id: number) => request<PosOrder>(`/api/pos/orders/${id}/cancel/`, { method: "POST" }),
+  splitOrder: (id: number, lineIds: number[]) =>
+    request<{ original: PosOrder; new_order: PosOrder }>(`/api/pos/orders/${id}/split/`, {
+      method: "POST",
+      body: JSON.stringify({ line_ids: lineIds }),
+    }),
+  applyPromotion: (orderId: number, promotionId: number) =>
+    request<PosOrder>(`/api/pos/orders/${orderId}/apply_promotion/`, {
+      method: "POST",
+      body: JSON.stringify({ promotion: promotionId }),
+    }),
+  listHappyHourRules: () => request<HappyHourRule[]>("/api/pos/happy-hour-rules/"),
+  createHappyHourRule: (data: Partial<HappyHourRule>) =>
+    request<HappyHourRule>("/api/pos/happy-hour-rules/", { method: "POST", body: JSON.stringify(data) }),
+  updateHappyHourRule: (id: number, data: Partial<HappyHourRule>) =>
+    request<HappyHourRule>(`/api/pos/happy-hour-rules/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteHappyHourRule: (id: number) =>
+    request<void>(`/api/pos/happy-hour-rules/${id}/`, { method: "DELETE" }),
+  listPromotions: () => request<Promotion[]>("/api/pos/promotions/"),
+  createPromotion: (data: Partial<Promotion>) =>
+    request<Promotion>("/api/pos/promotions/", { method: "POST", body: JSON.stringify(data) }),
+  updatePromotion: (id: number, data: Partial<Promotion>) =>
+    request<Promotion>(`/api/pos/promotions/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePromotion: (id: number) => request<void>(`/api/pos/promotions/${id}/`, { method: "DELETE" }),
+  startPreparing: (lineId: number) =>
+    request<PosOrderLine>(`/api/pos/order-lines/${lineId}/start_preparing/`, { method: "POST" }),
+  markLineReady: (lineId: number) =>
+    request<PosOrderLine>(`/api/pos/order-lines/${lineId}/mark_ready/`, { method: "POST" }),
+  markLineServed: (lineId: number) =>
+    request<PosOrderLine>(`/api/pos/order-lines/${lineId}/mark_served/`, { method: "POST" }),
+  markLineRush: (lineId: number) =>
+    request<PosOrderLine>(`/api/pos/order-lines/${lineId}/mark_rush/`, { method: "POST" }),
+  unmarkLineRush: (lineId: number) =>
+    request<PosOrderLine>(`/api/pos/order-lines/${lineId}/unmark_rush/`, { method: "POST" }),
+
+  // --- Laundry ---
+  listLaundryOrders: () => request<LaundryOrder[]>("/api/laundry/orders/"),
+  createLaundryOrder: (data: {
+    category: LaundryCategory;
+    reservation?: number | null;
+    guest?: number | null;
+    notes?: string;
+    lines: { item: number; quantity: number; unit_price_cents: number }[];
+  }) => request<LaundryOrder>("/api/laundry/orders/", { method: "POST", body: JSON.stringify(data) }),
+  addLaundryOrderLine: (data: { order: number; item: number; quantity: number; unit_price_cents: number }) =>
+    request<LaundryOrderLine>("/api/laundry/order-lines/", { method: "POST", body: JSON.stringify(data) }),
+  startWashingLaundryOrder: (id: number) =>
+    request<LaundryOrder>(`/api/laundry/orders/${id}/start_washing/`, { method: "POST" }),
+  markLaundryOrderReady: (id: number) =>
+    request<LaundryOrder>(`/api/laundry/orders/${id}/mark_ready/`, { method: "POST" }),
+  deliverLaundryOrder: (id: number) =>
+    request<LaundryOrder>(`/api/laundry/orders/${id}/deliver/`, { method: "POST" }),
+  chargeLaundryOrderToRoom: (id: number) =>
+    request<LaundryOrder>(`/api/laundry/orders/${id}/charge_to_room/`, { method: "POST" }),
+  markLaundryOrderPaid: (id: number) =>
+    request<LaundryOrder>(`/api/laundry/orders/${id}/mark_paid/`, { method: "POST" }),
+  cancelLaundryOrder: (id: number) =>
+    request<LaundryOrder>(`/api/laundry/orders/${id}/cancel/`, { method: "POST" }),
+
+  // --- Spa ---
+  listSpaBookings: () => request<SpaBooking[]>("/api/spa/bookings/"),
+  createSpaBooking: (data: {
+    reservation?: number | null;
+    guest?: number | null;
+    notes?: string;
+    lines: {
+      treatment: number;
+      therapist?: number | null;
+      scheduled_at?: string | null;
+      duration_minutes?: number;
+      quantity: number;
+      unit_price_cents: number;
+    }[];
+  }) => request<SpaBooking>("/api/spa/bookings/", { method: "POST", body: JSON.stringify(data) }),
+  addSpaBookingLine: (data: {
+    booking: number;
+    treatment: number;
+    therapist?: number | null;
+    scheduled_at?: string | null;
+    duration_minutes?: number;
+    quantity: number;
+    unit_price_cents: number;
+  }) => request<SpaBookingLine>("/api/spa/booking-lines/", { method: "POST", body: JSON.stringify(data) }),
+  startSpaTreatment: (lineId: number) =>
+    request<SpaBookingLine>(`/api/spa/booking-lines/${lineId}/start/`, { method: "POST" }),
+  completeSpaTreatment: (lineId: number) =>
+    request<SpaBookingLine>(`/api/spa/booking-lines/${lineId}/complete/`, { method: "POST" }),
+  cancelSpaTreatment: (lineId: number) =>
+    request<SpaBookingLine>(`/api/spa/booking-lines/${lineId}/cancel/`, { method: "POST" }),
+  chargeSpaBookingToRoom: (id: number) =>
+    request<SpaBooking>(`/api/spa/bookings/${id}/charge_to_room/`, { method: "POST" }),
+  markSpaBookingPaid: (id: number) =>
+    request<SpaBooking>(`/api/spa/bookings/${id}/mark_paid/`, { method: "POST" }),
+  cancelSpaBooking: (id: number) =>
+    request<SpaBooking>(`/api/spa/bookings/${id}/cancel/`, { method: "POST" }),
+
+  // --- Gym ---
+  listGymMemberships: () => request<GymMembership[]>("/api/gym/memberships/"),
+  createGymMembership: (data: {
+    guest?: number | null;
+    reservation?: number | null;
+    plan_type: GymPlanType;
+    start_date: string;
+    end_date: string;
+    price_cents: number;
+  }) => request<GymMembership>("/api/gym/memberships/", { method: "POST", body: JSON.stringify(data) }),
+  chargeGymMembershipToRoom: (id: number) =>
+    request<GymMembership>(`/api/gym/memberships/${id}/charge_to_room/`, { method: "POST" }),
+  markGymMembershipPaid: (id: number) =>
+    request<GymMembership>(`/api/gym/memberships/${id}/mark_paid/`, { method: "POST" }),
+  cancelGymMembership: (id: number) =>
+    request<GymMembership>(`/api/gym/memberships/${id}/cancel/`, { method: "POST" }),
+
+  listGymBookings: () => request<GymBooking[]>("/api/gym/bookings/"),
+  createGymBooking: (data: {
+    reservation?: number | null;
+    guest?: number | null;
+    notes?: string;
+    lines: {
+      activity: number;
+      trainer?: number | null;
+      scheduled_at?: string | null;
+      duration_minutes?: number;
+      quantity: number;
+      unit_price_cents: number;
+    }[];
+  }) => request<GymBooking>("/api/gym/bookings/", { method: "POST", body: JSON.stringify(data) }),
+  addGymBookingLine: (data: {
+    booking: number;
+    activity: number;
+    trainer?: number | null;
+    scheduled_at?: string | null;
+    duration_minutes?: number;
+    quantity: number;
+    unit_price_cents: number;
+  }) => request<GymBookingLine>("/api/gym/booking-lines/", { method: "POST", body: JSON.stringify(data) }),
+  startGymActivity: (lineId: number) =>
+    request<GymBookingLine>(`/api/gym/booking-lines/${lineId}/start/`, { method: "POST" }),
+  completeGymActivity: (lineId: number) =>
+    request<GymBookingLine>(`/api/gym/booking-lines/${lineId}/complete/`, { method: "POST" }),
+  cancelGymActivity: (lineId: number) =>
+    request<GymBookingLine>(`/api/gym/booking-lines/${lineId}/cancel/`, { method: "POST" }),
+  chargeGymBookingToRoom: (id: number) =>
+    request<GymBooking>(`/api/gym/bookings/${id}/charge_to_room/`, { method: "POST" }),
+  markGymBookingPaid: (id: number) =>
+    request<GymBooking>(`/api/gym/bookings/${id}/mark_paid/`, { method: "POST" }),
+  cancelGymBooking: (id: number) =>
+    request<GymBooking>(`/api/gym/bookings/${id}/cancel/`, { method: "POST" }),
+
+  // --- Conference ---
+  listConferenceHalls: () => request<ConferenceHall[]>("/api/conference/halls/"),
+  createConferenceHall: (data: { name: string; capacity: number; day_rate_cents: number; description?: string }) =>
+    request<ConferenceHall>("/api/conference/halls/", { method: "POST", body: JSON.stringify(data) }),
+  listConferenceBookings: () => request<ConferenceBooking[]>("/api/conference/bookings/"),
+  createConferenceBooking: (data: {
+    hall: number;
+    reservation?: number | null;
+    guest?: number | null;
+    event_name: string;
+    event_type: ConferenceEventType;
+    seating_plan: ConferenceSeatingPlan;
+    attendees: number;
+    start_at: string;
+    end_at: string;
+    notes?: string;
+    lines: { item: number; quantity: number; unit_price_cents: number }[];
+  }) => request<ConferenceBooking>("/api/conference/bookings/", { method: "POST", body: JSON.stringify(data) }),
+  addConferenceBookingLine: (data: { booking: number; item: number; quantity: number; unit_price_cents: number }) =>
+    request<ConferenceBookingLine>("/api/conference/booking-lines/", { method: "POST", body: JSON.stringify(data) }),
+  chargeConferenceBookingToRoom: (id: number) =>
+    request<ConferenceBooking>(`/api/conference/bookings/${id}/charge_to_room/`, { method: "POST" }),
+  markConferenceBookingPaid: (id: number) =>
+    request<ConferenceBooking>(`/api/conference/bookings/${id}/mark_paid/`, { method: "POST" }),
+  cancelConferenceBooking: (id: number) =>
+    request<ConferenceBooking>(`/api/conference/bookings/${id}/cancel/`, { method: "POST" }),
+
+  // --- Loyalty ---
+  listLoyaltyTiers: () => request<LoyaltyTier[]>("/api/loyalty/tiers/"),
+  createLoyaltyTier: (data: { name: string; min_points: number; benefits?: string; discount_percent?: number }) =>
+    request<LoyaltyTier>("/api/loyalty/tiers/", { method: "POST", body: JSON.stringify(data) }),
+  listLoyaltyRewards: () => request<LoyaltyReward[]>("/api/loyalty/rewards/"),
+  createLoyaltyReward: (data: { name: string; points_cost: number; description?: string }) =>
+    request<LoyaltyReward>("/api/loyalty/rewards/", { method: "POST", body: JSON.stringify(data) }),
+  listLoyaltyMembers: () => request<LoyaltyMember[]>("/api/loyalty/members/"),
+  enrollLoyaltyMember: (data: { guest: number }) =>
+    request<LoyaltyMember>("/api/loyalty/members/", { method: "POST", body: JSON.stringify(data) }),
+  listLoyaltyTransactions: () => request<LoyaltyTransaction[]>("/api/loyalty/transactions/"),
+  awardLoyaltyPoints: (data: { member: number; points: number; reason: string }) =>
+    request<LoyaltyTransaction>("/api/loyalty/transactions/", { method: "POST", body: JSON.stringify(data) }),
+  redeemLoyaltyReward: (data: { member: number; reward: number; points: number; reason: string }) =>
+    request<LoyaltyTransaction>("/api/loyalty/transactions/", { method: "POST", body: JSON.stringify(data) }),
 };
