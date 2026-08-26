@@ -11,14 +11,57 @@ class Customer(TenantModel):
         GOVERNMENT = "government", "Government"
         VIP = "vip", "VIP"
 
+    class IdType(models.TextChoices):
+        NATIONAL_ID = "national_id", "National ID"
+        PASSPORT = "passport", "Passport"
+        DRIVING_LICENSE = "driving_license", "Driving License"
+
     name = models.CharField(max_length=255)
     phone = models.CharField(max_length=32, blank=True)
     email = models.EmailField(blank=True)
     type = models.CharField(max_length=16, choices=Type.choices, default=Type.INDIVIDUAL)
     address = models.CharField(max_length=255, blank=True)
 
+    # Digital guest registration: the ID a front-desk agent records at
+    # check-in (required by Ethiopian hotel/immigration guest-registration
+    # rules), ported from apps.hotel's use of Customer as the guest record.
+    # id_document is a photo/scan of the physical document — no real
+    # card-scanner hardware to integrate with, so registration here means
+    # "upload the photo you took of it", not OCR capture.
+    id_type = models.CharField(max_length=20, choices=IdType.choices, blank=True)
+    id_number = models.CharField(max_length=64, blank=True)
+    nationality = models.CharField(max_length=100, blank=True)
+    id_expiry_date = models.DateField(null=True, blank=True)
+    id_document = models.FileField(upload_to="id_documents/%Y/%m/", blank=True, null=True)
+
     class Meta:
         db_table = "customers"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class TravelAgency(TenantModel):
+    """A B2B booking partner — commission_rate_percent is the cut owed
+    on whatever a guest they referred actually spends, computed once at
+    check-out (see apps.hotel.views.ReservationViewSet.check_out) and
+    snapshotted onto Reservation.commission_cents, not recomputed later
+    if the rate changes — same locking principle Reservation.rate_cents
+    already follows for the room rate itself."""
+
+    name = models.CharField(max_length=255)
+    contact_name = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=32, blank=True)
+    email = models.EmailField(blank=True)
+    commission_rate_percent = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "crm_travel_agencies"
+        constraints = [
+            models.UniqueConstraint(fields=["company", "name"], name="unique_company_travel_agency_name")
+        ]
         ordering = ["name"]
 
     def __str__(self):

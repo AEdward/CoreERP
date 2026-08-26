@@ -3,13 +3,48 @@ from rest_framework import serializers
 from apps.common.serializers import CompanyScopedSerializer
 from apps.companies.models import CompanyMembership
 
-from .models import Contact, Customer, Lead, Opportunity
+from .models import Contact, Customer, Lead, Opportunity, TravelAgency
 
 
 class CustomerSerializer(CompanyScopedSerializer):
+    is_registered = serializers.SerializerMethodField()
+
     class Meta:
         model = Customer
-        fields = ["id", "name", "phone", "email", "type", "address", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "phone",
+            "email",
+            "type",
+            "address",
+            "id_type",
+            "id_number",
+            "nationality",
+            "id_expiry_date",
+            "id_document",
+            "is_registered",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def get_is_registered(self, obj):
+        return bool(obj.id_type and obj.id_number)
+
+
+class TravelAgencySerializer(CompanyScopedSerializer):
+    class Meta:
+        model = TravelAgency
+        fields = [
+            "id",
+            "name",
+            "contact_name",
+            "email",
+            "phone",
+            "commission_rate_percent",
+            "is_active",
+            "created_at",
+        ]
         read_only_fields = ["id", "created_at"]
 
 

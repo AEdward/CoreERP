@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.branches",
     "apps.hr",
     "apps.crm",
+    "apps.hotel",
     "apps.suppliers",
     "apps.tax",
     "apps.catalog",

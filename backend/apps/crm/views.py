@@ -7,13 +7,25 @@ from apps.auditlog.models import AuditLog
 from apps.auditlog.services import log_audit
 from apps.common.views import CompanyScopedViewSet
 
-from .models import Contact, Customer, Lead, Opportunity
-from .serializers import ContactSerializer, CustomerSerializer, LeadSerializer, OpportunitySerializer
+from .models import Contact, Customer, Lead, Opportunity, TravelAgency
+from .serializers import (
+    ContactSerializer,
+    CustomerSerializer,
+    LeadSerializer,
+    OpportunitySerializer,
+    TravelAgencySerializer,
+)
 
 
 class CustomerViewSet(CompanyScopedViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+    permission_module = "sales"
+
+
+class TravelAgencyViewSet(CompanyScopedViewSet):
+    queryset = TravelAgency.objects.all()
+    serializer_class = TravelAgencySerializer
     permission_module = "sales"
 
 

@@ -24,6 +24,12 @@ class TaxRate(TenantModel):
     # itself only ever looks at each Item's own explicit tax_rate.
     is_default = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    # Section J (Hotel & Hospitality): a hotel-specific levy (e.g. a
+    # Tourism Development Levy) that stacks with is_default rates on room
+    # folio charges specifically — see apps.tax.engine.compute_inclusive_tax_cents.
+    # Irrelevant outside apps.hotel; every other consumer of TaxRate
+    # (Sales/Procurement line items) ignores this flag entirely.
+    applies_to_room_charges = models.BooleanField(default=False)
 
     class Meta:
         db_table = "tax_rates"

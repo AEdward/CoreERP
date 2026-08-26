@@ -30,6 +30,8 @@ DEFAULT_PERMISSIONS = [
     ("calendar", "manage"),
     ("expenses", "view"),
     ("expenses", "manage"),
+    ("hotel", "view"),
+    ("hotel", "manage"),
 ]
 
 # Every role gets these automatically — shared productivity/platform
@@ -70,6 +72,8 @@ DEFAULT_ROLES = {
         "inventory.manage",
         "procurement.view",
         "procurement.manage",
+        "hotel.view",
+        "hotel.manage",
     ],
     "Finance Manager": ["accounting.view", "accounting.manage"],
     "HR Manager": ["hr.view", "hr.manage"],

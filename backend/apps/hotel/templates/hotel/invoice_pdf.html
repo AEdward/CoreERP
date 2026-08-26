@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 22mm 18mm; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; color: #2c2c2c; font-size: 11pt; }
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e4d3a; padding-bottom: 12px; }
+  .company-name { font-size: 16pt; font-weight: 700; color: #1e4d3a; }
+  .company-meta { font-size: 9pt; color: #666; margin-top: 4px; line-height: 1.5; }
+  .doc-title { text-align: right; }
+  .doc-title h1 { font-size: 14pt; color: #1e4d3a; margin: 0; }
+  .doc-title .period { font-size: 10pt; color: #666; margin-top: 2px; }
+  .guest-block { display: flex; justify-content: space-between; margin-top: 18px; font-size: 10pt; }
+  .guest-block div { line-height: 1.6; }
+  .label { color: #999; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.05em; }
+  table.pay-table { width: 100%; border-collapse: collapse; margin-top: 22px; font-size: 10pt; }
+  table.pay-table th { text-align: left; padding: 6px 4px; border-bottom: 1.5px solid #1e4d3a; color: #1e4d3a; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.pay-table td { padding: 6px 4px; border-bottom: 1px solid #eee; }
+  table.pay-table td.amount { text-align: right; }
+  tr.section-header td { font-weight: 700; background: #f7f5ef; padding-top: 10px; }
+  tr.balance-due td { font-weight: 700; font-size: 12pt; border-top: 2px solid #1e4d3a; border-bottom: none; padding-top: 12px; }
+  .footer-note { margin-top: 30px; font-size: 8.5pt; color: #999; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="letterhead">
+    <div>
+      <div class="company-name">{{ company.name }}</div>
+      <div class="company-meta">
+        {% if company.address %}{{ company.address }}<br>{% endif %}
+        {% if company.phone %}{{ company.phone }}{% endif %}{% if company.phone and company.email %} · {% endif %}{% if company.email %}{{ company.email }}{% endif %}
+      </div>
+    </div>
+    <div class="doc-title">
+      <h1>INVOICE</h1>
+      <div class="period">{{ confirmation_number }}</div>
+    </div>
+  </div>
+
+  <div class="guest-block">
+    <div>
+      <div class="label">Guest</div>
+      {{ guest_name }}<br>
+      {% if room_type_name %}{{ room_type_name }}{% if room_number %} — Room {{ room_number }}{% endif %}{% endif %}
+    </div>
+    <div>
+      <div class="label">Stay</div>
+      {{ check_in_date }} → {{ check_out_date }}
+      <br>Status: {{ folio_status }}
+    </div>
+  </div>
+
+  <table class="pay-table">
+    <thead>
+      <tr><th>Description</th><th class="amount">Amount</th></tr>
+    </thead>
+    <tbody>
+      {% if charges %}
+      <tr class="section-header"><td colspan="2">Charges</td></tr>
+      {% for c in charges %}
+      <tr><td>{{ c.description }} ({{ c.source_module }})</td><td class="amount">{{ c.amount }}</td></tr>
+      {% endfor %}
+      {% endif %}
+      {% if payments %}
+      <tr class="section-header"><td colspan="2">Payments Received</td></tr>
+      {% for p in payments %}
+      <tr><td>{{ p.method }}{% if p.reference %} — {{ p.reference }}{% endif %}</td><td class="amount">-{{ p.amount }}</td></tr>
+      {% endfor %}
+      {% endif %}
+      {% if refunds %}
+      <tr class="section-header"><td colspan="2">Refunds Issued</td></tr>
+      {% for r in refunds %}
+      <tr><td>{{ r.reason|default:"Refund" }}</td><td class="amount">{{ r.amount }}</td></tr>
+      {% endfor %}
+      {% endif %}
+      <tr class="balance-due"><td>Balance due</td><td class="amount">{{ balance_due }}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer-note">Generated {{ generated_on }} · {{ company.name }} front office records</div>
+</body>
+</html>
