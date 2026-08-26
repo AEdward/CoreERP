@@ -121,13 +121,13 @@ Two of these are structural enough that retrofitting them after several vertical
 - [ ] Super Admin UI for managing companies/billing (`is_platform_admin` exists as a flag on `User`; nothing built on top of it yet)
 
 ### Prove the extension pattern
-- [ ] Build a thin real vertical slice (Hotel: room bookings on top of the existing Items/Inventory models, folios on top of the existing Invoice model) to validate that verticals genuinely *extend* the core rather than needing to duplicate it, before committing to that pattern across five industries
+- [x] Build a thin real vertical slice (Hotel) — didn't happen as a from-scratch CoreERP build; instead Section J's 10 hospitality apps (`hotel`, `housekeeping`, `costcenters`, `maintenance`, `conference`, `gym`, `laundry`, `spa`, `loyalty`, `pos`) were ported wholesale from the already-mature [AEdward/MiranErp](https://github.com/AEdward/MiranErp) build (backend only, per explicit direction — no frontend). Answers the extension-pattern question differently than planned: it confirmed the shared foundation (`apps.common`, RLS, the permission model, the numbering engine) is stable enough to host a fully independent vertical's ~4,700 lines of backend with only two small additive touches to Core (`crm.Customer` gained guest-registration fields + a `TravelAgency` model; `tax.TaxRate`/`tax.engine` gained a tax-inclusive-amount variant) — see `docs/MODULE_MAP.md` Section J.
 
 ## Phase 4 — Industry Modules
 
 Backlog, unscheduled. Pick based on real demand once Phases 1–3.5 are live, not speculatively.
 
-- [ ] Hotel (room bookings, folios)
+- [x] Hotel (room bookings, folios) — backend ported from MiranErp, see Section J in `docs/MODULE_MAP.md`; no frontend
 - [ ] Real Estate (leases, units)
 - [ ] Retail (POS)
 - [ ] Healthcare (patient records)

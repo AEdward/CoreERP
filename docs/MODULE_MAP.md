@@ -213,30 +213,32 @@ Note: this whole section is genuinely Core-adjacent, not industry — it's the b
 
 ## J. Hotel & Hospitality
 
-Built separately in [AEdward/MiranErp](https://github.com/AEdward/MiranErp) as the first vertical proof-of-concept — not part of CoreERP core, not merged back.
+Originally built separately in [AEdward/MiranErp](https://github.com/AEdward/MiranErp) as the first vertical proof-of-concept. **Backend ported into CoreERP core** (10 Django apps: `hotel`, `housekeeping`, `costcenters`, `maintenance`, `conference`, `gym`, `laundry`, `spa`, `loyalty`, `pos` — verified end-to-end against real Postgres with RLS, file-for-file identical to MiranErp's source except migration cross-app dependency references rewritten to CoreERP's own migration history). **No frontend** — deliberately backend-only per explicit direction; every page under `/dashboard/hotel` etc. that exists in MiranErp was not ported. Five hospitality-specific roles (Hotel Owner, Cashier, Procurement Officer, Marketing Manager, Auditor) seeded alongside the existing role set.
 
-- [ ] Hotel Management
-- [ ] Property Management System (PMS)
-- [ ] Room Management
-- [ ] Room Types
-- [ ] Reservations
-- [ ] Check-in / Check-out
-- [ ] Guest Management
-- [ ] Housekeeping
-- [ ] Room Service
-- [ ] Hotel Folios
-- [ ] Rate Management
-- [ ] Packages
-- [ ] Hotel POS
-- [ ] Restaurant
-- [ ] Bar
-- [ ] Banquet / Events
-- [ ] Spa Management
-- [ ] Guest Loyalty
-- [ ] Channel Manager
-- [ ] OTA Integration
-- [ ] Online Booking
-- [ ] Guest Feedback
+- [x] Hotel Management — `apps.hotel`
+- [x] Property Management System (PMS) — `apps.hotel`
+- [x] Room Management — Building, Floor, Room, RoomBlock, RoomStatusLog
+- [x] Room Types — RoomType, SeasonalRate (rate management)
+- [x] Reservations — Reservation, GroupReservation, RoomTransfer
+- [x] Check-in / Check-out — `ReservationViewSet.check_in`/`.check_out`
+- [x] Guest Management — `apps.crm.Customer` gained guest-registration fields (id_type/id_number/nationality/id_document); new `TravelAgency` model
+- [x] Housekeeping — `apps.housekeeping`
+- [x] Room Service — POS orders charged to a room folio (`OrderViewSet.charge_to_room`)
+- [x] Hotel Folios — GuestFolio, FolioCharge, GuestPayment, GuestRefund
+- [x] Rate Management — SeasonalRate + `apps.tax.engine.compute_inclusive_tax_cents`
+- [ ] Packages — not built (no bundled-rate-package model exists in either repo)
+- [x] Hotel POS — `apps.pos` (Table, Order, OrderLine, kitchen_status, tab_name)
+- [x] Restaurant — covered by `apps.pos` (table areas, kitchen display status fields; no separate model)
+- [x] Bar — covered by `apps.pos` (same app, no separate model — matches MiranErp's own shape)
+- [x] Banquet / Events — `apps.conference` (ConferenceHall, ConferenceBooking)
+- [x] Spa Management — `apps.spa`
+- [x] Guest Loyalty — `apps.loyalty` (auto-earns points on checkout via a signal, same one-directional-dependency pattern as `apps.accounting.signals`)
+- [ ] Channel Manager — not built
+- [ ] OTA Integration — not built
+- [ ] Online Booking — not built (POS has a public menu endpoint; no public booking flow)
+- [ ] Guest Feedback — not built
+
+Not on the original checklist above but built as real MiranErp apps and ported alongside everything else: **Gym** (`apps.gym` — memberships, bookings), **Laundry** (`apps.laundry` — guest/room laundry orders), **Maintenance** (`apps.maintenance` — work orders, assets, PM schedules), **Cost Centers** (`apps.costcenters`).
 
 ## K. Real Estate
 
