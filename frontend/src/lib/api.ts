@@ -1477,6 +1477,29 @@ export interface CompanySummary {
   hr?: {
     employee_count: number;
   };
+  hotel?: {
+    room_count: number;
+    occupied_count: number;
+    occupancy_pct: number;
+    room_status_counts: Partial<Record<RoomStatus, number>>;
+    today_arrivals: number;
+    today_departures: number;
+    revenue_by_department_cents: Record<string, number>;
+    revpar_cents: number;
+    pending_folio_count: number;
+    recent_activity: {
+      label: string;
+      room_number: string;
+      changed_by_name: string | null;
+      created_at: string;
+    }[];
+  };
+  housekeeping?: {
+    rooms_to_clean: number;
+    currently_cleaning: number;
+    inspections_due: number;
+    out_of_service: number;
+  };
 }
 
 export const api = {

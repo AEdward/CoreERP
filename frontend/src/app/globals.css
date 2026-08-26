@@ -44,6 +44,15 @@
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
 
   --launcher-gradient: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 45%, #fce7f3 100%);
+
+  /* Section J (Hotel & Hospitality) pages, ported from AEdward/MiranErp,
+     reference these three token names inline throughout — aliased here
+     to CoreERP's own palette instead of hunting down every occurrence
+     across ~15 files. Not part of the core token set above; scoped to
+     this one legacy-naming compatibility shim. */
+  --brand-gold: #b45309;
+  --brand-green: #2e7d32;
+  --brand-ivory: #f9fafb;
 }
 
 @media (prefers-color-scheme: dark) {
