@@ -111,6 +111,69 @@ DEFAULT_ROLES = {
     "HR Manager": ["hr.view", "hr.manage"],
     "Sales Manager": ["sales.view", "sales.manage"],
     "Inventory Manager": ["inventory.view", "inventory.manage", "procurement.view", "procurement.manage"],
+    # Section J roles, ported from AEdward/MiranErp's own role seeding —
+    # full visibility across every module (view-only, not the day-to-day
+    # write access plain Owner has) for a hotel principal who wants
+    # oversight without operational write access to modules they don't
+    # personally run.
+    "Hotel Owner": [
+        "settings.manage",
+        "accounting.view",
+        "hr.view",
+        "sales.view",
+        "inventory.view",
+        "procurement.view",
+        "hotel.view",
+        "housekeeping.view",
+        "maintenance.view",
+        "pos.view",
+        "laundry.view",
+        "spa.view",
+        "gym.view",
+        "conference.view",
+        "loyalty.view",
+    ],
+    # Front-desk/POS payment collection — hotel.view to look up a
+    # reservation's folio, pos.manage to actually ring up and close
+    # orders. Not accounting.manage: they take payments through the
+    # already-permission-gated POS/folio flows, not the general ledger.
+    "Cashier": ["hotel.view", "pos.view", "pos.manage", "accounting.view"],
+    # Narrower than Inventory Manager (which already carries
+    # procurement.*) — a dedicated purchasing role that also needs to
+    # see current stock levels to know what to reorder, without owning
+    # inventory management itself.
+    "Procurement Officer": ["procurement.view", "procurement.manage", "inventory.view"],
+    "Marketing Manager": [
+        "sales.view",
+        "sales.manage",
+        "loyalty.view",
+        "loyalty.manage",
+        "pos.view",
+        "pos.manage",
+    ],
+    # Read-only oversight across every business module — plus
+    # settings.manage, which is the only way to reach the audit log
+    # today (apps.auditlog.views.AuditLogViewSet is gated on
+    # settings.manage, not a dedicated audit permission — the same known
+    # coupling MiranErp's own Auditor role accepted rather than reworking
+    # the permission model for one role).
+    "Auditor": [
+        "settings.manage",
+        "accounting.view",
+        "hr.view",
+        "sales.view",
+        "inventory.view",
+        "procurement.view",
+        "hotel.view",
+        "housekeeping.view",
+        "maintenance.view",
+        "pos.view",
+        "laundry.view",
+        "spa.view",
+        "gym.view",
+        "conference.view",
+        "loyalty.view",
+    ],
 }
 
 
