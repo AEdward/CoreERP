@@ -155,8 +155,13 @@ export default function DashboardPage() {
   if (sessionError) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>{sessionError}</main>;
   if (!me) return <main style={{ padding: 40, fontFamily: "sans-serif" }}>Loading…</main>;
 
+  // "My Profile" isn't permission-gated like the rest — every company
+  // member should be able to reach their own Employee Self-Service page
+  // regardless of what module permissions their role does or doesn't
+  // carry (a plain staff member typically has none of the above).
+  const MY_PROFILE_TILE = { key: "myprofile", label: "My Profile", href: "/dashboard/me" };
   const visibleTiles = activeMembership
-    ? MODULE_TILES.filter((tile) => activeMembership.permissions.includes(tile.permission))
+    ? [MY_PROFILE_TILE, ...MODULE_TILES.filter((tile) => activeMembership.permissions.includes(tile.permission))]
     : [];
 
   return (

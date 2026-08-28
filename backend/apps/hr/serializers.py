@@ -43,6 +43,7 @@ class ShiftTemplateSerializer(CompanyScopedSerializer):
 
 class EmployeeSerializer(CompanyScopedSerializer):
     same_company_fields = ["department", "branch", "position", "shift"]
+    user_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
@@ -59,9 +60,23 @@ class EmployeeSerializer(CompanyScopedSerializer):
             "salary_cents",
             "joining_date",
             "status",
+            "user",
+            "user_name",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def get_user_name(self, obj):
+        return obj.user.full_name if obj.user_id else ""
+
+    def validate_user(self, value):
+        if value is None:
+            return value
+        request = self.context.get("request")
+        company = getattr(request, "company", None)
+        if company and not company.memberships.filter(user=value, status="active").exists():
+            raise serializers.ValidationError("Must be an active member of this company.")
+        return value
 
 
 class EmployeeContractSerializer(CompanyScopedSerializer):

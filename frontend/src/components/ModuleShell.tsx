@@ -25,7 +25,8 @@ export type ModuleKey =
   | "laundry"
   | "spa"
   | "loyalty"
-  | "pos";
+  | "pos"
+  | "myprofile";
 
 interface NavItem {
   href: string;
@@ -51,7 +52,17 @@ const MODULE_NAV: Record<ModuleKey, { title: string; groups: NavGroup[] }> = {
           { href: "/dashboard/hr/attendance", label: "Attendance" },
           { href: "/dashboard/hr/leave-and-contracts", label: "Leave & Contracts" },
           { href: "/dashboard/hr/payroll", label: "Payroll" },
+          { href: "/dashboard/hr/recruitment", label: "Recruitment" },
+          { href: "/dashboard/hr/performance", label: "Performance & Training" },
         ],
+      },
+    ],
+  },
+  myprofile: {
+    title: "My Profile",
+    groups: [
+      {
+        items: [{ href: "/dashboard/me", label: "My Profile" }],
       },
     ],
   },

@@ -37,6 +37,16 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  myprofile: {
+    a: "#0ea5e9",
+    b: "#1e293b",
+    render: (a, b) => (
+      <>
+        <circle cx="24" cy="17" r="10" fill={a} />
+        <path d="M8 42c0-9 7-16 16-16s16 7 16 16z" fill={b} opacity="0.9" />
+      </>
+    ),
+  },
   sales: {
     a: "#0d9488",
     b: "#8b5cf6",

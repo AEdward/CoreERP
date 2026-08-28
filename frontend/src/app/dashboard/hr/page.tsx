@@ -10,6 +10,7 @@ import {
   api,
   ApiError,
   type Branch,
+  type CompanyMember,
   type Department,
   type Employee,
   type Position,
@@ -36,6 +37,7 @@ const EMPTY_EMPLOYEE_FORM = {
   salary_cents: "",
   joining_date: "",
   status: "active" as Employee["status"],
+  user: "",
 };
 
 export default function HrPage() {
@@ -45,6 +47,7 @@ export default function HrPage() {
   const [shifts, setShifts] = useState<ShiftTemplate[] | null>(null);
   const [employees, setEmployees] = useState<Employee[] | null>(null);
   const [branches, setBranches] = useState<Branch[] | null>(null);
+  const [companyMembers, setCompanyMembers] = useState<CompanyMember[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [newDeptName, setNewDeptName] = useState("");
@@ -66,18 +69,20 @@ export default function HrPage() {
 
   async function loadAll() {
     try {
-      const [depts, poss, shs, emps, brs] = await Promise.all([
+      const [depts, poss, shs, emps, brs, members] = await Promise.all([
         api.listDepartments(),
         api.listPositions(),
         api.listShifts(),
         api.listEmployees(),
         api.listBranches(),
+        api.listCompanyMembers(),
       ]);
       setDepartments(depts);
       setPositions(poss);
       setShifts(shs);
       setEmployees(emps);
       setBranches(brs);
+      setCompanyMembers(members);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load HR data.");
     }
@@ -199,6 +204,7 @@ export default function HrPage() {
         salary_cents: empForm.salary_cents ? Math.round(Number(empForm.salary_cents) * 100) : 0,
         joining_date: empForm.joining_date || null,
         status: empForm.status,
+        user: empForm.user ? Number(empForm.user) : null,
       };
       if (editingEmpId) {
         await api.updateEmployee(editingEmpId, payload);
@@ -229,6 +235,7 @@ export default function HrPage() {
       salary_cents: emp.salary_cents ? String(emp.salary_cents / 100) : "",
       joining_date: emp.joining_date ?? "",
       status: emp.status,
+      user: emp.user ? String(emp.user) : "",
     });
   }
 
@@ -502,6 +509,7 @@ export default function HrPage() {
                     <th>Branch</th>
                     <th>Shift</th>
                     <th>Status</th>
+                    <th>Linked account</th>
                     <th></th>
                     {canManage && <th></th>}
                   </tr>
@@ -517,6 +525,7 @@ export default function HrPage() {
                       <td>{branchName(emp.branch)}</td>
                       <td>{shiftName(emp.shift)}</td>
                       <td>{STATUS_LABELS[emp.status]}</td>
+                      <td className={shared.tableMuted}>{emp.user_name || "—"}</td>
                       <td style={{ textAlign: "right" }}>
                         <span style={{ display: "inline-flex", gap: 6 }}>
                           <DocumentsPanel
@@ -543,7 +552,7 @@ export default function HrPage() {
                   ))}
                   {employees?.length === 0 && (
                     <tr>
-                      <td colSpan={8} className={shared.tableMuted}>
+                      <td colSpan={9} className={shared.tableMuted}>
                         No employees yet.
                       </td>
                     </tr>
@@ -651,6 +660,19 @@ export default function HrPage() {
                     <option value="active">Active</option>
                     <option value="on_leave">On leave</option>
                     <option value="terminated">Terminated</option>
+                  </select>
+                  <select
+                    value={empForm.user}
+                    onChange={(e) => setEmpForm({ ...empForm, user: e.target.value })}
+                    className={shared.select}
+                    title="Links this employee to a company member's login, enabling Employee Self-Service"
+                  >
+                    <option value="">No linked account (no self-service)</option>
+                    {companyMembers?.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.name} ({m.email})
+                      </option>
+                    ))}
                   </select>
                   <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
                     <button

@@ -161,6 +161,8 @@ export interface Employee {
   salary_cents: number;
   joining_date: string | null;
   status: "active" | "on_leave" | "terminated";
+  user: number | null;
+  user_name: string;
   created_at: string;
 }
 
@@ -320,6 +322,28 @@ export interface TrainingEnrollment {
   employee: number;
   status: "enrolled" | "completed" | "cancelled";
   completion_date: string | null;
+  created_at: string;
+}
+
+// --- Employee Self-Service ---
+
+export interface MyLeaveRequest {
+  id: number;
+  leave_type: number;
+  leave_type_name: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: "draft" | "submitted" | "approved" | "rejected";
+  days: number;
+  created_at: string;
+}
+
+export interface MyOnboardingTask {
+  id: number;
+  title: string;
+  is_complete: boolean;
+  due_date: string | null;
   created_at: string;
 }
 
@@ -1799,6 +1823,25 @@ export const api = {
     request<TrainingEnrollment>(`/api/performance/training-enrollments/${id}/complete/`, { method: "POST" }),
   cancelTrainingEnrollment: (id: number) =>
     request<TrainingEnrollment>(`/api/performance/training-enrollments/${id}/cancel/`, { method: "POST" }),
+
+  // --- Employee Self-Service ---
+  getMyProfile: () => request<Employee>("/api/me/profile/"),
+  getMyAttendance: () => request<AttendanceRecord[]>("/api/me/attendance/"),
+  listMyLeaveTypes: () => request<LeaveType[]>("/api/me/leave-types/"),
+  listMyLeaveRequests: () => request<MyLeaveRequest[]>("/api/me/leave-requests/"),
+  createMyLeaveRequest: (data: { leave_type: number; start_date: string; end_date: string; reason?: string }) =>
+    request<MyLeaveRequest>("/api/me/leave-requests/", { method: "POST", body: JSON.stringify(data) }),
+  deleteMyLeaveRequest: (id: number) => request<void>(`/api/me/leave-requests/${id}/`, { method: "DELETE" }),
+  submitMyLeaveRequest: (id: number) =>
+    request<MyLeaveRequest>(`/api/me/leave-requests/${id}/submit/`, { method: "POST" }),
+  listMyOnboardingTasks: () => request<MyOnboardingTask[]>("/api/me/onboarding-tasks/"),
+  toggleMyOnboardingTask: (id: number, is_complete: boolean) =>
+    request<MyOnboardingTask>(`/api/me/onboarding-tasks/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_complete }),
+    }),
+  listMyPayslips: () => request<Payslip[]>("/api/me/payslips/"),
+  listMyPerformanceReviews: () => request<PerformanceReview[]>("/api/me/performance-reviews/"),
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),
