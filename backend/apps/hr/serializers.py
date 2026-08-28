@@ -7,6 +7,7 @@ from .models import (
     Department,
     Employee,
     EmployeeContract,
+    EmployeeDocument,
     LeaveRequest,
     LeaveType,
     Offboarding,
@@ -127,6 +128,26 @@ class EmployeeContractSerializer(CompanyScopedSerializer):
             "start_date",
             "end_date",
             "salary_cents",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class EmployeeDocumentSerializer(CompanyScopedSerializer):
+    same_company_fields = ["employee"]
+    employee_name = serializers.CharField(source="employee.__str__", read_only=True)
+    doc_type_display = serializers.CharField(source="get_doc_type_display", read_only=True)
+
+    class Meta:
+        model = EmployeeDocument
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "doc_type",
+            "doc_type_display",
+            "expiry_date",
             "notes",
             "created_at",
         ]

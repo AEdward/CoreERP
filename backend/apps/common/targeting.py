@@ -35,6 +35,7 @@ ALLOWED_TARGETS = {
     "branches.branch": ("settings", "Branch"),
     "expenses.expense": ("expenses", "Expense"),
     "hr.employeecontract": ("hr", "Employee Contract"),
+    "hr.employeedocument": ("hr", "Employee Document"),
     "hr.leaverequest": ("hr", "Leave Request"),
     "payroll.payrollrun": ("hr", "Payroll Run"),
     "recruitment.applicant": ("hr", "Applicant"),

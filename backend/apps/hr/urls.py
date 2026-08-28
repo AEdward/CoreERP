@@ -5,6 +5,7 @@ from .views import (
     AttendanceRecordViewSet,
     DepartmentViewSet,
     EmployeeContractViewSet,
+    EmployeeDocumentViewSet,
     EmployeePickerView,
     EmployeeViewSet,
     LeaveRequestViewSet,
@@ -22,6 +23,7 @@ router.register("shifts", ShiftTemplateViewSet, basename="shift")
 router.register("salary-structures", SalaryStructureViewSet, basename="salary-structure")
 router.register("employees", EmployeeViewSet, basename="employee")
 router.register("employee-contracts", EmployeeContractViewSet, basename="employee-contract")
+router.register("employee-documents", EmployeeDocumentViewSet, basename="employee-document")
 router.register("leave-types", LeaveTypeViewSet, basename="leave-type")
 router.register("leave-requests", LeaveRequestViewSet, basename="leave-request")
 router.register("attendance", AttendanceRecordViewSet, basename="attendance")

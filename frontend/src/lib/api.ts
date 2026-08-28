@@ -408,6 +408,17 @@ export interface EmployeeContract {
   created_at: string;
 }
 
+export interface EmployeeDocument {
+  id: number;
+  employee: number;
+  employee_name: string;
+  doc_type: "id_card" | "passport" | "contract" | "certificate" | "work_permit" | "health_check" | "other";
+  doc_type_display: string;
+  expiry_date: string | null;
+  notes: string;
+  created_at: string;
+}
+
 export interface Offboarding {
   id: number;
   employee: number;
@@ -1791,6 +1802,20 @@ export const api = {
   completeOffboarding: (id: number) =>
     request<Offboarding>(`/api/hr/offboarding/${id}/complete/`, { method: "POST" }),
   deleteOffboarding: (id: number) => request<void>(`/api/hr/offboarding/${id}/`, { method: "DELETE" }),
+  listEmployeeDocuments: (employeeId?: number) =>
+    request<EmployeeDocument[]>(
+      `/api/hr/employee-documents/${employeeId ? `?employee=${employeeId}` : ""}`
+    ),
+  expiringEmployeeDocuments: () =>
+    request<EmployeeDocument[]>("/api/hr/employee-documents/expiring/"),
+  createEmployeeDocument: (data: {
+    employee: number;
+    doc_type: EmployeeDocument["doc_type"];
+    expiry_date?: string | null;
+    notes?: string;
+  }) => request<EmployeeDocument>("/api/hr/employee-documents/", { method: "POST", body: JSON.stringify(data) }),
+  deleteEmployeeDocument: (id: number) =>
+    request<void>(`/api/hr/employee-documents/${id}/`, { method: "DELETE" }),
   listLeaveTypes: () => request<LeaveType[]>("/api/hr/leave-types/"),
   createLeaveType: (data: { name: string; paid: boolean; default_days_per_year?: number }) =>
     request<LeaveType>("/api/hr/leave-types/", { method: "POST", body: JSON.stringify(data) }),

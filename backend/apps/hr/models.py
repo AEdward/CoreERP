@@ -292,6 +292,40 @@ class EmployeeContract(TenantModel):
         return f"{self.employee} — {self.get_contract_type_display()} ({self.start_date})"
 
 
+class EmployeeDocument(TenantModel):
+    """Structured metadata for one employee document — ID scan, signed
+    contract, certificate, work permit — with an optional expiry date
+    the HR page's expiry-reminder widget queries against. Ported from
+    MiranErp's EmployeeDocument, but adapted to this project's existing
+    generic Documents panel instead of MiranErp's own `FileField`: the
+    actual file attaches via that panel (`hr.employeedocument` registered
+    in apps.common.targeting.ALLOWED_TARGETS), the same "record documents
+    facts, the file itself attaches generically" pattern EmployeeContract
+    already uses for its signed contract scan — one file-storage
+    mechanism for the whole project rather than two competing ones."""
+
+    class DocType(models.TextChoices):
+        ID_CARD = "id_card", "ID Card"
+        PASSPORT = "passport", "Passport"
+        CONTRACT = "contract", "Contract"
+        CERTIFICATE = "certificate", "Certificate"
+        WORK_PERMIT = "work_permit", "Work Permit"
+        HEALTH_CHECK = "health_check", "Health Check"
+        OTHER = "other", "Other"
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="documents")
+    doc_type = models.CharField(max_length=16, choices=DocType.choices, default=DocType.OTHER)
+    expiry_date = models.DateField(null=True, blank=True)
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "hr_employee_documents"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.employee} — {self.get_doc_type_display()}"
+
+
 class Offboarding(TenantModel):
     """One record per employee's exit — OneToOne, since starting
     offboarding again for someone already fully offboarded isn't a real

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.decorators import action
@@ -14,6 +16,7 @@ from .models import (
     Department,
     Employee,
     EmployeeContract,
+    EmployeeDocument,
     LeaveRequest,
     LeaveType,
     Offboarding,
@@ -25,6 +28,7 @@ from .serializers import (
     AttendanceRecordSerializer,
     DepartmentSerializer,
     EmployeeContractSerializer,
+    EmployeeDocumentSerializer,
     EmployeeSerializer,
     LeaveRequestSerializer,
     LeaveTypeSerializer,
@@ -78,6 +82,31 @@ class EmployeeContractViewSet(CompanyScopedViewSet):
         if employee_id:
             qs = qs.filter(employee_id=employee_id)
         return qs
+
+
+class EmployeeDocumentViewSet(CompanyScopedViewSet):
+    queryset = EmployeeDocument.objects.select_related("employee").all()
+    serializer_class = EmployeeDocumentSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
+
+    @action(detail=False, methods=["get"])
+    def expiring(self, request):
+        """Documents already expired or expiring within the next 30 days
+        — the actual data behind the HR page's expiry-reminder widget.
+        30 days is a fixed, generous notice window rather than a
+        per-company setting — same "one sensible default, no extra
+        config surface" call this project makes elsewhere (e.g. the
+        30-day discount-terms floor Section D used)."""
+        cutoff = timezone.localdate() + timedelta(days=30)
+        qs = self.get_queryset().filter(expiry_date__isnull=False, expiry_date__lte=cutoff)
+        return Response(EmployeeDocumentSerializer(qs, many=True).data)
 
 
 class OffboardingViewSet(CompanyScopedViewSet):
