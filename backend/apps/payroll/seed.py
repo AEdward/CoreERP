@@ -1,4 +1,4 @@
-"""Default payroll tax/pension configuration, seeded per company the same
+"""Default payroll tax/pension/overtime configuration, seeded per company the same
 way apps.accounting.seed seeds the chart of accounts and apps.roles.seed
 seeds default roles — called once at company-creation time
 (apps.companies.views.CompanyListCreateView.post) and retroactively via a
@@ -7,7 +7,7 @@ data migration for companies that already existed when this shipped.
 
 from decimal import Decimal
 
-from .models import PensionSettings, TaxBracket
+from .models import OvertimeSettings, PensionSettings, TaxBracket
 
 # Ethiopia's Federal Income Tax (Amendment) Proclamation No. 1395/2025,
 # effective 7 July 2025 — the same six bands apps.payroll.engine used to
@@ -45,3 +45,4 @@ def create_default_payroll_settings_for_company(company):
             "employer_rate_percent": DEFAULT_PENSION_EMPLOYER_RATE,
         },
     )
+    OvertimeSettings.objects.get_or_create(company=company)

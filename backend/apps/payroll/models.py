@@ -60,6 +60,31 @@ class PensionSettings(TenantModel):
         return f"{self.employee_rate_percent}% employee / {self.employer_rate_percent}% employer"
 
 
+class OvertimeSettings(TenantModel):
+    """One row per company — drives apps.payroll.overtime's conversion of
+    AttendanceRecord.overtime_hours into actual overtime pay inside a
+    PayrollRun, closing the documented gap where overtime was tracked
+    but never paid. Unlike MiranErp's OvertimeSettings.standard_hours_per_day
+    (a single company-wide cutoff used to *compute* overtime hours),
+    CoreERP already derives each AttendanceRecord's overtime hours from
+    that specific employee's own assigned ShiftTemplate.scheduled_hours
+    — a real per-employee/per-shift figure, not a company-wide guess — so
+    standard_hours_per_day here is only the denominator for deriving an
+    hourly rate from monthly salary (monthly_hours = standard_hours_per_day
+    * working_days_per_month), the same role it plays in MiranErp's
+    overtime.py."""
+
+    standard_hours_per_day = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal("8.00"))
+    working_days_per_month = models.PositiveIntegerField(default=26)
+    rate_multiplier = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal("1.50"))
+
+    class Meta:
+        db_table = "payroll_overtime_settings"
+
+    def __str__(self):
+        return f"{self.rate_multiplier}x overtime"
+
+
 class SalaryComponent(TenantModel):
     """A reusable pay component a company defines once and assigns to
     employees with an amount — e.g. "Transport Allowance" (earning) or

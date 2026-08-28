@@ -21,7 +21,8 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from .models import PensionSettings, TaxBracket
+from .models import OvertimeSettings, PensionSettings, TaxBracket
+from .overtime import compute_overtime_pay_cents
 
 
 def calculate_paye_cents(company, taxable_income_cents):
@@ -75,15 +76,22 @@ def process_payroll_run(request, run):
     pension_settings = PensionSettings.objects.filter(company=company).first()
     pension_employee_rate = pension_settings.employee_rate_percent if pension_settings else 0
     pension_employer_rate = pension_settings.employer_rate_percent if pension_settings else 0
+    overtime_settings = OvertimeSettings.objects.filter(company=company).first()
 
     for employee in employees:
         components = EmployeeSalaryComponent.objects.filter(employee=employee).select_related("component")
         earnings = [c for c in components if c.component.category == SalaryComponent.Category.EARNING]
         deductions = [c for c in components if c.component.category == SalaryComponent.Category.DEDUCTION]
 
+        overtime_hours, overtime_pay_cents = compute_overtime_pay_cents(
+            employee, overtime_settings, run.start_date, run.end_date
+        )
+
         basic_cents = employee.effective_salary_cents
-        gross_cents = basic_cents + sum(c.amount_cents for c in earnings)
-        taxable_cents = basic_cents + sum(c.amount_cents for c in earnings if c.component.is_taxable)
+        gross_cents = basic_cents + sum(c.amount_cents for c in earnings) + overtime_pay_cents
+        taxable_cents = (
+            basic_cents + sum(c.amount_cents for c in earnings if c.component.is_taxable) + overtime_pay_cents
+        )
 
         paye_cents = calculate_paye_cents(company, taxable_cents)
         pension_employee_cents = calculate_pension_cents(gross_cents, pension_employee_rate)
@@ -127,6 +135,11 @@ def process_payroll_run(request, run):
             PayslipLine.objects.create(
                 company=company, payslip=payslip, label=c.component.name,
                 line_type=PayslipLine.LineType.EARNING, amount_cents=c.amount_cents,
+            )
+        if overtime_pay_cents > 0:
+            PayslipLine.objects.create(
+                company=company, payslip=payslip, label=f"Overtime Pay ({overtime_hours}h)",
+                line_type=PayslipLine.LineType.EARNING, amount_cents=overtime_pay_cents,
             )
         PayslipLine.objects.create(
             company=company, payslip=payslip, label="PAYE Income Tax",

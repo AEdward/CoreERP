@@ -6,6 +6,7 @@ from apps.common.serializers import CompanyScopedSerializer
 from .models import (
     EmployeeSalaryComponent,
     Loan,
+    OvertimeSettings,
     PayrollRun,
     Payslip,
     PayslipLine,
@@ -33,6 +34,13 @@ class PensionSettingsSerializer(CompanyScopedSerializer):
     class Meta:
         model = PensionSettings
         fields = ["id", "employee_rate_percent", "employer_rate_percent", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class OvertimeSettingsSerializer(CompanyScopedSerializer):
+    class Meta:
+        model = OvertimeSettings
+        fields = ["id", "standard_hours_per_day", "working_days_per_month", "rate_multiplier", "created_at"]
         read_only_fields = ["id", "created_at"]
 
 

@@ -9,6 +9,7 @@ import {
   type EmployeePickerEntry,
   type EmployeeSalaryComponent,
   type Loan,
+  type OvertimeSettings,
   type PayrollRun,
   type PensionSettings,
   type Payslip,
@@ -84,11 +85,18 @@ export default function PayrollPage() {
   const [pension, setPension] = useState<PensionSettings | null>(null);
   const [pensionForm, setPensionForm] = useState({ employee_rate_percent: "", employer_rate_percent: "" });
   const [pensionWorking, setPensionWorking] = useState(false);
+  const [overtime, setOvertime] = useState<OvertimeSettings | null>(null);
+  const [overtimeForm, setOvertimeForm] = useState({
+    standard_hours_per_day: "",
+    working_days_per_month: "",
+    rate_multiplier: "",
+  });
+  const [overtimeWorking, setOvertimeWorking] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   async function loadAll() {
     try {
-      const [c, a, r, emp, l, brackets, pensionSettings] = await Promise.all([
+      const [c, a, r, emp, l, brackets, pensionSettings, overtimeSettings] = await Promise.all([
         api.listSalaryComponents(),
         api.listEmployeeSalaryComponents(),
         api.listPayrollRuns(),
@@ -96,6 +104,7 @@ export default function PayrollPage() {
         api.listLoans(),
         api.listTaxBrackets(),
         api.getPensionSettings(),
+        api.getOvertimeSettings(),
       ]);
       setComponents(c);
       setAssignments(a);
@@ -104,6 +113,12 @@ export default function PayrollPage() {
       setPensionForm({
         employee_rate_percent: pensionSettings.employee_rate_percent,
         employer_rate_percent: pensionSettings.employer_rate_percent,
+      });
+      setOvertime(overtimeSettings);
+      setOvertimeForm({
+        standard_hours_per_day: overtimeSettings.standard_hours_per_day,
+        working_days_per_month: String(overtimeSettings.working_days_per_month),
+        rate_multiplier: overtimeSettings.rate_multiplier,
       });
       setRuns(r);
       setEmployees(emp);
@@ -162,6 +177,24 @@ export default function PayrollPage() {
       setSettingsError(err instanceof ApiError ? err.message : "Failed to save pension settings.");
     } finally {
       setPensionWorking(false);
+    }
+  }
+
+  async function handleSaveOvertime(e: React.FormEvent) {
+    e.preventDefault();
+    setOvertimeWorking(true);
+    setSettingsError(null);
+    try {
+      await api.updateOvertimeSettings({
+        standard_hours_per_day: overtimeForm.standard_hours_per_day,
+        working_days_per_month: Number(overtimeForm.working_days_per_month || 0),
+        rate_multiplier: overtimeForm.rate_multiplier,
+      });
+      await loadAll();
+    } catch (err) {
+      setSettingsError(err instanceof ApiError ? err.message : "Failed to save overtime settings.");
+    } finally {
+      setOvertimeWorking(false);
     }
   }
 
@@ -462,6 +495,65 @@ export default function PayrollPage() {
               pension && (
                 <p className={shared.tableMuted}>
                   Employee {pension.employee_rate_percent}% / Employer {pension.employer_rate_percent}%
+                </p>
+              )
+            )}
+
+            <h3>Overtime pay</h3>
+            <p className={shared.hint} style={{ marginTop: 0 }}>
+              Hours worked beyond an employee&apos;s assigned shift are tracked automatically on
+              Attendance; a payroll run converts them into pay using an hourly rate derived from
+              standard hours/day &times; working days/month, times the rate multiplier below.
+            </p>
+            {canManage ? (
+              <form onSubmit={handleSaveOvertime} className={shared.formRow}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  Standard hours/day
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={overtimeForm.standard_hours_per_day}
+                    onChange={(e) =>
+                      setOvertimeForm({ ...overtimeForm, standard_hours_per_day: e.target.value })
+                    }
+                    className={shared.input}
+                    style={{ maxWidth: 90 }}
+                  />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  Working days/month
+                  <input
+                    type="number"
+                    value={overtimeForm.working_days_per_month}
+                    onChange={(e) =>
+                      setOvertimeForm({ ...overtimeForm, working_days_per_month: e.target.value })
+                    }
+                    className={shared.input}
+                    style={{ maxWidth: 90 }}
+                  />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  Rate multiplier
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={overtimeForm.rate_multiplier}
+                    onChange={(e) =>
+                      setOvertimeForm({ ...overtimeForm, rate_multiplier: e.target.value })
+                    }
+                    className={shared.input}
+                    style={{ maxWidth: 90 }}
+                  />
+                </label>
+                <button type="submit" className={shared.buttonPrimary} disabled={overtimeWorking}>
+                  Save
+                </button>
+              </form>
+            ) : (
+              overtime && (
+                <p className={shared.tableMuted}>
+                  {overtime.standard_hours_per_day}h/day &times; {overtime.working_days_per_month} days/month,{" "}
+                  {overtime.rate_multiplier}x rate
                 </p>
               )
             )}

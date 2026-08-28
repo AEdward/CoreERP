@@ -294,6 +294,14 @@ export interface PensionSettings {
   created_at: string;
 }
 
+export interface OvertimeSettings {
+  id: number;
+  standard_hours_per_day: string;
+  working_days_per_month: number;
+  rate_multiplier: string;
+  created_at: string;
+}
+
 // --- Recruitment ---
 
 export interface JobVacancy {
@@ -1841,6 +1849,11 @@ export const api = {
   getPensionSettings: () => request<PensionSettings>("/api/payroll/pension-settings/"),
   updatePensionSettings: (data: { employee_rate_percent?: string; employer_rate_percent?: string }) =>
     request<PensionSettings>("/api/payroll/pension-settings/", { method: "PATCH", body: JSON.stringify(data) }),
+  getOvertimeSettings: () => request<OvertimeSettings>("/api/payroll/overtime-settings/"),
+  updateOvertimeSettings: (
+    data: Partial<Pick<OvertimeSettings, "standard_hours_per_day" | "working_days_per_month" | "rate_multiplier">>
+  ) =>
+    request<OvertimeSettings>("/api/payroll/overtime-settings/", { method: "PATCH", body: JSON.stringify(data) }),
 
   // --- Recruitment ---
   listJobVacancies: () => request<JobVacancy[]>("/api/recruitment/vacancies/"),

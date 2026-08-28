@@ -8,10 +8,20 @@ from apps.common.permissions import user_has_permission
 from apps.common.views import CompanyScopedReadOnlyViewSet, CompanyScopedViewSet
 
 from .engine import mark_payroll_run_paid, process_payroll_run
-from .models import EmployeeSalaryComponent, Loan, PayrollRun, Payslip, PensionSettings, SalaryComponent, TaxBracket
+from .models import (
+    EmployeeSalaryComponent,
+    Loan,
+    OvertimeSettings,
+    PayrollRun,
+    Payslip,
+    PensionSettings,
+    SalaryComponent,
+    TaxBracket,
+)
 from .serializers import (
     EmployeeSalaryComponentSerializer,
     LoanSerializer,
+    OvertimeSettingsSerializer,
     PayrollRunSerializer,
     PayslipSerializer,
     PensionSettingsSerializer,
@@ -50,6 +60,33 @@ class PensionSettingsView(APIView):
     def patch(self, request):
         instance = self._get_settings(request, "manage")
         serializer = PensionSettingsSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class OvertimeSettingsView(APIView):
+    """One row per company — same singleton shape as PensionSettingsView,
+    seeded on company bootstrap (see apps.payroll.seed)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_settings(self, request, action):
+        if not request.company:
+            raise NotFound("Select an active company first (POST /api/companies/active/).")
+        if not user_has_permission(request.user, request.company, "hr", action):
+            raise PermissionDenied(f"You don't have permission to {action} hr in this company.")
+        try:
+            return OvertimeSettings.objects.get(company=request.company)
+        except OvertimeSettings.DoesNotExist:
+            raise NotFound("No overtime settings configured for this company.")
+
+    def get(self, request):
+        return Response(OvertimeSettingsSerializer(self._get_settings(request, "view")).data)
+
+    def patch(self, request):
+        instance = self._get_settings(request, "manage")
+        serializer = OvertimeSettingsSerializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
