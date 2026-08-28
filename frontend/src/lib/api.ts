@@ -348,11 +348,26 @@ export interface PerformanceReview {
   id: number;
   employee: number;
   reviewer: number | null;
+  reviewer_name: string;
+  cycle: number | null;
+  rater_type: "self" | "manager" | "peer" | "other";
   review_period: string;
   rating: 1 | 2 | 3 | 4 | 5 | null;
   comments: string;
   status: "draft" | "completed";
   completed_at: string | null;
+  created_at: string;
+}
+
+export interface ReviewCycle {
+  id: number;
+  employee: number;
+  employee_name: string;
+  review_period: string;
+  status: "open" | "closed";
+  closed_at: string | null;
+  average_rating: number | null;
+  review_count: number;
   created_at: string;
 }
 
@@ -2060,11 +2075,33 @@ export const api = {
   deleteOnboardingTask: (id: number) => request<void>(`/api/recruitment/onboarding-tasks/${id}/`, { method: "DELETE" }),
 
   // --- Performance & Training ---
-  listPerformanceReviews: (employeeId?: number) =>
-    request<PerformanceReview[]>(`/api/performance/reviews/${employeeId ? `?employee=${employeeId}` : ""}`),
-  createPerformanceReview: (data: { employee: number; reviewer?: number | null; review_period: string; comments?: string }) =>
-    request<PerformanceReview>("/api/performance/reviews/", { method: "POST", body: JSON.stringify(data) }),
-  updatePerformanceReview: (id: number, data: Partial<Pick<PerformanceReview, "rating" | "comments" | "reviewer" | "review_period">>) =>
+  listReviewCycles: (employeeId?: number) =>
+    request<ReviewCycle[]>(`/api/performance/review-cycles/${employeeId ? `?employee=${employeeId}` : ""}`),
+  createReviewCycle: (data: { employee: number; review_period: string }) =>
+    request<ReviewCycle>("/api/performance/review-cycles/", { method: "POST", body: JSON.stringify(data) }),
+  closeReviewCycle: (id: number) =>
+    request<ReviewCycle>(`/api/performance/review-cycles/${id}/close/`, { method: "POST" }),
+  deleteReviewCycle: (id: number) =>
+    request<void>(`/api/performance/review-cycles/${id}/`, { method: "DELETE" }),
+  listPerformanceReviews: (employeeId?: number, cycleId?: number) =>
+    request<PerformanceReview[]>(
+      `/api/performance/reviews/${
+        employeeId || cycleId
+          ? `?${[employeeId ? `employee=${employeeId}` : "", cycleId ? `cycle=${cycleId}` : ""]
+              .filter(Boolean)
+              .join("&")}`
+          : ""
+      }`
+    ),
+  createPerformanceReview: (data: {
+    employee: number;
+    reviewer?: number | null;
+    cycle?: number | null;
+    rater_type?: PerformanceReview["rater_type"];
+    review_period: string;
+    comments?: string;
+  }) => request<PerformanceReview>("/api/performance/reviews/", { method: "POST", body: JSON.stringify(data) }),
+  updatePerformanceReview: (id: number, data: Partial<Pick<PerformanceReview, "rating" | "comments" | "reviewer" | "review_period" | "rater_type">>) =>
     request<PerformanceReview>(`/api/performance/reviews/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deletePerformanceReview: (id: number) => request<void>(`/api/performance/reviews/${id}/`, { method: "DELETE" }),
   completePerformanceReview: (id: number) =>

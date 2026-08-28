@@ -8,6 +8,7 @@ import {
   ApiError,
   type EmployeePickerEntry,
   type PerformanceReview,
+  type ReviewCycle,
   type TrainingEnrollment,
   type TrainingProgram,
 } from "@/lib/api";
@@ -33,6 +34,13 @@ const ENROLLMENT_STATUS_BADGES: Record<TrainingEnrollment["status"], string> = {
   cancelled: "",
 };
 
+const RATER_TYPE_LABELS: Record<PerformanceReview["rater_type"], string> = {
+  self: "Self",
+  manager: "Manager",
+  peer: "Peer",
+  other: "Other",
+};
+
 export default function PerformancePage() {
   const { me, activeMembership, error: sessionError } = useSession();
   const [reviews, setReviews] = useState<PerformanceReview[] | null>(null);
@@ -40,10 +48,22 @@ export default function PerformancePage() {
   const [employees, setEmployees] = useState<EmployeePickerEntry[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [reviewForm, setReviewForm] = useState({ employee: "", reviewer: "", review_period: "", comments: "" });
+  const [reviewForm, setReviewForm] = useState({
+    employee: "",
+    reviewer: "",
+    review_period: "",
+    comments: "",
+    cycle: "",
+    rater_type: "manager" as PerformanceReview["rater_type"],
+  });
   const [reviewWorking, setReviewWorking] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [ratingDrafts, setRatingDrafts] = useState<Record<number, string>>({});
+
+  const [cycles, setCycles] = useState<ReviewCycle[] | null>(null);
+  const [cycleForm, setCycleForm] = useState({ employee: "", review_period: "" });
+  const [cycleWorking, setCycleWorking] = useState(false);
+  const [cycleError, setCycleError] = useState<string | null>(null);
 
   const [programForm, setProgramForm] = useState({ title: "", provider: "", start_date: "" });
   const [programWorking, setProgramWorking] = useState(false);
@@ -57,14 +77,16 @@ export default function PerformancePage() {
 
   async function loadAll() {
     try {
-      const [r, p, emp] = await Promise.all([
+      const [r, p, emp, c] = await Promise.all([
         api.listPerformanceReviews(),
         api.listTrainingPrograms(),
         api.listEmployeePicker(),
+        api.listReviewCycles(),
       ]);
       setReviews(r);
       setPrograms(p);
       setEmployees(emp);
+      setCycles(c);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load performance data.");
     }
@@ -86,15 +108,64 @@ export default function PerformancePage() {
       await api.createPerformanceReview({
         employee: Number(reviewForm.employee),
         reviewer: reviewForm.reviewer ? Number(reviewForm.reviewer) : null,
+        cycle: reviewForm.cycle ? Number(reviewForm.cycle) : null,
+        rater_type: reviewForm.rater_type,
         review_period: reviewForm.review_period,
         comments: reviewForm.comments,
       });
-      setReviewForm({ employee: "", reviewer: "", review_period: "", comments: "" });
+      setReviewForm({
+        employee: "",
+        reviewer: "",
+        review_period: "",
+        comments: "",
+        cycle: "",
+        rater_type: "manager",
+      });
       await loadAll();
     } catch (err) {
       setReviewError(err instanceof ApiError ? err.message : "Failed to create review.");
     } finally {
       setReviewWorking(false);
+    }
+  }
+
+  async function handleCreateCycle(e: React.FormEvent) {
+    e.preventDefault();
+    setCycleWorking(true);
+    setCycleError(null);
+    try {
+      await api.createReviewCycle({
+        employee: Number(cycleForm.employee),
+        review_period: cycleForm.review_period,
+      });
+      setCycleForm({ employee: "", review_period: "" });
+      await loadAll();
+    } catch (err) {
+      setCycleError(err instanceof ApiError ? err.message : "Failed to create review cycle.");
+    } finally {
+      setCycleWorking(false);
+    }
+  }
+
+  async function handleCloseCycle(id: number) {
+    setCycleWorking(true);
+    setCycleError(null);
+    try {
+      await api.closeReviewCycle(id);
+      await loadAll();
+    } catch (err) {
+      setCycleError(err instanceof ApiError ? err.message : "Failed to close review cycle.");
+    } finally {
+      setCycleWorking(false);
+    }
+  }
+
+  async function handleDeleteCycle(id: number) {
+    try {
+      await api.deleteReviewCycle(id);
+      await loadAll();
+    } catch (err) {
+      setCycleError(err instanceof ApiError ? err.message : "Failed to delete review cycle.");
     }
   }
 
@@ -237,6 +308,100 @@ export default function PerformancePage() {
         </div>
         {loadError && <p className={shared.errorText}>{loadError}</p>}
 
+        {/* 360 Review Cycles */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>360&deg; review cycles</h2>
+          <p className={shared.hint} style={{ maxWidth: 700, marginBottom: 8 }}>
+            Groups several performance reviews — self, manager, peer — for the same employee and
+            period into one 360&deg; view. Attach a review to a cycle below when creating it.
+          </p>
+          <div className={shared.card}>
+            <table className={shared.table}>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Period</th>
+                  <th>Reviews</th>
+                  <th>Avg. rating</th>
+                  <th>Status</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {cycles?.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.employee_name}</td>
+                    <td>{c.review_period}</td>
+                    <td>{c.review_count}</td>
+                    <td>{c.average_rating != null ? c.average_rating.toFixed(2) : "—"}</td>
+                    <td>
+                      <span className={`${shared.badge} ${c.status === "closed" ? shared.badgeSuccess : shared.badgeWarn}`}>
+                        {c.status === "closed" ? "Closed" : "Open"}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td style={{ textAlign: "right" }}>
+                        {c.status === "open" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCloseCycle(c.id)}
+                            disabled={cycleWorking}
+                            className={`${shared.btn} ${shared.btnSmall}`}
+                            style={{ marginRight: 6 }}
+                          >
+                            Close
+                          </button>
+                        )}
+                        <RowActions onDelete={() => handleDeleteCycle(c.id)} disabled={cycleWorking} />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {cycles?.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className={shared.tableMuted}>
+                      No review cycles yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleCreateCycle} className={shared.formRow} style={{ marginTop: 12 }}>
+                <select
+                  required
+                  value={cycleForm.employee}
+                  onChange={(e) => setCycleForm({ ...cycleForm, employee: e.target.value })}
+                  className={shared.select}
+                >
+                  <option value="">Employee…</option>
+                  {employees?.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  placeholder='Period (e.g. "2026 Q3")'
+                  required
+                  value={cycleForm.review_period}
+                  onChange={(e) => setCycleForm({ ...cycleForm, review_period: e.target.value })}
+                  className={shared.input}
+                  style={{ maxWidth: 160 }}
+                />
+                <button
+                  type="submit"
+                  disabled={cycleWorking || !cycleForm.employee || !cycleForm.review_period}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
+                  Start cycle
+                </button>
+                {cycleError && <p className={shared.errorText}>{cycleError}</p>}
+              </form>
+            )}
+          </div>
+        </div>
+
         {/* Performance Reviews */}
         <div className={shared.section}>
           <h2 className={shared.sectionTitle}>Performance reviews</h2>
@@ -246,6 +411,7 @@ export default function PerformancePage() {
                 <tr>
                   <th>Employee</th>
                   <th>Reviewer</th>
+                  <th>Rater type</th>
                   <th>Period</th>
                   <th>Rating</th>
                   <th>Status</th>
@@ -257,6 +423,7 @@ export default function PerformancePage() {
                   <tr key={r.id}>
                     <td>{employeeName(r.employee)}</td>
                     <td>{employeeName(r.reviewer)}</td>
+                    <td className={shared.tableMuted}>{RATER_TYPE_LABELS[r.rater_type]}</td>
                     <td>{r.review_period}</td>
                     <td>
                       {r.status === "draft" && canManage ? (
@@ -312,7 +479,7 @@ export default function PerformancePage() {
                 ))}
                 {reviews?.length === 0 && (
                   <tr>
-                    <td colSpan={6} className={shared.tableMuted}>
+                    <td colSpan={7} className={shared.tableMuted}>
                       No performance reviews yet.
                     </td>
                   </tr>
@@ -345,6 +512,38 @@ export default function PerformancePage() {
                       {emp.name}
                     </option>
                   ))}
+                </select>
+                <select
+                  value={reviewForm.rater_type}
+                  onChange={(e) =>
+                    setReviewForm({
+                      ...reviewForm,
+                      rater_type: e.target.value as PerformanceReview["rater_type"],
+                    })
+                  }
+                  className={shared.select}
+                  title="Which angle this review represents"
+                >
+                  {Object.entries(RATER_TYPE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={reviewForm.cycle}
+                  onChange={(e) => setReviewForm({ ...reviewForm, cycle: e.target.value })}
+                  className={shared.select}
+                  title="Attach to a 360° review cycle (optional)"
+                >
+                  <option value="">No cycle…</option>
+                  {cycles
+                    ?.filter((c) => !reviewForm.employee || String(c.employee) === reviewForm.employee)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.employee_name} — {c.review_period}
+                      </option>
+                    ))}
                 </select>
                 <input
                   placeholder='Period (e.g. "2026 Q3")'

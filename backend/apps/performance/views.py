@@ -5,16 +5,45 @@ from rest_framework.response import Response
 
 from apps.common.views import CompanyScopedViewSet
 
-from .models import PerformanceReview, TrainingEnrollment, TrainingProgram
+from .models import PerformanceReview, ReviewCycle, TrainingEnrollment, TrainingProgram
 from .serializers import (
     PerformanceReviewSerializer,
+    ReviewCycleSerializer,
     TrainingEnrollmentSerializer,
     TrainingProgramSerializer,
 )
 
 
+class ReviewCycleViewSet(CompanyScopedViewSet):
+    queryset = ReviewCycle.objects.select_related("employee").prefetch_related("reviews").all()
+    serializer_class = ReviewCycleSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
+
+    def perform_destroy(self, instance):
+        if instance.reviews.exists():
+            raise ValidationError("Remove or reassign this cycle's reviews before deleting it.")
+        super().perform_destroy(instance)
+
+    @action(detail=True, methods=["post"])
+    def close(self, request, pk=None):
+        cycle = self.get_object()
+        if cycle.status != ReviewCycle.Status.OPEN:
+            raise ValidationError("Only an open review cycle can be closed.")
+        cycle.status = ReviewCycle.Status.CLOSED
+        cycle.closed_at = timezone.now()
+        cycle.save(update_fields=["status", "closed_at"])
+        return Response(ReviewCycleSerializer(cycle).data)
+
+
 class PerformanceReviewViewSet(CompanyScopedViewSet):
-    queryset = PerformanceReview.objects.select_related("employee", "reviewer").all()
+    queryset = PerformanceReview.objects.select_related("employee", "reviewer", "cycle").all()
     serializer_class = PerformanceReviewSerializer
     permission_module = "hr"
 
@@ -23,6 +52,9 @@ class PerformanceReviewViewSet(CompanyScopedViewSet):
         employee_id = self.request.query_params.get("employee")
         if employee_id:
             qs = qs.filter(employee_id=employee_id)
+        cycle_id = self.request.query_params.get("cycle")
+        if cycle_id:
+            qs = qs.filter(cycle_id=cycle_id)
         return qs
 
     def perform_update(self, serializer):
