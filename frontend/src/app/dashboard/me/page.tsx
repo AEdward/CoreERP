@@ -7,6 +7,7 @@ import {
   ApiError,
   type AttendanceRecord,
   type Employee,
+  type LeaveBalance,
   type LeaveType,
   type MyLeaveRequest,
   type MyOnboardingTask,
@@ -27,6 +28,7 @@ const LEAVE_STATUS_BADGES: Record<MyLeaveRequest["status"], string> = {
   submitted: shared.badgeWarn,
   approved: shared.badgeSuccess,
   rejected: "",
+  cancelled: "",
 };
 
 const RATING_LABELS: Record<number, string> = {
@@ -56,6 +58,7 @@ export default function MyProfilePage() {
   const [leaveWorking, setLeaveWorking] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [expandedPayslipId, setExpandedPayslipId] = useState<number | null>(null);
+  const [balances, setBalances] = useState<LeaveBalance[] | null>(null);
 
   async function loadAll() {
     try {
@@ -66,19 +69,21 @@ export default function MyProfilePage() {
       setProfile(p);
       if (p === "unlinked") return;
 
-      const [lr, lt, ot, ps, rv, att] = await Promise.all([
+      const [lr, lt, ot, ps, rv, att, bal] = await Promise.all([
         api.listMyLeaveRequests(),
         api.listMyLeaveTypes(),
         api.listMyOnboardingTasks(),
         api.listMyPayslips(),
         api.listMyPerformanceReviews(),
         api.getMyAttendance(),
+        api.myLeaveBalances(),
       ]);
       setLeaveRequests(lr);
       setLeaveTypes(lt);
       setOnboardingTasks(ot);
       setPayslips(ps);
       setReviews(rv);
+      setBalances(bal);
       setAttendance(att);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load your profile.");
@@ -121,6 +126,20 @@ export default function MyProfilePage() {
       setLeaveRequests(await api.listMyLeaveRequests());
     } catch (err) {
       setLeaveError(err instanceof ApiError ? err.message : "Failed to submit leave request.");
+    } finally {
+      setLeaveWorking(false);
+    }
+  }
+
+  async function handleCancelLeaveRequest(id: number) {
+    setLeaveWorking(true);
+    setLeaveError(null);
+    try {
+      await api.cancelMyLeaveRequest(id);
+      setLeaveRequests(await api.listMyLeaveRequests());
+      setBalances(await api.myLeaveBalances());
+    } catch (err) {
+      setLeaveError(err instanceof ApiError ? err.message : "Failed to cancel leave request.");
     } finally {
       setLeaveWorking(false);
     }
@@ -189,6 +208,12 @@ export default function MyProfilePage() {
             {/* Leave Requests */}
             <div className={shared.section}>
               <h2 className={shared.sectionTitle}>My leave requests</h2>
+              {balances && balances.length > 0 && (
+                <p className={shared.hint} style={{ maxWidth: 700 }}>
+                  Balances this year:{" "}
+                  {balances.map((b) => `${b.leave_type_name} ${b.remaining}/${b.allocated} remaining`).join(" · ")}
+                </p>
+              )}
               <div className={shared.card}>
                 <table className={shared.table}>
                   <thead>
@@ -236,6 +261,16 @@ export default function MyProfilePage() {
                                 Delete
                               </button>
                             </>
+                          )}
+                          {(lr.status === "submitted" || lr.status === "approved") && (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelLeaveRequest(lr.id)}
+                              disabled={leaveWorking}
+                              className={`${shared.btn} ${shared.btnSmall}`}
+                            >
+                              Cancel
+                            </button>
                           )}
                         </td>
                       </tr>

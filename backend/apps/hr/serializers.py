@@ -135,7 +135,7 @@ class EmployeeContractSerializer(CompanyScopedSerializer):
 class LeaveTypeSerializer(CompanyScopedSerializer):
     class Meta:
         model = LeaveType
-        fields = ["id", "name", "paid", "created_at"]
+        fields = ["id", "name", "paid", "default_days_per_year", "created_at"]
         read_only_fields = ["id", "created_at"]
 
 

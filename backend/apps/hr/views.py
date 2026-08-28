@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -6,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.common.views import CompanyScopedViewSet
 
+from .leave_balance import compute_leave_balance
 from .models import (
     AttendanceRecord,
     Department,
@@ -92,6 +94,48 @@ class LeaveRequestViewSet(CompanyScopedViewSet):
         if employee_id:
             qs = qs.filter(employee_id=employee_id)
         return qs
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        return _cancel_leave_request(self.get_object())
+
+    @action(detail=False, methods=["get"])
+    def balances(self, request):
+        """Per-leave-type balance (allocated/used/remaining) for one
+        employee in one calendar year — the same computation
+        LeaveRequestSerializer could enforce, exposed read-only so the UI
+        can show it before a request is even submitted."""
+        employee_id = request.query_params.get("employee")
+        if not employee_id:
+            raise ValidationError({"employee": "Required."})
+        year = int(request.query_params.get("year") or timezone.localdate().year)
+        employee = Employee.objects.filter(id=employee_id, company=request.company).first()
+        if employee is None:
+            raise ValidationError({"employee": "Not found."})
+        return Response(_leave_balances_for(request.company, employee, year))
+
+
+def _cancel_leave_request(leave):
+    if leave.status not in (LeaveRequest.Status.SUBMITTED, LeaveRequest.Status.APPROVED):
+        raise ValidationError({"status": "Only a submitted or approved request can be cancelled."})
+    today = timezone.localdate()
+    was_approved_and_active = (
+        leave.status == LeaveRequest.Status.APPROVED and leave.start_date <= today <= leave.end_date
+    )
+    leave.status = LeaveRequest.Status.CANCELLED
+    leave.save(update_fields=["status"])
+    if was_approved_and_active and leave.employee.status == Employee.Status.ON_LEAVE:
+        leave.employee.status = Employee.Status.ACTIVE
+        leave.employee.save(update_fields=["status"])
+    return Response(LeaveRequestSerializer(leave).data)
+
+
+def _leave_balances_for(company, employee, year):
+    results = []
+    for leave_type in LeaveType.objects.filter(company=company):
+        balance = compute_leave_balance(employee, leave_type, year)
+        results.append({"leave_type": leave_type.id, "leave_type_name": leave_type.name, "year": year, **balance})
+    return results
 
 
 class AttendanceRecordViewSet(CompanyScopedViewSet):

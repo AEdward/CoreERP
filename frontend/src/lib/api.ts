@@ -360,7 +360,7 @@ export interface MyLeaveRequest {
   start_date: string;
   end_date: string;
   reason: string;
-  status: "draft" | "submitted" | "approved" | "rejected";
+  status: "draft" | "submitted" | "approved" | "rejected" | "cancelled";
   days: number;
   created_at: string;
 }
@@ -388,6 +388,7 @@ export interface LeaveType {
   id: number;
   name: string;
   paid: boolean;
+  default_days_per_year: number;
   created_at: string;
 }
 
@@ -398,9 +399,18 @@ export interface LeaveRequest {
   start_date: string;
   end_date: string;
   reason: string;
-  status: "draft" | "submitted" | "approved" | "rejected";
+  status: "draft" | "submitted" | "approved" | "rejected" | "cancelled";
   days: number;
   created_at: string;
+}
+
+export interface LeaveBalance {
+  leave_type: number;
+  leave_type_name: string;
+  year: number;
+  allocated: number;
+  used: number;
+  remaining: number;
 }
 
 // --- Catalog ---
@@ -1714,7 +1724,7 @@ export const api = {
   deleteEmployeeContract: (id: number) =>
     request<void>(`/api/hr/employee-contracts/${id}/`, { method: "DELETE" }),
   listLeaveTypes: () => request<LeaveType[]>("/api/hr/leave-types/"),
-  createLeaveType: (data: { name: string; paid: boolean }) =>
+  createLeaveType: (data: { name: string; paid: boolean; default_days_per_year?: number }) =>
     request<LeaveType>("/api/hr/leave-types/", { method: "POST", body: JSON.stringify(data) }),
   listLeaveRequests: (employeeId?: number) =>
     request<LeaveRequest[]>(
@@ -1729,6 +1739,12 @@ export const api = {
   }) => request<LeaveRequest>("/api/hr/leave-requests/", { method: "POST", body: JSON.stringify(data) }),
   deleteLeaveRequest: (id: number) =>
     request<void>(`/api/hr/leave-requests/${id}/`, { method: "DELETE" }),
+  cancelLeaveRequest: (id: number) =>
+    request<LeaveRequest>(`/api/hr/leave-requests/${id}/cancel/`, { method: "POST" }),
+  leaveBalances: (employeeId: number, year?: number) =>
+    request<LeaveBalance[]>(
+      `/api/hr/leave-requests/balances/?employee=${employeeId}${year ? `&year=${year}` : ""}`
+    ),
   listShifts: () => request<ShiftTemplate[]>("/api/hr/shifts/"),
   createShift: (data: { name: string; start_time: string; end_time: string; break_minutes?: number }) =>
     request<ShiftTemplate>("/api/hr/shifts/", { method: "POST", body: JSON.stringify(data) }),
@@ -1863,6 +1879,10 @@ export const api = {
   createMyLeaveRequest: (data: { leave_type: number; start_date: string; end_date: string; reason?: string }) =>
     request<MyLeaveRequest>("/api/me/leave-requests/", { method: "POST", body: JSON.stringify(data) }),
   deleteMyLeaveRequest: (id: number) => request<void>(`/api/me/leave-requests/${id}/`, { method: "DELETE" }),
+  cancelMyLeaveRequest: (id: number) =>
+    request<MyLeaveRequest>(`/api/me/leave-requests/${id}/cancel/`, { method: "POST" }),
+  myLeaveBalances: (year?: number) =>
+    request<LeaveBalance[]>(`/api/me/leave-requests/balances/${year ? `?year=${year}` : ""}`),
   submitMyLeaveRequest: (id: number) =>
     request<MyLeaveRequest>(`/api/me/leave-requests/${id}/submit/`, { method: "POST" }),
   listMyOnboardingTasks: () => request<MyOnboardingTask[]>("/api/me/onboarding-tasks/"),

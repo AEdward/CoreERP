@@ -12,6 +12,7 @@ import {
   ApiError,
   type EmployeeContract,
   type EmployeePickerEntry,
+  type LeaveBalance,
   type LeaveRequest,
   type LeaveType,
 } from "@/lib/api";
@@ -30,6 +31,7 @@ const LEAVE_STATUS_LABELS: Record<LeaveRequest["status"], string> = {
   submitted: "Submitted",
   approved: "Approved",
   rejected: "Rejected",
+  cancelled: "Cancelled",
 };
 
 const LEAVE_STATUS_BADGES: Record<LeaveRequest["status"], string> = {
@@ -37,6 +39,7 @@ const LEAVE_STATUS_BADGES: Record<LeaveRequest["status"], string> = {
   submitted: shared.badgeWarn,
   approved: shared.badgeSuccess,
   rejected: shared.badgeDanger,
+  cancelled: "",
 };
 
 const EMPTY_CONTRACT_FORM = {
@@ -74,11 +77,13 @@ export default function LeaveAndContractsPage() {
 
   const [newLeaveTypeName, setNewLeaveTypeName] = useState("");
   const [newLeaveTypePaid, setNewLeaveTypePaid] = useState(true);
+  const [newLeaveTypeDays, setNewLeaveTypeDays] = useState("");
   const [leaveTypeWorking, setLeaveTypeWorking] = useState(false);
 
   const [leaveForm, setLeaveForm] = useState(EMPTY_LEAVE_FORM);
   const [leaveWorking, setLeaveWorking] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [balances, setBalances] = useState<LeaveBalance[] | null>(null);
 
   async function loadAll() {
     try {
@@ -104,6 +109,18 @@ export default function LeaveAndContractsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMembership?.company.id]);
+
+  useEffect(() => {
+    if (!leaveForm.employee) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBalances(null);
+      return;
+    }
+    api
+      .leaveBalances(Number(leaveForm.employee))
+      .then(setBalances)
+      .catch(() => setBalances(null));
+  }, [leaveForm.employee]);
 
   async function handleAddContract(e: React.FormEvent) {
     e.preventDefault();
@@ -142,14 +159,32 @@ export default function LeaveAndContractsPage() {
     e.preventDefault();
     setLeaveTypeWorking(true);
     try {
-      await api.createLeaveType({ name: newLeaveTypeName, paid: newLeaveTypePaid });
+      await api.createLeaveType({
+        name: newLeaveTypeName,
+        paid: newLeaveTypePaid,
+        default_days_per_year: newLeaveTypeDays ? Number(newLeaveTypeDays) : 0,
+      });
       setNewLeaveTypeName("");
       setNewLeaveTypePaid(true);
+      setNewLeaveTypeDays("");
       await loadAll();
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to save leave type.");
     } finally {
       setLeaveTypeWorking(false);
+    }
+  }
+
+  async function handleCancelLeaveRequest(id: number) {
+    setLeaveWorking(true);
+    setLeaveError(null);
+    try {
+      await api.cancelLeaveRequest(id);
+      await loadAll();
+    } catch (err) {
+      setLeaveError(err instanceof ApiError ? err.message : "Failed to cancel leave request.");
+    } finally {
+      setLeaveWorking(false);
     }
   }
 
@@ -353,11 +388,14 @@ export default function LeaveAndContractsPage() {
                   <tr key={t.id}>
                     <td>{t.name}</td>
                     <td className={shared.tableMuted}>{t.paid ? "Paid" : "Unpaid"}</td>
+                    <td className={shared.tableMuted}>
+                      {t.default_days_per_year ? `${t.default_days_per_year} days/year` : "No allocation"}
+                    </td>
                   </tr>
                 ))}
                 {leaveTypes?.length === 0 && (
                   <tr>
-                    <td colSpan={2} className={shared.tableMuted}>
+                    <td colSpan={3} className={shared.tableMuted}>
                       No leave types yet.
                     </td>
                   </tr>
@@ -381,6 +419,16 @@ export default function LeaveAndContractsPage() {
                   />
                   Paid
                 </label>
+                <input
+                  placeholder="Days/year"
+                  type="number"
+                  min={0}
+                  value={newLeaveTypeDays}
+                  onChange={(e) => setNewLeaveTypeDays(e.target.value)}
+                  className={shared.input}
+                  style={{ width: 100 }}
+                  title="Annual entitlement — 0 means no tracked allocation"
+                />
                 <button
                   type="submit"
                   disabled={leaveTypeWorking || !newLeaveTypeName}
@@ -398,8 +446,8 @@ export default function LeaveAndContractsPage() {
           <h2 className={shared.sectionTitle}>Leave requests</h2>
           <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 8 }}>
             Request approval from the Approval panel on its row, same as Expenses and Purchase
-            Requests. Approving doesn&apos;t automatically flip the employee&apos;s status to
-            &quot;On leave&quot; — that&apos;s still a manual HR action.
+            Requests. Approving a request that covers today automatically flips the employee to
+            &quot;On leave&quot;; cancelling an active approved request flips it back.
           </p>
           <div className={shared.card}>
             <table className={shared.table}>
@@ -452,6 +500,17 @@ export default function LeaveAndContractsPage() {
                     </td>
                     {canManage && (
                       <td style={{ textAlign: "right" }}>
+                        {(lr.status === "submitted" || lr.status === "approved") && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelLeaveRequest(lr.id)}
+                            disabled={leaveWorking}
+                            className={`${shared.btn} ${shared.btnSmall}`}
+                            style={{ marginRight: 6 }}
+                          >
+                            Cancel
+                          </button>
+                        )}
                         <RowActions
                           onDelete={() => handleDeleteLeaveRequest(lr.id)}
                           disabled={leaveWorking}
@@ -469,6 +528,12 @@ export default function LeaveAndContractsPage() {
                 )}
               </tbody>
             </table>
+            {canManage && balances && balances.length > 0 && (
+              <div className={shared.hint} style={{ marginTop: 12 }}>
+                Balances this year:{" "}
+                {balances.map((b) => `${b.leave_type_name} ${b.remaining}/${b.allocated} remaining`).join(" · ")}
+              </div>
+            )}
             {canManage && (
               <form onSubmit={handleAddLeaveRequest} className={shared.formGrid} style={{ marginTop: 16 }}>
                 <select

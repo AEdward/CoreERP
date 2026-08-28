@@ -6,10 +6,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.utils import timezone
+
 from apps.approvals.models import ApprovalRequest
 from apps.approvals.registry import get_hooks
 from apps.hr.models import AttendanceRecord, Employee, LeaveRequest, LeaveType
 from apps.hr.serializers import EmployeeSerializer, LeaveTypeSerializer
+from apps.hr.views import _cancel_leave_request, _leave_balances_for
 from apps.notifications.services import notify_permission
 from apps.payroll.models import Payslip
 from apps.payroll.serializers import PayslipSerializer
@@ -115,6 +118,18 @@ class MyLeaveRequestViewSet(viewsets.ModelViewSet):
         )
         instance.refresh_from_db()
         return Response(MyLeaveRequestSerializer(instance).data)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        instance = self.get_object()
+        response = _cancel_leave_request(instance)
+        return Response(MyLeaveRequestSerializer(instance).data, status=response.status_code)
+
+    @action(detail=False, methods=["get"])
+    def balances(self, request):
+        employee = _my_employee(request)
+        year = int(request.query_params.get("year") or timezone.localdate().year)
+        return Response(_leave_balances_for(request.company, employee, year))
 
 
 class MyOnboardingTaskViewSet(viewsets.ModelViewSet):

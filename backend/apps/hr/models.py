@@ -295,10 +295,14 @@ class EmployeeContract(TenantModel):
 class LeaveType(TenantModel):
     """Per-company config, e.g. "Annual Leave", "Sick Leave" — same shape
     as apps.expenses' category free text would have been, but this one's
-    worth a real lookup table since LeaveRequest needs to reference it."""
+    worth a real lookup table since LeaveRequest needs to reference it.
+    `default_days_per_year` is the entitlement apps.hr.leave_balance draws
+    down against — 0 means "no tracked allocation," same "opt in, don't
+    force a number" shape apps.tax.TaxRate's own per-item opt-in follows."""
 
     name = models.CharField(max_length=100)
     paid = models.BooleanField(default=True)
+    default_days_per_year = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = "leave_types"
@@ -315,16 +319,24 @@ class LeaveRequest(TenantModel):
     """Closes the module map's explicitly-flagged "Leave Management —
     real gap" item. Goes through apps.approvals the identical way
     Expense/PurchaseRequest/PurchaseOrder do (a fourth real consumer).
-    Deliberately doesn't touch Employee.status on approval — flipping it
-    to on_leave only while today falls inside the approved date range
-    would need a scheduled daily job this project has no infrastructure
-    for yet, so that stays a manual HR action, the same as it is today."""
+
+    Approving a request that covers today now flips Employee.status to
+    ON_LEAVE (see apps.hr.apps.HrConfig.ready's on_decided hook) — no
+    scheduled job needed for that part, it's a direct consequence of the
+    decision itself. There's still no scheduler to flip it back
+    automatically once the leave period simply ends, or forward once it
+    starts if approved in advance — a known, deliberate gap, not an
+    oversight, the same one MiranErp's own LeaveRequest documents.
+    CANCELLED covers "employee returned early" / "the approval was a
+    mistake" and reverts ON_LEAVE back to ACTIVE when it undoes the
+    thing that set it."""
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         SUBMITTED = "submitted", "Submitted"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
+        CANCELLED = "cancelled", "Cancelled"
 
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="leave_requests")
     leave_type = models.ForeignKey(LeaveType, on_delete=models.PROTECT, related_name="+")
