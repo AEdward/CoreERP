@@ -468,6 +468,16 @@ export interface LeaveType {
   name: string;
   paid: boolean;
   default_days_per_year: number;
+  accrual_enabled: boolean;
+  accrual_rate_days_per_month: string;
+  carryover_cap_days: number;
+  created_at: string;
+}
+
+export interface PublicHoliday {
+  id: number;
+  name: string;
+  date: string;
   created_at: string;
 }
 
@@ -1865,8 +1875,19 @@ export const api = {
   deleteShiftSwapRequest: (id: number) =>
     request<void>(`/api/hr/shift-swap-requests/${id}/`, { method: "DELETE" }),
   listLeaveTypes: () => request<LeaveType[]>("/api/hr/leave-types/"),
-  createLeaveType: (data: { name: string; paid: boolean; default_days_per_year?: number }) =>
-    request<LeaveType>("/api/hr/leave-types/", { method: "POST", body: JSON.stringify(data) }),
+  createLeaveType: (data: {
+    name: string;
+    paid: boolean;
+    default_days_per_year?: number;
+    accrual_enabled?: boolean;
+    accrual_rate_days_per_month?: string;
+    carryover_cap_days?: number;
+  }) => request<LeaveType>("/api/hr/leave-types/", { method: "POST", body: JSON.stringify(data) }),
+  listPublicHolidays: () => request<PublicHoliday[]>("/api/hr/public-holidays/"),
+  createPublicHoliday: (data: { name: string; date: string }) =>
+    request<PublicHoliday>("/api/hr/public-holidays/", { method: "POST", body: JSON.stringify(data) }),
+  deletePublicHoliday: (id: number) =>
+    request<void>(`/api/hr/public-holidays/${id}/`, { method: "DELETE" }),
   listLeaveRequests: (employeeId?: number) =>
     request<LeaveRequest[]>(
       `/api/hr/leave-requests/${employeeId ? `?employee=${employeeId}` : ""}`

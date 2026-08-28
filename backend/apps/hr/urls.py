@@ -12,6 +12,7 @@ from .views import (
     LeaveTypeViewSet,
     OffboardingViewSet,
     PositionViewSet,
+    PublicHolidayViewSet,
     SalaryStructureViewSet,
     ShiftAssignmentViewSet,
     ShiftSwapRequestViewSet,
@@ -29,6 +30,7 @@ router.register("employees", EmployeeViewSet, basename="employee")
 router.register("employee-contracts", EmployeeContractViewSet, basename="employee-contract")
 router.register("employee-documents", EmployeeDocumentViewSet, basename="employee-document")
 router.register("leave-types", LeaveTypeViewSet, basename="leave-type")
+router.register("public-holidays", PublicHolidayViewSet, basename="public-holiday")
 router.register("leave-requests", LeaveRequestViewSet, basename="leave-request")
 router.register("attendance", AttendanceRecordViewSet, basename="attendance")
 router.register("offboarding", OffboardingViewSet, basename="offboarding")

@@ -12,6 +12,7 @@ from .models import (
     LeaveType,
     Offboarding,
     Position,
+    PublicHoliday,
     SalaryStructure,
     ShiftAssignment,
     ShiftSwapRequest,
@@ -252,7 +253,23 @@ class ShiftSwapRequestSerializer(CompanyScopedSerializer):
 class LeaveTypeSerializer(CompanyScopedSerializer):
     class Meta:
         model = LeaveType
-        fields = ["id", "name", "paid", "default_days_per_year", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "paid",
+            "default_days_per_year",
+            "accrual_enabled",
+            "accrual_rate_days_per_month",
+            "carryover_cap_days",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class PublicHolidaySerializer(CompanyScopedSerializer):
+    class Meta:
+        model = PublicHoliday
+        fields = ["id", "name", "date", "created_at"]
         read_only_fields = ["id", "created_at"]
 
 

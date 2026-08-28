@@ -16,6 +16,7 @@ import {
   type LeaveRequest,
   type LeaveType,
   type Offboarding,
+  type PublicHoliday,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import shared from "@/styles/shared.module.css";
@@ -94,7 +95,16 @@ export default function LeaveAndContractsPage() {
   const [newLeaveTypeName, setNewLeaveTypeName] = useState("");
   const [newLeaveTypePaid, setNewLeaveTypePaid] = useState(true);
   const [newLeaveTypeDays, setNewLeaveTypeDays] = useState("");
+  const [newLeaveTypeAccrual, setNewLeaveTypeAccrual] = useState(false);
+  const [newLeaveTypeAccrualRate, setNewLeaveTypeAccrualRate] = useState("");
+  const [newLeaveTypeCarryoverCap, setNewLeaveTypeCarryoverCap] = useState("");
   const [leaveTypeWorking, setLeaveTypeWorking] = useState(false);
+
+  const [holidays, setHolidays] = useState<PublicHoliday[] | null>(null);
+  const [newHolidayName, setNewHolidayName] = useState("");
+  const [newHolidayDate, setNewHolidayDate] = useState("");
+  const [holidayWorking, setHolidayWorking] = useState(false);
+  const [holidayError, setHolidayError] = useState<string | null>(null);
 
   const [leaveForm, setLeaveForm] = useState(EMPTY_LEAVE_FORM);
   const [leaveWorking, setLeaveWorking] = useState(false);
@@ -108,18 +118,20 @@ export default function LeaveAndContractsPage() {
 
   async function loadAll() {
     try {
-      const [c, lr, lt, emp, off] = await Promise.all([
+      const [c, lr, lt, emp, off, hol] = await Promise.all([
         api.listEmployeeContracts(),
         api.listLeaveRequests(),
         api.listLeaveTypes(),
         api.listEmployeePicker(),
         api.listOffboardings(),
+        api.listPublicHolidays(),
       ]);
       setContracts(c);
       setLeaveRequests(lr);
       setLeaveTypes(lt);
       setEmployees(emp);
       setOffboardings(off);
+      setHolidays(hol);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load data.");
     }
@@ -186,15 +198,46 @@ export default function LeaveAndContractsPage() {
         name: newLeaveTypeName,
         paid: newLeaveTypePaid,
         default_days_per_year: newLeaveTypeDays ? Number(newLeaveTypeDays) : 0,
+        accrual_enabled: newLeaveTypeAccrual,
+        accrual_rate_days_per_month: newLeaveTypeAccrualRate || "0",
+        carryover_cap_days: newLeaveTypeCarryoverCap ? Number(newLeaveTypeCarryoverCap) : 0,
       });
       setNewLeaveTypeName("");
       setNewLeaveTypePaid(true);
       setNewLeaveTypeDays("");
+      setNewLeaveTypeAccrual(false);
+      setNewLeaveTypeAccrualRate("");
+      setNewLeaveTypeCarryoverCap("");
       await loadAll();
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to save leave type.");
     } finally {
       setLeaveTypeWorking(false);
+    }
+  }
+
+  async function handleAddHoliday(e: React.FormEvent) {
+    e.preventDefault();
+    setHolidayWorking(true);
+    setHolidayError(null);
+    try {
+      await api.createPublicHoliday({ name: newHolidayName, date: newHolidayDate });
+      setNewHolidayName("");
+      setNewHolidayDate("");
+      await loadAll();
+    } catch (err) {
+      setHolidayError(err instanceof ApiError ? err.message : "Failed to save public holiday.");
+    } finally {
+      setHolidayWorking(false);
+    }
+  }
+
+  async function handleDeleteHoliday(id: number) {
+    try {
+      await api.deletePublicHoliday(id);
+      await loadAll();
+    } catch (err) {
+      setHolidayError(err instanceof ApiError ? err.message : "Failed to delete public holiday.");
     }
   }
 
@@ -468,7 +511,13 @@ export default function LeaveAndContractsPage() {
                     <td>{t.name}</td>
                     <td className={shared.tableMuted}>{t.paid ? "Paid" : "Unpaid"}</td>
                     <td className={shared.tableMuted}>
-                      {t.default_days_per_year ? `${t.default_days_per_year} days/year` : "No allocation"}
+                      {t.accrual_enabled
+                        ? `Accrues ${t.accrual_rate_days_per_month}d/month${
+                            t.carryover_cap_days ? `, carryover up to ${t.carryover_cap_days}d` : ""
+                          }`
+                        : t.default_days_per_year
+                          ? `${t.default_days_per_year} days/year`
+                          : "No allocation"}
                     </td>
                   </tr>
                 ))}
@@ -482,7 +531,7 @@ export default function LeaveAndContractsPage() {
               </tbody>
             </table>
             {canManage && (
-              <form onSubmit={handleAddLeaveType} className={shared.formRow} style={{ marginTop: 12 }}>
+              <form onSubmit={handleAddLeaveType} className={shared.formRow} style={{ marginTop: 12, flexWrap: "wrap" }}>
                 <input
                   placeholder="Leave type (e.g. Annual Leave)"
                   value={newLeaveTypeName}
@@ -498,16 +547,50 @@ export default function LeaveAndContractsPage() {
                   />
                   Paid
                 </label>
-                <input
-                  placeholder="Days/year"
-                  type="number"
-                  min={0}
-                  value={newLeaveTypeDays}
-                  onChange={(e) => setNewLeaveTypeDays(e.target.value)}
-                  className={shared.input}
-                  style={{ width: 100 }}
-                  title="Annual entitlement — 0 means no tracked allocation"
-                />
+                <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={newLeaveTypeAccrual}
+                    onChange={(e) => setNewLeaveTypeAccrual(e.target.checked)}
+                  />
+                  Monthly accrual
+                </label>
+                {newLeaveTypeAccrual ? (
+                  <>
+                    <input
+                      placeholder="Days/month"
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={newLeaveTypeAccrualRate}
+                      onChange={(e) => setNewLeaveTypeAccrualRate(e.target.value)}
+                      className={shared.input}
+                      style={{ width: 100 }}
+                      title="Days accrued per completed month"
+                    />
+                    <input
+                      placeholder="Carryover cap"
+                      type="number"
+                      min={0}
+                      value={newLeaveTypeCarryoverCap}
+                      onChange={(e) => setNewLeaveTypeCarryoverCap(e.target.value)}
+                      className={shared.input}
+                      style={{ width: 110 }}
+                      title="Max unused days carried into the next year — 0 means no carryover"
+                    />
+                  </>
+                ) : (
+                  <input
+                    placeholder="Days/year"
+                    type="number"
+                    min={0}
+                    value={newLeaveTypeDays}
+                    onChange={(e) => setNewLeaveTypeDays(e.target.value)}
+                    className={shared.input}
+                    style={{ width: 100 }}
+                    title="Annual entitlement — 0 means no tracked allocation"
+                  />
+                )}
                 <button
                   type="submit"
                   disabled={leaveTypeWorking || !newLeaveTypeName}
@@ -515,6 +598,76 @@ export default function LeaveAndContractsPage() {
                 >
                   Add leave type
                 </button>
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Public Holidays */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Public holidays</h2>
+          <p className={shared.hint} style={{ maxWidth: 600, marginBottom: 8 }}>
+            A holiday falling inside a leave request&apos;s date range doesn&apos;t count against
+            that request&apos;s day total.
+          </p>
+          <div className={shared.card}>
+            <table className={shared.table}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Date</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {holidays?.map((h) => (
+                  <tr key={h.id}>
+                    <td>{h.name}</td>
+                    <td className={shared.tableMuted}>{h.date}</td>
+                    {canManage && (
+                      <td style={{ textAlign: "right" }}>
+                        <RowActions onDelete={() => handleDeleteHoliday(h.id)} disabled={holidayWorking} />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {holidays?.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className={shared.tableMuted}>
+                      No public holidays configured yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleAddHoliday} className={shared.formRow} style={{ marginTop: 12 }}>
+                <input
+                  placeholder="Holiday name (e.g. New Year's Day)"
+                  value={newHolidayName}
+                  onChange={(e) => setNewHolidayName(e.target.value)}
+                  className={shared.input}
+                  style={{ flex: 1, maxWidth: 280 }}
+                />
+                <input
+                  type="date"
+                  required
+                  value={newHolidayDate}
+                  onChange={(e) => setNewHolidayDate(e.target.value)}
+                  className={shared.input}
+                />
+                <button
+                  type="submit"
+                  disabled={holidayWorking || !newHolidayName || !newHolidayDate}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
+                  Add holiday
+                </button>
+                {holidayError && (
+                  <p className={shared.errorText} style={{ margin: 0 }}>
+                    {holidayError}
+                  </p>
+                )}
               </form>
             )}
           </div>

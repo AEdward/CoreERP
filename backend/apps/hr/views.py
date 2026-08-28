@@ -21,6 +21,7 @@ from .models import (
     LeaveType,
     Offboarding,
     Position,
+    PublicHoliday,
     SalaryStructure,
     ShiftAssignment,
     ShiftSwapRequest,
@@ -36,6 +37,7 @@ from .serializers import (
     LeaveTypeSerializer,
     OffboardingSerializer,
     PositionSerializer,
+    PublicHolidaySerializer,
     SalaryStructureSerializer,
     ShiftAssignmentSerializer,
     ShiftSwapRequestSerializer,
@@ -188,6 +190,12 @@ class OffboardingViewSet(CompanyScopedViewSet):
 class LeaveTypeViewSet(CompanyScopedViewSet):
     queryset = LeaveType.objects.all()
     serializer_class = LeaveTypeSerializer
+    permission_module = "hr"
+
+
+class PublicHolidayViewSet(CompanyScopedViewSet):
+    queryset = PublicHoliday.objects.all()
+    serializer_class = PublicHolidaySerializer
     permission_module = "hr"
 
 

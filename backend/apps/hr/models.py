@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 
@@ -434,11 +436,30 @@ class LeaveType(TenantModel):
     worth a real lookup table since LeaveRequest needs to reference it.
     `default_days_per_year` is the entitlement apps.hr.leave_balance draws
     down against — 0 means "no tracked allocation," same "opt in, don't
-    force a number" shape apps.tax.TaxRate's own per-item opt-in follows."""
+    force a number" shape apps.tax.TaxRate's own per-item opt-in follows.
+
+    `accrual_enabled` switches that flat annual entitlement for a
+    monthly accrual-to-date model instead — designed fresh, no MiranErp
+    or Odoo reference to port (both only offer flat entitlements): when
+    on, apps.hr.leave_balance.compute_leave_balance ignores
+    `default_days_per_year` and instead allocates
+    `accrual_rate_days_per_month` for each complete month elapsed so far
+    this year (truncated to whole days — partial-day accrual isn't
+    usable until it completes a whole day), plus whatever unused balance
+    carried over from the previous year capped at `carryover_cap_days`
+    (0 = no carryover, the same "0 opts out" convention
+    `default_days_per_year` already uses). Carryover only looks back one
+    year — it does not recursively chain further back through every
+    prior year's own carryover, a deliberate simplification since this
+    project has no year-end close process that would make multi-year
+    chaining meaningful anyway."""
 
     name = models.CharField(max_length=100)
     paid = models.BooleanField(default=True)
     default_days_per_year = models.PositiveIntegerField(default=0)
+    accrual_enabled = models.BooleanField(default=False)
+    accrual_rate_days_per_month = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    carryover_cap_days = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = "leave_types"
@@ -449,6 +470,27 @@ class LeaveType(TenantModel):
 
     def __str__(self):
         return self.name
+
+
+class PublicHoliday(TenantModel):
+    """A calendar date that doesn't count against any leave allocation
+    even when it falls inside an approved leave request's date range —
+    designed fresh (no MiranErp/Odoo model ported), the minimum viable
+    "company holiday calendar" needed to keep LeaveRequest.days honest
+    without building a full calendar/scheduling module for it."""
+
+    name = models.CharField(max_length=100)
+    date = models.DateField()
+
+    class Meta:
+        db_table = "hr_public_holidays"
+        constraints = [
+            models.UniqueConstraint(fields=["company", "date"], name="unique_company_public_holiday_date")
+        ]
+        ordering = ["date"]
+
+    def __str__(self):
+        return f"{self.name} ({self.date})"
 
 
 class LeaveRequest(TenantModel):
@@ -492,7 +534,11 @@ class LeaveRequest(TenantModel):
 
     @property
     def days(self):
-        return (self.end_date - self.start_date).days + 1
+        total = (self.end_date - self.start_date).days + 1
+        holidays = PublicHoliday.objects.filter(
+            company_id=self.company_id, date__gte=self.start_date, date__lte=self.end_date
+        ).count()
+        return max(total - holidays, 0)
 
     def __str__(self):
         return f"{self.employee} — {self.leave_type} ({self.start_date} to {self.end_date})"
