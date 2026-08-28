@@ -38,6 +38,7 @@ ALLOWED_TARGETS = {
     "hr.leaverequest": ("hr", "Leave Request"),
     "payroll.payrollrun": ("hr", "Payroll Run"),
     "recruitment.applicant": ("hr", "Applicant"),
+    "performance.performancereview": ("hr", "Performance Review"),
 }
 
 

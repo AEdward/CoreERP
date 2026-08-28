@@ -288,6 +288,41 @@ export interface OnboardingTask {
   created_at: string;
 }
 
+// --- Performance & Training ---
+
+export interface PerformanceReview {
+  id: number;
+  employee: number;
+  reviewer: number | null;
+  review_period: string;
+  rating: 1 | 2 | 3 | 4 | 5 | null;
+  comments: string;
+  status: "draft" | "completed";
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface TrainingProgram {
+  id: number;
+  title: string;
+  description: string;
+  provider: string;
+  start_date: string;
+  end_date: string | null;
+  enrollment_count: number;
+  created_at: string;
+}
+
+export interface TrainingEnrollment {
+  id: number;
+  program: number;
+  program_title: string;
+  employee: number;
+  status: "enrolled" | "completed" | "cancelled";
+  completion_date: string | null;
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -1739,6 +1774,31 @@ export const api = {
   updateOnboardingTask: (id: number, data: Partial<Pick<OnboardingTask, "is_complete" | "title" | "due_date">>) =>
     request<OnboardingTask>(`/api/recruitment/onboarding-tasks/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteOnboardingTask: (id: number) => request<void>(`/api/recruitment/onboarding-tasks/${id}/`, { method: "DELETE" }),
+
+  // --- Performance & Training ---
+  listPerformanceReviews: (employeeId?: number) =>
+    request<PerformanceReview[]>(`/api/performance/reviews/${employeeId ? `?employee=${employeeId}` : ""}`),
+  createPerformanceReview: (data: { employee: number; reviewer?: number | null; review_period: string; comments?: string }) =>
+    request<PerformanceReview>("/api/performance/reviews/", { method: "POST", body: JSON.stringify(data) }),
+  updatePerformanceReview: (id: number, data: Partial<Pick<PerformanceReview, "rating" | "comments" | "reviewer" | "review_period">>) =>
+    request<PerformanceReview>(`/api/performance/reviews/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePerformanceReview: (id: number) => request<void>(`/api/performance/reviews/${id}/`, { method: "DELETE" }),
+  completePerformanceReview: (id: number) =>
+    request<PerformanceReview>(`/api/performance/reviews/${id}/complete/`, { method: "POST" }),
+  listTrainingPrograms: () => request<TrainingProgram[]>("/api/performance/training-programs/"),
+  createTrainingProgram: (data: { title: string; description?: string; provider?: string; start_date: string; end_date?: string | null }) =>
+    request<TrainingProgram>("/api/performance/training-programs/", { method: "POST", body: JSON.stringify(data) }),
+  deleteTrainingProgram: (id: number) => request<void>(`/api/performance/training-programs/${id}/`, { method: "DELETE" }),
+  listTrainingEnrollments: (programId?: number) =>
+    request<TrainingEnrollment[]>(`/api/performance/training-enrollments/${programId ? `?program=${programId}` : ""}`),
+  createTrainingEnrollment: (data: { program: number; employee: number }) =>
+    request<TrainingEnrollment>("/api/performance/training-enrollments/", { method: "POST", body: JSON.stringify(data) }),
+  deleteTrainingEnrollment: (id: number) =>
+    request<void>(`/api/performance/training-enrollments/${id}/`, { method: "DELETE" }),
+  completeTrainingEnrollment: (id: number) =>
+    request<TrainingEnrollment>(`/api/performance/training-enrollments/${id}/complete/`, { method: "POST" }),
+  cancelTrainingEnrollment: (id: number) =>
+    request<TrainingEnrollment>(`/api/performance/training-enrollments/${id}/cancel/`, { method: "POST" }),
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),

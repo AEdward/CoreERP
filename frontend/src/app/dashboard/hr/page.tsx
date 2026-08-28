@@ -263,6 +263,8 @@ export default function HrPage() {
               <a href="/dashboard/hr/payroll">Payroll &rarr;</a>
               {" · "}
               <a href="/dashboard/hr/recruitment">Recruitment &rarr;</a>
+              {" · "}
+              <a href="/dashboard/hr/performance">Performance & Training &rarr;</a>
             </p>
           </div>
         </div>
