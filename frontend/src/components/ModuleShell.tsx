@@ -50,6 +50,7 @@ const MODULE_NAV: Record<ModuleKey, { title: string; groups: NavGroup[] }> = {
         items: [
           { href: "/dashboard/hr", label: "Overview" },
           { href: "/dashboard/hr/attendance", label: "Attendance" },
+          { href: "/dashboard/hr/roster", label: "Shift Roster" },
           { href: "/dashboard/hr/leave-and-contracts", label: "Leave & Contracts" },
           { href: "/dashboard/hr/documents", label: "Employee Documents" },
           { href: "/dashboard/hr/payroll", label: "Payroll" },

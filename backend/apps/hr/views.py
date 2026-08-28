@@ -22,6 +22,8 @@ from .models import (
     Offboarding,
     Position,
     SalaryStructure,
+    ShiftAssignment,
+    ShiftSwapRequest,
     ShiftTemplate,
 )
 from .serializers import (
@@ -35,6 +37,8 @@ from .serializers import (
     OffboardingSerializer,
     PositionSerializer,
     SalaryStructureSerializer,
+    ShiftAssignmentSerializer,
+    ShiftSwapRequestSerializer,
     ShiftTemplateSerializer,
 )
 
@@ -107,6 +111,50 @@ class EmployeeDocumentViewSet(CompanyScopedViewSet):
         cutoff = timezone.localdate() + timedelta(days=30)
         qs = self.get_queryset().filter(expiry_date__isnull=False, expiry_date__lte=cutoff)
         return Response(EmployeeDocumentSerializer(qs, many=True).data)
+
+
+class ShiftAssignmentViewSet(CompanyScopedViewSet):
+    queryset = ShiftAssignment.objects.select_related("employee", "shift_template").all()
+    serializer_class = ShiftAssignmentSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
+
+
+class ShiftSwapRequestViewSet(CompanyScopedViewSet):
+    queryset = ShiftSwapRequest.objects.select_related(
+        "assignment__employee", "assignment__shift_template", "proposed_employee"
+    ).all()
+    serializer_class = ShiftSwapRequestSerializer
+    permission_module = "hr"
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        swap = self.get_object()
+        if swap.status != ShiftSwapRequest.Status.PENDING:
+            raise ValidationError({"status": "Only a pending swap request can be approved."})
+        with transaction.atomic():
+            swap.status = ShiftSwapRequest.Status.APPROVED
+            swap.resolved_at = timezone.now()
+            swap.save(update_fields=["status", "resolved_at"])
+            swap.assignment.employee = swap.proposed_employee
+            swap.assignment.save(update_fields=["employee"])
+        return Response(ShiftSwapRequestSerializer(swap).data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        swap = self.get_object()
+        if swap.status != ShiftSwapRequest.Status.PENDING:
+            raise ValidationError({"status": "Only a pending swap request can be rejected."})
+        swap.status = ShiftSwapRequest.Status.REJECTED
+        swap.resolved_at = timezone.now()
+        swap.save(update_fields=["status", "resolved_at"])
+        return Response(ShiftSwapRequestSerializer(swap).data)
 
 
 class OffboardingViewSet(CompanyScopedViewSet):

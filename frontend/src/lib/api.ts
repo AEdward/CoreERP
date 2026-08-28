@@ -419,6 +419,33 @@ export interface EmployeeDocument {
   created_at: string;
 }
 
+export interface ShiftAssignment {
+  id: number;
+  employee: number;
+  employee_name: string;
+  shift_template: number;
+  shift_template_name: string;
+  start_time: string;
+  end_time: string;
+  date: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface ShiftSwapRequest {
+  id: number;
+  assignment: number;
+  current_employee_name: string;
+  shift_template_name: string;
+  date: string;
+  proposed_employee: number;
+  proposed_employee_name: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  resolved_at: string | null;
+  created_at: string;
+}
+
 export interface Offboarding {
   id: number;
   employee: number;
@@ -1816,6 +1843,27 @@ export const api = {
   }) => request<EmployeeDocument>("/api/hr/employee-documents/", { method: "POST", body: JSON.stringify(data) }),
   deleteEmployeeDocument: (id: number) =>
     request<void>(`/api/hr/employee-documents/${id}/`, { method: "DELETE" }),
+  listShiftAssignments: (employeeId?: number) =>
+    request<ShiftAssignment[]>(
+      `/api/hr/shift-assignments/${employeeId ? `?employee=${employeeId}` : ""}`
+    ),
+  createShiftAssignment: (data: {
+    employee: number;
+    shift_template: number;
+    date: string;
+    notes?: string;
+  }) => request<ShiftAssignment>("/api/hr/shift-assignments/", { method: "POST", body: JSON.stringify(data) }),
+  deleteShiftAssignment: (id: number) =>
+    request<void>(`/api/hr/shift-assignments/${id}/`, { method: "DELETE" }),
+  listShiftSwapRequests: () => request<ShiftSwapRequest[]>("/api/hr/shift-swap-requests/"),
+  createShiftSwapRequest: (data: { assignment: number; proposed_employee: number; reason?: string }) =>
+    request<ShiftSwapRequest>("/api/hr/shift-swap-requests/", { method: "POST", body: JSON.stringify(data) }),
+  approveShiftSwapRequest: (id: number) =>
+    request<ShiftSwapRequest>(`/api/hr/shift-swap-requests/${id}/approve/`, { method: "POST" }),
+  rejectShiftSwapRequest: (id: number) =>
+    request<ShiftSwapRequest>(`/api/hr/shift-swap-requests/${id}/reject/`, { method: "POST" }),
+  deleteShiftSwapRequest: (id: number) =>
+    request<void>(`/api/hr/shift-swap-requests/${id}/`, { method: "DELETE" }),
   listLeaveTypes: () => request<LeaveType[]>("/api/hr/leave-types/"),
   createLeaveType: (data: { name: string; paid: boolean; default_days_per_year?: number }) =>
     request<LeaveType>("/api/hr/leave-types/", { method: "POST", body: JSON.stringify(data) }),

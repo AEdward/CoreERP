@@ -368,6 +368,66 @@ class Offboarding(TenantModel):
         return f"{self.employee} — {self.get_reason_display()} ({self.status})"
 
 
+class ShiftAssignment(TenantModel):
+    """One employee, one shift template, one date — the actual roster
+    entry, replacing the static one-`shift`-FK-per-employee shape
+    (`Employee.shift`) with a real per-date schedule. Ported from
+    MiranErp. Unique per (company, employee, date): deliberately one
+    shift per person per day, not a full multi-shift-per-day calendar —
+    the same scope call `Employee.shift` already made, just spread
+    across dates now instead of collapsed into "whatever their current
+    shift is." `Employee.shift` itself is left in place as the default/
+    fallback used by Attendance's overtime math when no dated assignment
+    exists for that day — no need to force every company to build out a
+    full roster before Attendance/Overtime keeps working."""
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="shift_assignments")
+    shift_template = models.ForeignKey(ShiftTemplate, on_delete=models.PROTECT, related_name="assignments")
+    date = models.DateField()
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "hr_shift_assignments"
+        constraints = [
+            models.UniqueConstraint(fields=["company", "employee", "date"], name="unique_employee_shift_day")
+        ]
+        ordering = ["date"]
+
+    def __str__(self):
+        return f"{self.employee} — {self.shift_template.name} on {self.date}"
+
+
+class ShiftSwapRequest(TenantModel):
+    """A request to hand one existing ShiftAssignment off to a different
+    employee — the common "can someone cover my shift" case, not a
+    strict two-way trade. Ported from MiranErp: HR/a manager records and
+    approves/rejects these, the same admin-managed-workflow shape
+    LeaveRequest establishes, rather than routing through
+    apps.selfservice — a swap is between two specific employees and
+    needs a human arbiter regardless of who initiated it, unlike a
+    single employee's own leave request. Approving reassigns the
+    underlying ShiftAssignment's employee; the assignment's date/shift
+    stay the same, only who's covering it changes."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    assignment = models.ForeignKey(ShiftAssignment, on_delete=models.CASCADE, related_name="swap_requests")
+    proposed_employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="+")
+    reason = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "hr_shift_swap_requests"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.assignment} -> {self.proposed_employee} ({self.status})"
+
+
 class LeaveType(TenantModel):
     """Per-company config, e.g. "Annual Leave", "Sick Leave" — same shape
     as apps.expenses' category free text would have been, but this one's

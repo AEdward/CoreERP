@@ -13,6 +13,8 @@ from .views import (
     OffboardingViewSet,
     PositionViewSet,
     SalaryStructureViewSet,
+    ShiftAssignmentViewSet,
+    ShiftSwapRequestViewSet,
     ShiftTemplateViewSet,
 )
 
@@ -20,6 +22,8 @@ router = DefaultRouter()
 router.register("departments", DepartmentViewSet, basename="department")
 router.register("positions", PositionViewSet, basename="position")
 router.register("shifts", ShiftTemplateViewSet, basename="shift")
+router.register("shift-assignments", ShiftAssignmentViewSet, basename="shift-assignment")
+router.register("shift-swap-requests", ShiftSwapRequestViewSet, basename="shift-swap-request")
 router.register("salary-structures", SalaryStructureViewSet, basename="salary-structure")
 router.register("employees", EmployeeViewSet, basename="employee")
 router.register("employee-contracts", EmployeeContractViewSet, basename="employee-contract")

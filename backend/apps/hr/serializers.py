@@ -13,6 +13,8 @@ from .models import (
     Offboarding,
     Position,
     SalaryStructure,
+    ShiftAssignment,
+    ShiftSwapRequest,
     ShiftTemplate,
 )
 
@@ -187,6 +189,64 @@ class OffboardingSerializer(CompanyScopedSerializer):
                 {"last_working_day": "Must be on or after the resignation/notice date."}
             )
         return attrs
+
+
+class ShiftAssignmentSerializer(CompanyScopedSerializer):
+    same_company_fields = ["employee", "shift_template"]
+    employee_name = serializers.CharField(source="employee.__str__", read_only=True)
+    shift_template_name = serializers.CharField(source="shift_template.name", read_only=True)
+    start_time = serializers.TimeField(source="shift_template.start_time", read_only=True)
+    end_time = serializers.TimeField(source="shift_template.end_time", read_only=True)
+
+    class Meta:
+        model = ShiftAssignment
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "shift_template",
+            "shift_template_name",
+            "start_time",
+            "end_time",
+            "date",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class ShiftSwapRequestSerializer(CompanyScopedSerializer):
+    same_company_fields = ["assignment", "proposed_employee"]
+    current_employee_name = serializers.CharField(source="assignment.employee.__str__", read_only=True)
+    proposed_employee_name = serializers.CharField(source="proposed_employee.__str__", read_only=True)
+    shift_template_name = serializers.CharField(source="assignment.shift_template.name", read_only=True)
+    date = serializers.DateField(source="assignment.date", read_only=True)
+
+    class Meta:
+        model = ShiftSwapRequest
+        fields = [
+            "id",
+            "assignment",
+            "current_employee_name",
+            "shift_template_name",
+            "date",
+            "proposed_employee",
+            "proposed_employee_name",
+            "reason",
+            "status",
+            "resolved_at",
+            "created_at",
+        ]
+        read_only_fields = ["id", "status", "resolved_at", "created_at"]
+
+    def validate(self, attrs):
+        assignment = attrs.get("assignment", getattr(self.instance, "assignment", None))
+        proposed_employee = attrs.get("proposed_employee", getattr(self.instance, "proposed_employee", None))
+        if assignment and proposed_employee and assignment.employee_id == proposed_employee.id:
+            raise serializers.ValidationError(
+                {"proposed_employee": "Already the employee currently assigned to this shift."}
+            )
+        return super().validate(attrs)
 
 
 class LeaveTypeSerializer(CompanyScopedSerializer):

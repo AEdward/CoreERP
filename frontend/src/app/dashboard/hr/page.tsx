@@ -350,6 +350,8 @@ export default function HrPage() {
             <p className={shared.hint} style={{ marginTop: 4 }}>
               <a href="/dashboard/hr/leave-and-contracts">Leave requests & employee contracts &rarr;</a>
               {" · "}
+              <a href="/dashboard/hr/roster">Shift roster &rarr;</a>
+              {" · "}
               <a href="/dashboard/hr/documents">Employee documents &rarr;</a>
               {" · "}
               <a href="/dashboard/hr/payroll">Payroll &rarr;</a>
