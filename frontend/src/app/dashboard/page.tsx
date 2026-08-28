@@ -10,60 +10,82 @@ import { api, ApiError, type CompanySummary } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import styles from "./launcher.module.css";
 
-const MODULE_TILES = [
-  { key: "settings", label: "Settings", permission: "settings.view", href: "/dashboard/settings" },
+// Grouped the same way docs/MODULE_MAP.md's own diagram sections the
+// platform — Core Platform / Business Modules / Industry Modules — so the
+// launcher visually matches the architecture doc instead of one flat grid.
+// A group with zero tiles visible to the caller's permissions (see
+// visibleGroups below) just doesn't render, rather than showing an empty
+// heading.
+const MODULE_GROUPS: { title: string; tiles: { key: string; label: string; permission: string; href: string }[] }[] = [
   {
-    key: "accounting",
-    label: "Accounting",
-    permission: "accounting.view",
-    href: "/dashboard/accounting",
-  },
-  { key: "hr", label: "HR", permission: "hr.view", href: "/dashboard/hr" },
-  { key: "sales", label: "Sales & CRM", permission: "sales.view", href: "/dashboard/sales" },
-  {
-    key: "inventory",
-    label: "Inventory & Catalog",
-    permission: "inventory.view",
-    href: "/dashboard/inventory",
+    title: "Core Platform",
+    tiles: [
+      { key: "settings", label: "Settings", permission: "settings.view", href: "/dashboard/settings" },
+    ],
   },
   {
-    key: "procurement",
-    label: "Procurement",
-    permission: "procurement.view",
-    href: "/dashboard/procurement",
+    title: "Business Modules",
+    tiles: [
+      {
+        key: "accounting",
+        label: "Accounting",
+        permission: "accounting.view",
+        href: "/dashboard/accounting",
+      },
+      { key: "hr", label: "HR", permission: "hr.view", href: "/dashboard/hr" },
+      { key: "sales", label: "Sales & CRM", permission: "sales.view", href: "/dashboard/sales" },
+      {
+        key: "inventory",
+        label: "Inventory & Catalog",
+        permission: "inventory.view",
+        href: "/dashboard/inventory",
+      },
+      {
+        key: "procurement",
+        label: "Procurement",
+        permission: "procurement.view",
+        href: "/dashboard/procurement",
+      },
+      { key: "expenses", label: "Expenses", permission: "expenses.view", href: "/dashboard/expenses" },
+      { key: "tasks", label: "Tasks", permission: "tasks.view", href: "/dashboard/tasks" },
+      { key: "calendar", label: "Calendar", permission: "calendar.view", href: "/dashboard/calendar" },
+    ],
   },
-  { key: "expenses", label: "Expenses", permission: "expenses.view", href: "/dashboard/expenses" },
-  { key: "tasks", label: "Tasks", permission: "tasks.view", href: "/dashboard/tasks" },
-  { key: "calendar", label: "Calendar", permission: "calendar.view", href: "/dashboard/calendar" },
-  // Section J: Hotel & Hospitality, ported from AEdward/MiranErp.
-  { key: "hotel", label: "Hotel", permission: "hotel.view", href: "/dashboard/hotel" },
   {
-    key: "housekeeping",
-    label: "Housekeeping",
-    permission: "housekeeping.view",
-    href: "/dashboard/housekeeping",
-  },
-  {
-    key: "maintenance",
-    label: "Maintenance",
-    permission: "maintenance.view",
-    href: "/dashboard/maintenance",
-  },
-  { key: "pos", label: "POS", permission: "pos.view", href: "/dashboard/pos" },
-  {
-    key: "conference",
-    label: "Conference & Events",
-    permission: "conference.view",
-    href: "/dashboard/conference",
-  },
-  { key: "spa", label: "Spa", permission: "spa.view", href: "/dashboard/spa" },
-  { key: "gym", label: "Gym", permission: "gym.view", href: "/dashboard/gym" },
-  { key: "laundry", label: "Laundry", permission: "laundry.view", href: "/dashboard/laundry" },
-  {
-    key: "loyalty",
-    label: "Guest Loyalty",
-    permission: "loyalty.view",
-    href: "/dashboard/loyalty",
+    // Section J: Hotel & Hospitality, ported from AEdward/MiranErp — the
+    // first (and so far only) Industry Modules vertical.
+    title: "Industry Modules — Hospitality",
+    tiles: [
+      { key: "hotel", label: "Hotel", permission: "hotel.view", href: "/dashboard/hotel" },
+      {
+        key: "housekeeping",
+        label: "Housekeeping",
+        permission: "housekeeping.view",
+        href: "/dashboard/housekeeping",
+      },
+      {
+        key: "maintenance",
+        label: "Maintenance",
+        permission: "maintenance.view",
+        href: "/dashboard/maintenance",
+      },
+      { key: "pos", label: "POS", permission: "pos.view", href: "/dashboard/pos" },
+      {
+        key: "conference",
+        label: "Conference & Events",
+        permission: "conference.view",
+        href: "/dashboard/conference",
+      },
+      { key: "spa", label: "Spa", permission: "spa.view", href: "/dashboard/spa" },
+      { key: "gym", label: "Gym", permission: "gym.view", href: "/dashboard/gym" },
+      { key: "laundry", label: "Laundry", permission: "laundry.view", href: "/dashboard/laundry" },
+      {
+        key: "loyalty",
+        label: "Guest Loyalty",
+        permission: "loyalty.view",
+        href: "/dashboard/loyalty",
+      },
+    ],
   },
 ];
 
@@ -158,11 +180,19 @@ export default function DashboardPage() {
   // "My Profile" isn't permission-gated like the rest — every company
   // member should be able to reach their own Employee Self-Service page
   // regardless of what module permissions their role does or doesn't
-  // carry (a plain staff member typically has none of the above).
+  // carry (a plain staff member typically has none of the above). It
+  // lives in Core Platform alongside Settings, always first.
   const MY_PROFILE_TILE = { key: "myprofile", label: "My Profile", href: "/dashboard/me" };
-  const visibleTiles = activeMembership
-    ? [MY_PROFILE_TILE, ...MODULE_TILES.filter((tile) => activeMembership.permissions.includes(tile.permission))]
+  const visibleGroups = activeMembership
+    ? MODULE_GROUPS.map((group, i) => ({
+        title: group.title,
+        tiles: [
+          ...(i === 0 ? [MY_PROFILE_TILE] : []),
+          ...group.tiles.filter((tile) => activeMembership.permissions.includes(tile.permission)),
+        ],
+      })).filter((group) => group.tiles.length > 0)
     : [];
+  const hasVisibleTiles = visibleGroups.some((group) => group.tiles.length > 0);
 
   return (
     <div className={styles.shell}>
@@ -263,22 +293,27 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className={styles.gridWrap}>
-            {visibleTiles.length === 0 ? (
+            {!hasVisibleTiles ? (
               <p className={styles.emptyState}>
                 Your role doesn&apos;t have access to any module yet — ask your company&apos;s Owner
                 to grant you permissions.
               </p>
             ) : (
-              <div className={styles.grid}>
-                {visibleTiles.map((tile) => (
-                  <Link key={tile.key} href={tile.href} className={styles.tile}>
-                    <span className={styles.tileIcon}>
-                      <ModuleIcon moduleKey={tile.key} muted={false} />
-                    </span>
-                    <span className={styles.tileLabel}>{tile.label}</span>
-                  </Link>
-                ))}
-              </div>
+              visibleGroups.map((group) => (
+                <div key={group.title} className={styles.moduleSection}>
+                  <h2 className={styles.sectionTitle}>{group.title}</h2>
+                  <div className={styles.grid}>
+                    {group.tiles.map((tile) => (
+                      <Link key={tile.key} href={tile.href} className={styles.tile}>
+                        <span className={styles.tileIcon}>
+                          <ModuleIcon moduleKey={tile.key} muted={false} />
+                        </span>
+                        <span className={styles.tileLabel}>{tile.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))
             )}
           </div>
 

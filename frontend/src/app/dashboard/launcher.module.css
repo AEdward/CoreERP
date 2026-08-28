@@ -193,12 +193,31 @@
   padding: var(--space-10) var(--space-6) var(--space-8);
 }
 
+.moduleSection {
+  width: 100%;
+  max-width: 860px;
+}
+
+.moduleSection + .moduleSection {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--gray-600);
+  margin: 0 0 var(--space-4);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: var(--space-6) var(--space-5);
   width: 100%;
-  max-width: 860px;
 }
 
 .tile {
