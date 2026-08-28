@@ -76,7 +76,7 @@ def process_payroll_run(request, run):
         earnings = [c for c in components if c.component.category == SalaryComponent.Category.EARNING]
         deductions = [c for c in components if c.component.category == SalaryComponent.Category.DEDUCTION]
 
-        basic_cents = employee.salary_cents
+        basic_cents = employee.effective_salary_cents
         gross_cents = basic_cents + sum(c.amount_cents for c in earnings)
         taxable_cents = basic_cents + sum(c.amount_cents for c in earnings if c.component.is_taxable)
 

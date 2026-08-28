@@ -14,6 +14,7 @@ from .models import (
     LeaveRequest,
     LeaveType,
     Position,
+    SalaryStructure,
     ShiftTemplate,
 )
 from .serializers import (
@@ -24,6 +25,7 @@ from .serializers import (
     LeaveRequestSerializer,
     LeaveTypeSerializer,
     PositionSerializer,
+    SalaryStructureSerializer,
     ShiftTemplateSerializer,
 )
 
@@ -46,8 +48,16 @@ class ShiftTemplateViewSet(CompanyScopedViewSet):
     permission_module = "hr"
 
 
+class SalaryStructureViewSet(CompanyScopedViewSet):
+    queryset = SalaryStructure.objects.all()
+    serializer_class = SalaryStructureSerializer
+    permission_module = "hr"
+
+
 class EmployeeViewSet(CompanyScopedViewSet):
-    queryset = Employee.objects.select_related("department", "position", "shift").all()
+    queryset = Employee.objects.select_related(
+        "department", "position", "shift", "cost_center", "manager", "salary_structure"
+    ).all()
     serializer_class = EmployeeSerializer
     permission_module = "hr"
 

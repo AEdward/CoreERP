@@ -15,6 +15,7 @@ import {
   type Department,
   type Employee,
   type Position,
+  type SalaryStructure,
   type ShiftTemplate,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
@@ -37,6 +38,7 @@ const EMPTY_EMPLOYEE_FORM = {
   shift: "",
   cost_center: "",
   manager: "",
+  salary_structure: "",
   salary_cents: "",
   joining_date: "",
   status: "active" as Employee["status"],
@@ -75,6 +77,10 @@ export default function HrPage() {
   const [positionDept, setPositionDept] = useState("");
   const [positionWorking, setPositionWorking] = useState(false);
 
+  const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[] | null>(null);
+  const [structureForm, setStructureForm] = useState({ name: "", base_salary_cents: "", description: "" });
+  const [structureWorking, setStructureWorking] = useState(false);
+
   const [shiftForm, setShiftForm] = useState({ name: "", start_time: "", end_time: "", break_minutes: "0" });
   const [shiftWorking, setShiftWorking] = useState(false);
 
@@ -85,7 +91,7 @@ export default function HrPage() {
 
   async function loadAll() {
     try {
-      const [depts, poss, shs, emps, brs, members, ccs] = await Promise.all([
+      const [depts, poss, shs, emps, brs, members, ccs, structs] = await Promise.all([
         api.listDepartments(),
         api.listPositions(),
         api.listShifts(),
@@ -93,6 +99,7 @@ export default function HrPage() {
         api.listBranches(),
         api.listCompanyMembers(),
         api.listCostCenters(),
+        api.listSalaryStructures(),
       ]);
       setDepartments(depts);
       setPositions(poss);
@@ -101,6 +108,7 @@ export default function HrPage() {
       setBranches(brs);
       setCompanyMembers(members);
       setCostCenters(ccs);
+      setSalaryStructures(structs);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load HR data.");
     }
@@ -177,6 +185,33 @@ export default function HrPage() {
     }
   }
 
+  async function handleAddStructure(e: React.FormEvent) {
+    e.preventDefault();
+    setStructureWorking(true);
+    try {
+      await api.createSalaryStructure({
+        name: structureForm.name,
+        base_salary_cents: Math.round(Number(structureForm.base_salary_cents || 0) * 100),
+        description: structureForm.description,
+      });
+      setStructureForm({ name: "", base_salary_cents: "", description: "" });
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to save salary structure.");
+    } finally {
+      setStructureWorking(false);
+    }
+  }
+
+  async function handleDeleteStructure(id: number) {
+    try {
+      await api.deleteSalaryStructure(id);
+      await loadAll();
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Failed to delete salary structure.");
+    }
+  }
+
   async function handleAddShift(e: React.FormEvent) {
     e.preventDefault();
     setShiftWorking(true);
@@ -221,6 +256,7 @@ export default function HrPage() {
         shift: empForm.shift ? Number(empForm.shift) : null,
         cost_center: empForm.cost_center ? Number(empForm.cost_center) : null,
         manager: empForm.manager ? Number(empForm.manager) : null,
+        salary_structure: empForm.salary_structure ? Number(empForm.salary_structure) : null,
         salary_cents: empForm.salary_cents ? Math.round(Number(empForm.salary_cents) * 100) : 0,
         joining_date: empForm.joining_date || null,
         status: empForm.status,
@@ -266,6 +302,7 @@ export default function HrPage() {
       shift: emp.shift ? String(emp.shift) : "",
       cost_center: emp.cost_center ? String(emp.cost_center) : "",
       manager: emp.manager ? String(emp.manager) : "",
+      salary_structure: emp.salary_structure ? String(emp.salary_structure) : "",
       salary_cents: emp.salary_cents ? String(emp.salary_cents / 100) : "",
       joining_date: emp.joining_date ?? "",
       status: emp.status,
@@ -453,6 +490,70 @@ export default function HrPage() {
                     className={`${shared.btn} ${shared.btnPrimary}`}
                   >
                     Add position
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+
+          <div className={shared.section}>
+            <h2 className={shared.sectionTitle}>Salary structures</h2>
+            <p className={shared.hint}>Pay grades employees can be assigned to instead of a one-off salary.</p>
+            <div className={shared.card}>
+              <table className={shared.table}>
+                <tbody>
+                  {salaryStructures?.map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.name}</td>
+                      <td>{(s.base_salary_cents / 100).toFixed(2)}</td>
+                      <td className={shared.tableMuted}>{s.description || "—"}</td>
+                      {canManage && (
+                        <td style={{ textAlign: "right" }}>
+                          <RowActions onDelete={() => handleDeleteStructure(s.id)} disabled={structureWorking} />
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {salaryStructures?.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className={shared.tableMuted}>
+                        No salary structures yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              {canManage && (
+                <form onSubmit={handleAddStructure} className={shared.formRow} style={{ marginTop: 12 }}>
+                  <input
+                    placeholder="Name (e.g. Grade 3)"
+                    value={structureForm.name}
+                    onChange={(e) => setStructureForm({ ...structureForm, name: e.target.value })}
+                    className={shared.input}
+                    style={{ maxWidth: 160 }}
+                  />
+                  <input
+                    placeholder="Base salary"
+                    type="number"
+                    step="0.01"
+                    value={structureForm.base_salary_cents}
+                    onChange={(e) => setStructureForm({ ...structureForm, base_salary_cents: e.target.value })}
+                    className={shared.input}
+                    style={{ width: 130 }}
+                  />
+                  <input
+                    placeholder="Description"
+                    value={structureForm.description}
+                    onChange={(e) => setStructureForm({ ...structureForm, description: e.target.value })}
+                    className={shared.input}
+                    style={{ flex: 1, maxWidth: 220 }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={structureWorking || !structureForm.name}
+                    className={`${shared.btn} ${shared.btnPrimary}`}
+                  >
+                    Add structure
                   </button>
                 </form>
               )}
@@ -685,12 +786,26 @@ export default function HrPage() {
                       </option>
                     ))}
                   </select>
+                  <select
+                    value={empForm.salary_structure}
+                    onChange={(e) => setEmpForm({ ...empForm, salary_structure: e.target.value })}
+                    className={shared.select}
+                    title="When set, payroll uses this pay grade's base salary instead of the typed-in salary"
+                  >
+                    <option value="">No salary structure (use typed salary)</option>
+                    {salaryStructures?.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({(s.base_salary_cents / 100).toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
                   <input
                     placeholder="Salary (e.g. 50000)"
                     type="number"
                     value={empForm.salary_cents}
                     onChange={(e) => setEmpForm({ ...empForm, salary_cents: e.target.value })}
                     className={shared.input}
+                    disabled={!!empForm.salary_structure}
                   />
                   <input
                     type="date"

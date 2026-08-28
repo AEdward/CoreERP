@@ -75,6 +75,32 @@ class ShiftTemplate(TenantModel):
         return f"{self.name} ({self.start_time}–{self.end_time})"
 
 
+class SalaryStructure(TenantModel):
+    """A named pay grade/band ("Grade 3") with a standard base salary —
+    everyone assigned to the same structure earns the same base rate,
+    rather than each employee's `salary_cents` being independently typed.
+    `description` is free text for whatever standard allowances the grade
+    implies in practice (e.g. "includes housing + transport") —
+    SalaryComponent (apps.payroll) is still the itemized-components
+    table; a structure just names the pay band, it doesn't try to also
+    be that."""
+
+    name = models.CharField(max_length=100)
+    base_salary_cents = models.BigIntegerField(default=0)
+    description = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "salary_structures"
+        constraints = [
+            models.UniqueConstraint(fields=["company", "name"], name="unique_company_salary_structure_name")
+        ]
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Employee(TenantModel):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
@@ -115,6 +141,9 @@ class Employee(TenantModel):
     )
     cost_center = models.ForeignKey(
         CostCenter, on_delete=models.SET_NULL, null=True, blank=True, related_name="employees"
+    )
+    salary_structure = models.ForeignKey(
+        SalaryStructure, on_delete=models.SET_NULL, null=True, blank=True, related_name="employees"
     )
     # Org hierarchy — who this employee reports to. Self-referential and
     # nullable (a GM/Owner-level employee reports to no one). Data model
@@ -157,6 +186,18 @@ class Employee(TenantModel):
         constraints = [
             models.UniqueConstraint(fields=["company", "user"], name="unique_company_employee_user")
         ]
+
+    @property
+    def effective_salary_cents(self):
+        """The number payroll actually pays: a structure's grade rate
+        when one's assigned, the individually-typed salary_cents
+        otherwise. apps.payroll.engine reads this rather than
+        salary_cents directly, so a company using pay grades gets the
+        grade rate automatically and one not using them at all keeps
+        working exactly as before."""
+        if self.salary_structure_id:
+            return self.salary_structure.base_salary_cents
+        return self.salary_cents
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

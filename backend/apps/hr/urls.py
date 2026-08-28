@@ -10,6 +10,7 @@ from .views import (
     LeaveRequestViewSet,
     LeaveTypeViewSet,
     PositionViewSet,
+    SalaryStructureViewSet,
     ShiftTemplateViewSet,
 )
 
@@ -17,6 +18,7 @@ router = DefaultRouter()
 router.register("departments", DepartmentViewSet, basename="department")
 router.register("positions", PositionViewSet, basename="position")
 router.register("shifts", ShiftTemplateViewSet, basename="shift")
+router.register("salary-structures", SalaryStructureViewSet, basename="salary-structure")
 router.register("employees", EmployeeViewSet, basename="employee")
 router.register("employee-contracts", EmployeeContractViewSet, basename="employee-contract")
 router.register("leave-types", LeaveTypeViewSet, basename="leave-type")

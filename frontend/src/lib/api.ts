@@ -138,6 +138,15 @@ export interface Position {
   created_at: string;
 }
 
+export interface SalaryStructure {
+  id: number;
+  name: string;
+  base_salary_cents: number;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface ShiftTemplate {
   id: number;
   name: string;
@@ -161,6 +170,8 @@ export interface Employee {
   cost_center: number | null;
   manager: number | null;
   manager_name: string;
+  salary_structure: number | null;
+  effective_salary_cents: number;
   salary_cents: number;
   joining_date: string | null;
   status: "active" | "on_leave" | "terminated";
@@ -1686,6 +1697,11 @@ export const api = {
   createPosition: (data: { title: string; department?: number | null }) =>
     request<Position>("/api/hr/positions/", { method: "POST", body: JSON.stringify(data) }),
   deletePosition: (id: number) => request<void>(`/api/hr/positions/${id}/`, { method: "DELETE" }),
+  listSalaryStructures: () => request<SalaryStructure[]>("/api/hr/salary-structures/"),
+  createSalaryStructure: (data: { name: string; base_salary_cents: number; description?: string }) =>
+    request<SalaryStructure>("/api/hr/salary-structures/", { method: "POST", body: JSON.stringify(data) }),
+  deleteSalaryStructure: (id: number) =>
+    request<void>(`/api/hr/salary-structures/${id}/`, { method: "DELETE" }),
   listEmployeeContracts: (employeeId?: number) =>
     request<EmployeeContract[]>(
       `/api/hr/employee-contracts/${employeeId ? `?employee=${employeeId}` : ""}`

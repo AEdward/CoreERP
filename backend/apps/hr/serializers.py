@@ -10,6 +10,7 @@ from .models import (
     LeaveRequest,
     LeaveType,
     Position,
+    SalaryStructure,
     ShiftTemplate,
 )
 
@@ -41,10 +42,18 @@ class ShiftTemplateSerializer(CompanyScopedSerializer):
         read_only_fields = ["id", "created_at"]
 
 
+class SalaryStructureSerializer(CompanyScopedSerializer):
+    class Meta:
+        model = SalaryStructure
+        fields = ["id", "name", "base_salary_cents", "description", "is_active", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
 class EmployeeSerializer(CompanyScopedSerializer):
-    same_company_fields = ["department", "branch", "position", "shift", "cost_center", "manager"]
+    same_company_fields = ["department", "branch", "position", "shift", "cost_center", "manager", "salary_structure"]
     user_name = serializers.SerializerMethodField()
     manager_name = serializers.SerializerMethodField()
+    effective_salary_cents = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Employee
@@ -61,6 +70,8 @@ class EmployeeSerializer(CompanyScopedSerializer):
             "cost_center",
             "manager",
             "manager_name",
+            "salary_structure",
+            "effective_salary_cents",
             "salary_cents",
             "joining_date",
             "status",
