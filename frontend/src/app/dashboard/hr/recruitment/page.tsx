@@ -72,7 +72,13 @@ export default function RecruitmentPage() {
 
   const [expandedVacancyId, setExpandedVacancyId] = useState<number | null>(null);
   const [applicants, setApplicants] = useState<Applicant[] | null>(null);
-  const [applicantForm, setApplicantForm] = useState({ full_name: "", email: "", phone: "", applied_date: "" });
+  const [applicantForm, setApplicantForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    applied_date: "",
+    referred_by: "",
+  });
   const [applicantWorking, setApplicantWorking] = useState(false);
   const [applicantError, setApplicantError] = useState<string | null>(null);
 
@@ -178,8 +184,15 @@ export default function RecruitmentPage() {
     setApplicantWorking(true);
     setApplicantError(null);
     try {
-      await api.createApplicant({ vacancy: expandedVacancyId, ...applicantForm });
-      setApplicantForm({ full_name: "", email: "", phone: "", applied_date: "" });
+      await api.createApplicant({
+        vacancy: expandedVacancyId,
+        full_name: applicantForm.full_name,
+        email: applicantForm.email,
+        phone: applicantForm.phone,
+        applied_date: applicantForm.applied_date,
+        referred_by: applicantForm.referred_by ? Number(applicantForm.referred_by) : null,
+      });
+      setApplicantForm({ full_name: "", email: "", phone: "", applied_date: "", referred_by: "" });
       setApplicants(await api.listApplicants(expandedVacancyId));
     } catch (err) {
       setApplicantError(err instanceof ApiError ? err.message : "Failed to add applicant.");
@@ -382,6 +395,7 @@ export default function RecruitmentPage() {
                                   <th>Email</th>
                                   <th>Phone</th>
                                   <th>Applied</th>
+                                  <th>Referred by</th>
                                   <th>Status</th>
                                   {canManage && <th></th>}
                                 </tr>
@@ -393,6 +407,7 @@ export default function RecruitmentPage() {
                                     <td>{a.email}</td>
                                     <td>{a.phone}</td>
                                     <td>{a.applied_date}</td>
+                                    <td className={shared.tableMuted}>{a.referred_by_name || "—"}</td>
                                     <td>
                                       <span className={`${shared.badge} ${APPLICANT_STATUS_BADGES[a.status]}`}>
                                         {APPLICANT_STATUS_LABELS[a.status]}
@@ -445,7 +460,7 @@ export default function RecruitmentPage() {
                                 ))}
                                 {applicants.length === 0 && (
                                   <tr>
-                                    <td colSpan={6} className={shared.tableMuted}>
+                                    <td colSpan={7} className={shared.tableMuted}>
                                       No applicants yet.
                                     </td>
                                   </tr>
@@ -485,6 +500,19 @@ export default function RecruitmentPage() {
                                 onChange={(e) => setApplicantForm({ ...applicantForm, applied_date: e.target.value })}
                                 className={shared.input}
                               />
+                              <select
+                                value={applicantForm.referred_by}
+                                onChange={(e) => setApplicantForm({ ...applicantForm, referred_by: e.target.value })}
+                                className={shared.select}
+                                title="Referred by (optional)"
+                              >
+                                <option value="">Referred by…</option>
+                                {employees?.map((emp) => (
+                                  <option key={emp.id} value={emp.id}>
+                                    {emp.name}
+                                  </option>
+                                ))}
+                              </select>
                               <button
                                 type="submit"
                                 disabled={applicantWorking || !applicantForm.full_name || !applicantForm.applied_date}

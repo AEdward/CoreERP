@@ -43,7 +43,15 @@ class Applicant(TenantModel):
     being set is exactly "onboarding has started" (see OnboardingTask,
     which hangs off the Employee, not the Applicant, from that point
     on). A resume/CV attaches via the existing generic Documents panel
-    (see apps.common.targeting.ALLOWED_TARGETS)."""
+    (see apps.common.targeting.ALLOWED_TARGETS).
+
+    `referred_by` is the employee referral program — designed fresh, no
+    MiranErp/CoreERP model to port: just a traceable link from an
+    applicant to the employee who referred them, not a full rewards/
+    payout system (no bonus-tracking model, no automatic payroll
+    integration) — recording the fact honestly without building the
+    workflow around what a company does with it next, the same scope
+    limit apps.payroll's PAYE/pension payables take on remittance."""
 
     class Status(models.TextChoices):
         APPLIED = "applied", "Applied"
@@ -62,6 +70,9 @@ class Applicant(TenantModel):
     notes = models.TextField(blank=True)
     hired_employee = models.ForeignKey(
         Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    referred_by = models.ForeignKey(
+        Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name="referrals"
     )
 
     class Meta:

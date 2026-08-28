@@ -27,8 +27,9 @@ class JobVacancySerializer(CompanyScopedSerializer):
 
 
 class ApplicantSerializer(CompanyScopedSerializer):
-    same_company_fields = ["vacancy"]
+    same_company_fields = ["vacancy", "referred_by"]
     vacancy_title = serializers.CharField(source="vacancy.title", read_only=True)
+    referred_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Applicant
@@ -43,9 +44,14 @@ class ApplicantSerializer(CompanyScopedSerializer):
             "applied_date",
             "notes",
             "hired_employee",
+            "referred_by",
+            "referred_by_name",
             "created_at",
         ]
         read_only_fields = ["id", "hired_employee", "created_at"]
+
+    def get_referred_by_name(self, obj):
+        return str(obj.referred_by) if obj.referred_by_id else ""
 
     def validate_status(self, value):
         if self.instance and self.instance.status == Applicant.Status.HIRED and value != Applicant.Status.HIRED:

@@ -328,6 +328,8 @@ export interface Applicant {
   applied_date: string;
   notes: string;
   hired_employee: number | null;
+  referred_by: number | null;
+  referred_by_name: string;
   created_at: string;
 }
 
@@ -2043,9 +2045,9 @@ export const api = {
   deleteJobVacancy: (id: number) => request<void>(`/api/recruitment/vacancies/${id}/`, { method: "DELETE" }),
   listApplicants: (vacancyId?: number) =>
     request<Applicant[]>(`/api/recruitment/applicants/${vacancyId ? `?vacancy=${vacancyId}` : ""}`),
-  createApplicant: (data: { vacancy: number; full_name: string; email?: string; phone?: string; applied_date: string; notes?: string }) =>
+  createApplicant: (data: { vacancy: number; full_name: string; email?: string; phone?: string; applied_date: string; notes?: string; referred_by?: number | null }) =>
     request<Applicant>("/api/recruitment/applicants/", { method: "POST", body: JSON.stringify(data) }),
-  updateApplicant: (id: number, data: Partial<Pick<Applicant, "status" | "notes" | "email" | "phone">>) =>
+  updateApplicant: (id: number, data: Partial<Pick<Applicant, "status" | "notes" | "email" | "phone" | "referred_by">>) =>
     request<Applicant>(`/api/recruitment/applicants/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteApplicant: (id: number) => request<void>(`/api/recruitment/applicants/${id}/`, { method: "DELETE" }),
   hireApplicant: (id: number) => request<Applicant>(`/api/recruitment/applicants/${id}/hire/`, { method: "POST" }),
