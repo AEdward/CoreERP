@@ -63,7 +63,7 @@ def process_payroll_run(request, run):
     from apps.auditlog.services import log_audit
     from apps.hr.models import Employee
 
-    from .models import EmployeeSalaryComponent, Payslip, PayslipLine, SalaryComponent
+    from .models import EmployeeSalaryComponent, Loan, Payslip, PayslipLine, SalaryComponent
 
     if run.status != run.Status.DRAFT:
         raise ValidationError("Only a draft payroll run can be processed.")
@@ -85,7 +85,20 @@ def process_payroll_run(request, run):
         pension_employer_cents = round(gross_cents * PENSION_EMPLOYER_RATE)
         other_deductions_cents = sum(c.amount_cents for c in deductions)
 
-        net_pay_cents = gross_cents - paye_cents - pension_employee_cents - other_deductions_cents
+        # Installments are computed from each loan's remaining_balance_cents
+        # (principal minus every repayment line posted by an *earlier* run)
+        # before this run creates any new repayment lines of its own — a
+        # stale read here would double-count or overshoot the balance.
+        active_loans = list(Loan.objects.filter(employee=employee, status=Loan.Status.ACTIVE))
+        loan_installments = [
+            (loan, loan.remaining_balance_cents, min(loan.monthly_installment_cents, loan.remaining_balance_cents))
+            for loan in active_loans
+        ]
+        loan_repayment_cents = sum(amount for _, _, amount in loan_installments)
+
+        net_pay_cents = (
+            gross_cents - paye_cents - pension_employee_cents - other_deductions_cents - loan_repayment_cents
+        )
 
         payslip = Payslip.objects.create(
             company=company,
@@ -97,6 +110,7 @@ def process_payroll_run(request, run):
             pension_employee_cents=pension_employee_cents,
             pension_employer_cents=pension_employer_cents,
             other_deductions_cents=other_deductions_cents,
+            loan_repayment_cents=loan_repayment_cents,
             net_pay_cents=net_pay_cents,
         )
 
@@ -122,6 +136,16 @@ def process_payroll_run(request, run):
                 company=company, payslip=payslip, label=c.component.name,
                 line_type=PayslipLine.LineType.DEDUCTION, amount_cents=c.amount_cents,
             )
+        for loan, pre_run_balance, amount in loan_installments:
+            if amount <= 0:
+                continue
+            PayslipLine.objects.create(
+                company=company, payslip=payslip, label=f"Loan Repayment ({loan.loan_number})",
+                line_type=PayslipLine.LineType.DEDUCTION, amount_cents=amount, source_loan=loan,
+            )
+            if amount >= pre_run_balance:
+                loan.status = Loan.Status.PAID_OFF
+                loan.save(update_fields=["status"])
 
     from apps.accounting.posting import post_payroll_run_journal
 

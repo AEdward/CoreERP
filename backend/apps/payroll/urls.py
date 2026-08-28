@@ -2,6 +2,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     EmployeeSalaryComponentViewSet,
+    LoanViewSet,
     PayrollRunViewSet,
     PayslipViewSet,
     SalaryComponentViewSet,
@@ -14,5 +15,6 @@ router.register(
 )
 router.register("runs", PayrollRunViewSet, basename="payroll-run")
 router.register("payslips", PayslipViewSet, basename="payslip")
+router.register("loans", LoanViewSet, basename="loan")
 
 urlpatterns = router.urls

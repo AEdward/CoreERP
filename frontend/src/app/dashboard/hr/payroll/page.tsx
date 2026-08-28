@@ -8,6 +8,7 @@ import {
   ApiError,
   type EmployeePickerEntry,
   type EmployeeSalaryComponent,
+  type Loan,
   type PayrollRun,
   type Payslip,
   type SalaryComponent,
@@ -25,6 +26,18 @@ const RUN_STATUS_BADGES: Record<PayrollRun["status"], string> = {
   draft: "",
   processed: shared.badgeWarn,
   paid: shared.badgeSuccess,
+};
+
+const LOAN_STATUS_LABELS: Record<Loan["status"], string> = {
+  active: "Active",
+  paid_off: "Paid off",
+  cancelled: "Cancelled",
+};
+
+const LOAN_STATUS_BADGES: Record<Loan["status"], string> = {
+  active: shared.badgeWarn,
+  paid_off: shared.badgeSuccess,
+  cancelled: "",
 };
 
 function formatCents(cents: number) {
@@ -54,22 +67,29 @@ export default function PayrollPage() {
   const [runWorking, setRunWorking] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
 
+  const [loans, setLoans] = useState<Loan[] | null>(null);
+  const [loanForm, setLoanForm] = useState({ employee: "", principal_cents: "", term_months: "", start_date: "" });
+  const [loanWorking, setLoanWorking] = useState(false);
+  const [loanError, setLoanError] = useState<string | null>(null);
+
   const [expandedRunId, setExpandedRunId] = useState<number | null>(null);
   const [runPayslips, setRunPayslips] = useState<Payslip[] | null>(null);
   const [expandedPayslipId, setExpandedPayslipId] = useState<number | null>(null);
 
   async function loadAll() {
     try {
-      const [c, a, r, emp] = await Promise.all([
+      const [c, a, r, emp, l] = await Promise.all([
         api.listSalaryComponents(),
         api.listEmployeeSalaryComponents(),
         api.listPayrollRuns(),
         api.listEmployeePicker(),
+        api.listLoans(),
       ]);
       setComponents(c);
       setAssignments(a);
       setRuns(r);
       setEmployees(emp);
+      setLoans(l);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load payroll data.");
     }
@@ -181,6 +201,48 @@ export default function PayrollPage() {
       setRunError(err instanceof ApiError ? err.message : "Failed to mark payroll run paid.");
     } finally {
       setRunWorking(false);
+    }
+  }
+
+  async function handleCreateLoan(e: React.FormEvent) {
+    e.preventDefault();
+    setLoanWorking(true);
+    setLoanError(null);
+    try {
+      await api.createLoan({
+        employee: Number(loanForm.employee),
+        principal_cents: Math.round(Number(loanForm.principal_cents || 0) * 100),
+        term_months: Number(loanForm.term_months),
+        start_date: loanForm.start_date,
+      });
+      setLoanForm({ employee: "", principal_cents: "", term_months: "", start_date: "" });
+      await loadAll();
+    } catch (err) {
+      setLoanError(err instanceof ApiError ? err.message : "Failed to create loan.");
+    } finally {
+      setLoanWorking(false);
+    }
+  }
+
+  async function handleCancelLoan(id: number) {
+    setLoanWorking(true);
+    setLoanError(null);
+    try {
+      await api.cancelLoan(id);
+      await loadAll();
+    } catch (err) {
+      setLoanError(err instanceof ApiError ? err.message : "Failed to cancel loan.");
+    } finally {
+      setLoanWorking(false);
+    }
+  }
+
+  async function handleDeleteLoan(id: number) {
+    try {
+      await api.deleteLoan(id);
+      await loadAll();
+    } catch (err) {
+      setLoanError(err instanceof ApiError ? err.message : "Failed to delete loan.");
     }
   }
 
@@ -391,6 +453,123 @@ export default function PayrollPage() {
                   Assign
                 </button>
                 {assignError && <p className={shared.errorText}>{assignError}</p>}
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Loans / Employee Advances */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Loans &amp; employee advances</h2>
+          <p className={shared.hint} style={{ maxWidth: 700 }}>
+            A fixed monthly installment (principal ÷ term) is deducted automatically from each
+            payroll run until the loan is fully repaid, then it flips to Paid off on its own.
+          </p>
+          <div className={shared.card}>
+            <table className={shared.table}>
+              <thead>
+                <tr>
+                  <th>Loan #</th>
+                  <th>Employee</th>
+                  <th>Principal</th>
+                  <th>Monthly installment</th>
+                  <th>Remaining</th>
+                  <th>Status</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {loans?.map((l) => (
+                  <tr key={l.id}>
+                    <td>{l.loan_number}</td>
+                    <td>{l.employee_name}</td>
+                    <td>{formatCents(l.principal_cents)}</td>
+                    <td>{formatCents(l.monthly_installment_cents)}</td>
+                    <td>{formatCents(l.remaining_balance_cents)}</td>
+                    <td>
+                      <span className={`${shared.badge} ${LOAN_STATUS_BADGES[l.status]}`}>
+                        {LOAN_STATUS_LABELS[l.status]}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td style={{ textAlign: "right" }}>
+                        {l.status === "active" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelLoan(l.id)}
+                            disabled={loanWorking}
+                            className={`${shared.btn} ${shared.btnSmall}`}
+                            style={{ marginRight: 6 }}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        {l.repaid_cents === 0 && (
+                          <RowActions onDelete={() => handleDeleteLoan(l.id)} disabled={loanWorking} />
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {loans?.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className={shared.tableMuted}>
+                      No loans yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleCreateLoan} className={shared.formRow} style={{ marginTop: 12 }}>
+                <select
+                  required
+                  value={loanForm.employee}
+                  onChange={(e) => setLoanForm({ ...loanForm, employee: e.target.value })}
+                  className={shared.select}
+                >
+                  <option value="">Employee…</option>
+                  {employees?.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  placeholder="Principal"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={loanForm.principal_cents}
+                  onChange={(e) => setLoanForm({ ...loanForm, principal_cents: e.target.value })}
+                  className={shared.input}
+                  style={{ width: 120 }}
+                />
+                <input
+                  placeholder="Term (months)"
+                  type="number"
+                  min={1}
+                  required
+                  value={loanForm.term_months}
+                  onChange={(e) => setLoanForm({ ...loanForm, term_months: e.target.value })}
+                  className={shared.input}
+                  style={{ width: 120 }}
+                />
+                <input
+                  type="date"
+                  required
+                  value={loanForm.start_date}
+                  onChange={(e) => setLoanForm({ ...loanForm, start_date: e.target.value })}
+                  className={shared.input}
+                />
+                <button
+                  type="submit"
+                  disabled={loanWorking || !loanForm.employee || !loanForm.term_months}
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
+                  Disburse loan
+                </button>
+                {loanError && <p className={shared.errorText}>{loanError}</p>}
               </form>
             )}
           </div>

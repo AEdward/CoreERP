@@ -215,6 +215,7 @@ export interface PayslipLine {
   label: string;
   line_type: "earning" | "deduction";
   amount_cents: number;
+  source_loan: number | null;
 }
 
 export interface Payslip {
@@ -227,8 +228,25 @@ export interface Payslip {
   pension_employee_cents: number;
   pension_employer_cents: number;
   other_deductions_cents: number;
+  loan_repayment_cents: number;
   net_pay_cents: number;
   lines: PayslipLine[];
+  created_at: string;
+}
+
+export interface Loan {
+  id: number;
+  loan_number: string;
+  employee: number;
+  employee_name: string;
+  principal_cents: number;
+  term_months: number;
+  start_date: string;
+  status: "active" | "paid_off" | "cancelled";
+  notes: string;
+  monthly_installment_cents: number;
+  repaid_cents: number;
+  remaining_balance_cents: number;
   created_at: string;
 }
 
@@ -1646,6 +1664,14 @@ export const api = {
     const query = qs.toString();
     return request<Payslip[]>(`/api/payroll/payslips/${query ? `?${query}` : ""}`);
   },
+  listLoans: (employeeId?: number) =>
+    request<Loan[]>(`/api/payroll/loans/${employeeId ? `?employee=${employeeId}` : ""}`),
+  createLoan: (data: { employee: number; principal_cents: number; term_months: number; start_date: string; notes?: string }) =>
+    request<Loan>("/api/payroll/loans/", { method: "POST", body: JSON.stringify(data) }),
+  updateLoan: (id: number, data: Partial<Pick<Loan, "principal_cents" | "term_months" | "start_date" | "notes">>) =>
+    request<Loan>(`/api/payroll/loans/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteLoan: (id: number) => request<void>(`/api/payroll/loans/${id}/`, { method: "DELETE" }),
+  cancelLoan: (id: number) => request<Loan>(`/api/payroll/loans/${id}/cancel/`, { method: "POST" }),
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),

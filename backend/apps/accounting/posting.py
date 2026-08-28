@@ -334,30 +334,42 @@ def post_payroll_run_journal(run):
     Payable (total net pay — what's actually owed to employees until
     paid), Cr PAYE Payable (withheld income tax owed to the tax
     authority), Cr Pension Payable (both employee 7% and employer 11%,
-    owed to the pension fund). Any custom SalaryComponent deductions
-    (e.g. a company-defined recovery/deduction) reduce net pay but have
-    no dedicated GL destination of their own in this first version — they
-    stay folded into Payroll Payable, the same simplification Bill's
-    amount+tax-together posting already makes rather than splitting out
-    every possible sub-liability."""
+    owed to the pension fund), Cr Other Payroll Deductions Payable (any
+    custom SalaryComponent deduction — a company-defined recovery/
+    deduction with no more specific destination), Cr Employee Loan
+    Receivable (loan installments collected via payroll this run — this
+    one reduces an *asset*, not a liability, since the loan itself was
+    money owed *to* the company; see post_loan_disbursement_journal).
+
+    Every deduction subtracted from gross to reach net_pay needs a real
+    credit destination or this entry doesn't balance — a real bug this
+    project shipped with initially and only caught while building Loans:
+    other_deductions_cents was silently dropped, leaving every run with
+    any custom deduction assigned unbalanced by exactly that amount."""
     company = run.company
     salary_expense = _get_account(company, Account.Role.SALARY_EXPENSE)
     pension_expense = _get_account(company, Account.Role.PENSION_EXPENSE)
     payroll_payable = _get_account(company, Account.Role.PAYROLL_PAYABLE)
     paye_payable = _get_account(company, Account.Role.PAYE_PAYABLE)
     pension_payable = _get_account(company, Account.Role.PENSION_PAYABLE)
+    deductions_payable = _get_account(company, Account.Role.PAYROLL_DEDUCTIONS_PAYABLE)
+    loan_receivable = _get_account(company, Account.Role.EMPLOYEE_LOAN_RECEIVABLE)
 
     totals = run.payslips.aggregate(
         gross=Sum("gross_cents"),
         paye=Sum("paye_tax_cents"),
         pension_employee=Sum("pension_employee_cents"),
         pension_employer=Sum("pension_employer_cents"),
+        other_deductions=Sum("other_deductions_cents"),
+        loan_repayment=Sum("loan_repayment_cents"),
         net_pay=Sum("net_pay_cents"),
     )
     gross = totals["gross"] or 0
     paye = totals["paye"] or 0
     pension_employee = totals["pension_employee"] or 0
     pension_employer = totals["pension_employer"] or 0
+    other_deductions = totals["other_deductions"] or 0
+    loan_repayment = totals["loan_repayment"] or 0
     net_pay = totals["net_pay"] or 0
     total_pension = pension_employee + pension_employer
 
@@ -382,6 +394,14 @@ def post_payroll_run_journal(run):
         JournalLine.objects.create(
             company=company, journal_entry=entry, account=pension_payable, credit_cents=total_pension
         )
+    if other_deductions:
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=deductions_payable, credit_cents=other_deductions
+        )
+    if loan_repayment:
+        JournalLine.objects.create(
+            company=company, journal_entry=entry, account=loan_receivable, credit_cents=loan_repayment
+        )
 
 
 @transaction.atomic
@@ -403,3 +423,29 @@ def post_payroll_payment_journal(run):
         company=company, journal_entry=entry, account=payroll_payable, debit_cents=net_pay
     )
     JournalLine.objects.create(company=company, journal_entry=entry, account=cash, credit_cents=net_pay)
+
+
+@transaction.atomic
+def post_loan_disbursement_journal(loan):
+    """Disbursing an employee loan: Dr Employee Loan Receivable, Cr Cash
+    — the company hands over cash and gains an asset (money owed back by
+    the employee), same shape as any other cash outlay that creates a
+    receivable. Repayments collected via payroll reduce this same
+    account (see post_payroll_run_journal's loan_receivable credit
+    line) rather than creating a new liability — the loan was always an
+    asset, repaying it just shrinks that asset back toward zero."""
+    company = loan.company
+    loan_receivable = _get_account(company, Account.Role.EMPLOYEE_LOAN_RECEIVABLE)
+    cash = _get_account(company, Account.Role.CASH)
+
+    entry = JournalEntry.objects.create(
+        company=company,
+        reference=loan.loan_number,
+        memo=f"Loan disbursed: {loan.employee}",
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=loan_receivable, debit_cents=loan.principal_cents
+    )
+    JournalLine.objects.create(
+        company=company, journal_entry=entry, account=cash, credit_cents=loan.principal_cents
+    )

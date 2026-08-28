@@ -5,9 +5,10 @@ from rest_framework.response import Response
 from apps.common.views import CompanyScopedReadOnlyViewSet, CompanyScopedViewSet
 
 from .engine import mark_payroll_run_paid, process_payroll_run
-from .models import EmployeeSalaryComponent, PayrollRun, Payslip, SalaryComponent
+from .models import EmployeeSalaryComponent, Loan, PayrollRun, Payslip, SalaryComponent
 from .serializers import (
     EmployeeSalaryComponentSerializer,
+    LoanSerializer,
     PayrollRunSerializer,
     PayslipSerializer,
     SalaryComponentSerializer,
@@ -61,6 +62,38 @@ class PayrollRunViewSet(CompanyScopedViewSet):
         mark_payroll_run_paid(request, run)
         run.refresh_from_db()
         return Response(PayrollRunSerializer(run).data)
+
+
+class LoanViewSet(CompanyScopedViewSet):
+    queryset = Loan.objects.select_related("employee").prefetch_related("repayment_lines").all()
+    serializer_class = LoanSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
+
+    def perform_update(self, serializer):
+        if serializer.instance.repaid_cents:
+            raise ValidationError("Cannot edit a loan once repayments have started — cancel it instead.")
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        if instance.repaid_cents:
+            raise ValidationError("Cannot delete a loan once repayments have started — cancel it instead.")
+        super().perform_destroy(instance)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        loan = self.get_object()
+        if loan.status != Loan.Status.ACTIVE:
+            raise ValidationError("Only an active loan can be cancelled.")
+        loan.status = Loan.Status.CANCELLED
+        loan.save(update_fields=["status"])
+        return Response(LoanSerializer(loan).data)
 
 
 class PayslipViewSet(CompanyScopedReadOnlyViewSet):

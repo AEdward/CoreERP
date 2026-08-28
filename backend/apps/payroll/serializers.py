@@ -1,8 +1,9 @@
 from rest_framework import serializers
 
+from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
 
-from .models import EmployeeSalaryComponent, PayrollRun, Payslip, PayslipLine, SalaryComponent
+from .models import EmployeeSalaryComponent, Loan, PayrollRun, Payslip, PayslipLine, SalaryComponent
 
 
 class SalaryComponentSerializer(CompanyScopedSerializer):
@@ -53,8 +54,44 @@ class PayrollRunSerializer(CompanyScopedSerializer):
 class PayslipLineSerializer(CompanyScopedSerializer):
     class Meta:
         model = PayslipLine
-        fields = ["id", "label", "line_type", "amount_cents"]
+        fields = ["id", "label", "line_type", "amount_cents", "source_loan"]
         read_only_fields = ["id"]
+
+
+class LoanSerializer(CompanyScopedSerializer):
+    same_company_fields = ["employee"]
+    employee_name = serializers.SerializerMethodField()
+    monthly_installment_cents = serializers.IntegerField(read_only=True)
+    repaid_cents = serializers.IntegerField(read_only=True)
+    remaining_balance_cents = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Loan
+        fields = [
+            "id",
+            "loan_number",
+            "employee",
+            "employee_name",
+            "principal_cents",
+            "term_months",
+            "start_date",
+            "status",
+            "notes",
+            "monthly_installment_cents",
+            "repaid_cents",
+            "remaining_balance_cents",
+            "created_at",
+        ]
+        read_only_fields = ["id", "loan_number", "status", "created_at"]
+
+    def get_employee_name(self, obj):
+        return str(obj.employee)
+
+    def create(self, validated_data):
+        loan = Loan.objects.create(**validated_data)
+        loan.loan_number = next_number(loan.company, "LOAN")
+        loan.save(update_fields=["loan_number"])
+        return loan
 
 
 class PayslipSerializer(CompanyScopedSerializer):
@@ -72,6 +109,7 @@ class PayslipSerializer(CompanyScopedSerializer):
             "pension_employee_cents",
             "pension_employer_cents",
             "other_deductions_cents",
+            "loan_repayment_cents",
             "net_pay_cents",
             "lines",
             "created_at",

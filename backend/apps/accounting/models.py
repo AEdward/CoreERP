@@ -36,6 +36,8 @@ class Account(TenantModel):
         PAYROLL_PAYABLE = "payroll_payable", "Payroll Payable"
         PAYE_PAYABLE = "paye_payable", "PAYE Payable"
         PENSION_PAYABLE = "pension_payable", "Pension Payable"
+        PAYROLL_DEDUCTIONS_PAYABLE = "payroll_deductions_payable", "Other Payroll Deductions Payable"
+        EMPLOYEE_LOAN_RECEIVABLE = "employee_loan_receivable", "Employee Loan Receivable"
 
     code = models.CharField(max_length=20)
     name = models.CharField(max_length=100)

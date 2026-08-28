@@ -17,6 +17,7 @@ from django.dispatch import receiver
 
 from apps.expenses.models import Expense
 from apps.notifications.services import notify_permission
+from apps.payroll.models import Loan
 from apps.procurement.models import Bill, PurchaseReturn
 from apps.sales.models import CreditNote, Invoice
 
@@ -26,6 +27,7 @@ from .posting import (
     post_credit_note_journal,
     post_expense_journal,
     post_invoice_journal,
+    post_loan_disbursement_journal,
     post_payment_journal,
     post_purchase_return_journal,
 )
@@ -128,6 +130,15 @@ def handle_expense_saved(sender, instance, **kwargs):
         f"Expense approved for {instance.employee}: {instance.amount_cents / 100:.2f} ({instance.category})",
         link="/dashboard/expenses",
     )
+
+
+@receiver(post_save, sender=Loan)
+def handle_loan_saved(sender, instance, **kwargs):
+    if not instance.loan_number:
+        return
+    if JournalEntry.objects.filter(company=instance.company, reference=instance.loan_number).exists():
+        return
+    post_loan_disbursement_journal(instance)
 
 
 @receiver(post_save, sender=Payment)
