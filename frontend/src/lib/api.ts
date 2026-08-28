@@ -432,6 +432,30 @@ export interface EmployeeSkill {
   created_at: string;
 }
 
+export interface Vehicle {
+  id: number;
+  registration_number: string;
+  make: string;
+  model: string;
+  year: number | null;
+  status: "active" | "maintenance" | "retired";
+  notes: string;
+  current_assignee_name: string;
+  created_at: string;
+}
+
+export interface VehicleAssignment {
+  id: number;
+  vehicle: number;
+  vehicle_registration: string;
+  employee: number;
+  employee_name: string;
+  start_date: string;
+  end_date: string | null;
+  notes: string;
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -3025,4 +3049,28 @@ export const api = {
     request<LoyaltyTransaction>("/api/loyalty/transactions/", { method: "POST", body: JSON.stringify(data) }),
   redeemLoyaltyReward: (data: { member: number; reward: number; points: number; reason: string }) =>
     request<LoyaltyTransaction>("/api/loyalty/transactions/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Fleet ---
+  listVehicles: () => request<Vehicle[]>("/api/fleet/vehicles/"),
+  createVehicle: (data: { registration_number: string; make?: string; model?: string; year?: number | null; status?: Vehicle["status"]; notes?: string }) =>
+    request<Vehicle>("/api/fleet/vehicles/", { method: "POST", body: JSON.stringify(data) }),
+  updateVehicle: (id: number, data: Partial<Pick<Vehicle, "status" | "notes" | "make" | "model" | "year">>) =>
+    request<Vehicle>(`/api/fleet/vehicles/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteVehicle: (id: number) => request<void>(`/api/fleet/vehicles/${id}/`, { method: "DELETE" }),
+  listVehicleAssignments: (vehicleId?: number, employeeId?: number) =>
+    request<VehicleAssignment[]>(
+      `/api/fleet/vehicle-assignments/${
+        vehicleId || employeeId
+          ? `?${[vehicleId ? `vehicle=${vehicleId}` : "", employeeId ? `employee=${employeeId}` : ""]
+              .filter(Boolean)
+              .join("&")}`
+          : ""
+      }`
+    ),
+  createVehicleAssignment: (data: { vehicle: number; employee: number; start_date: string; notes?: string }) =>
+    request<VehicleAssignment>("/api/fleet/vehicle-assignments/", { method: "POST", body: JSON.stringify(data) }),
+  endVehicleAssignment: (id: number) =>
+    request<VehicleAssignment>(`/api/fleet/vehicle-assignments/${id}/end/`, { method: "POST" }),
+  deleteVehicleAssignment: (id: number) =>
+    request<void>(`/api/fleet/vehicle-assignments/${id}/`, { method: "DELETE" }),
 };

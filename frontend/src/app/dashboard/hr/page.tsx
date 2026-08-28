@@ -356,6 +356,8 @@ export default function HrPage() {
               {" · "}
               <a href="/dashboard/hr/skills">Skills &rarr;</a>
               {" · "}
+              <a href="/dashboard/hr/fleet">Fleet &rarr;</a>
+              {" · "}
               <a href="/dashboard/hr/payroll">Payroll &rarr;</a>
               {" · "}
               <a href="/dashboard/hr/recruitment">Recruitment &rarr;</a>
