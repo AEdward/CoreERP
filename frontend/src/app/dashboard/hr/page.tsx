@@ -11,6 +11,7 @@ import {
   ApiError,
   type Branch,
   type CompanyMember,
+  type CostCenter,
   type Department,
   type Employee,
   type Position,
@@ -34,10 +35,24 @@ const EMPTY_EMPLOYEE_FORM = {
   department: "",
   branch: "",
   shift: "",
+  cost_center: "",
+  manager: "",
   salary_cents: "",
   joining_date: "",
   status: "active" as Employee["status"],
   user: "",
+  payment_method: "bank_transfer" as Employee["payment_method"],
+  bank_name: "",
+  bank_account_number: "",
+  bank_account_name: "",
+  national_id: "",
+  passport_number: "",
+  date_of_birth: "",
+  gender: "" as Employee["gender"],
+  marital_status: "" as Employee["marital_status"],
+  address: "",
+  emergency_contact_name: "",
+  emergency_contact_phone: "",
 };
 
 export default function HrPage() {
@@ -48,6 +63,7 @@ export default function HrPage() {
   const [employees, setEmployees] = useState<Employee[] | null>(null);
   const [branches, setBranches] = useState<Branch[] | null>(null);
   const [companyMembers, setCompanyMembers] = useState<CompanyMember[] | null>(null);
+  const [costCenters, setCostCenters] = useState<CostCenter[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [newDeptName, setNewDeptName] = useState("");
@@ -69,13 +85,14 @@ export default function HrPage() {
 
   async function loadAll() {
     try {
-      const [depts, poss, shs, emps, brs, members] = await Promise.all([
+      const [depts, poss, shs, emps, brs, members, ccs] = await Promise.all([
         api.listDepartments(),
         api.listPositions(),
         api.listShifts(),
         api.listEmployees(),
         api.listBranches(),
         api.listCompanyMembers(),
+        api.listCostCenters(),
       ]);
       setDepartments(depts);
       setPositions(poss);
@@ -83,6 +100,7 @@ export default function HrPage() {
       setEmployees(emps);
       setBranches(brs);
       setCompanyMembers(members);
+      setCostCenters(ccs);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load HR data.");
     }
@@ -201,10 +219,24 @@ export default function HrPage() {
         department: empForm.department ? Number(empForm.department) : null,
         branch: empForm.branch ? Number(empForm.branch) : null,
         shift: empForm.shift ? Number(empForm.shift) : null,
+        cost_center: empForm.cost_center ? Number(empForm.cost_center) : null,
+        manager: empForm.manager ? Number(empForm.manager) : null,
         salary_cents: empForm.salary_cents ? Math.round(Number(empForm.salary_cents) * 100) : 0,
         joining_date: empForm.joining_date || null,
         status: empForm.status,
         user: empForm.user ? Number(empForm.user) : null,
+        payment_method: empForm.payment_method,
+        bank_name: empForm.bank_name,
+        bank_account_number: empForm.bank_account_number,
+        bank_account_name: empForm.bank_account_name,
+        national_id: empForm.national_id,
+        passport_number: empForm.passport_number,
+        date_of_birth: empForm.date_of_birth || null,
+        gender: empForm.gender,
+        marital_status: empForm.marital_status,
+        address: empForm.address,
+        emergency_contact_name: empForm.emergency_contact_name,
+        emergency_contact_phone: empForm.emergency_contact_phone,
       };
       if (editingEmpId) {
         await api.updateEmployee(editingEmpId, payload);
@@ -232,10 +264,24 @@ export default function HrPage() {
       department: emp.department ? String(emp.department) : "",
       branch: emp.branch ? String(emp.branch) : "",
       shift: emp.shift ? String(emp.shift) : "",
+      cost_center: emp.cost_center ? String(emp.cost_center) : "",
+      manager: emp.manager ? String(emp.manager) : "",
       salary_cents: emp.salary_cents ? String(emp.salary_cents / 100) : "",
       joining_date: emp.joining_date ?? "",
       status: emp.status,
       user: emp.user ? String(emp.user) : "",
+      payment_method: emp.payment_method,
+      bank_name: emp.bank_name,
+      bank_account_number: emp.bank_account_number,
+      bank_account_name: emp.bank_account_name,
+      national_id: emp.national_id,
+      passport_number: emp.passport_number,
+      date_of_birth: emp.date_of_birth ?? "",
+      gender: emp.gender,
+      marital_status: emp.marital_status,
+      address: emp.address,
+      emergency_contact_name: emp.emergency_contact_name,
+      emergency_contact_phone: emp.emergency_contact_phone,
     });
   }
 
@@ -508,6 +554,7 @@ export default function HrPage() {
                     <th>Department</th>
                     <th>Branch</th>
                     <th>Shift</th>
+                    <th>Manager</th>
                     <th>Status</th>
                     <th>Linked account</th>
                     <th></th>
@@ -524,6 +571,7 @@ export default function HrPage() {
                       <td>{departmentName(emp.department)}</td>
                       <td>{branchName(emp.branch)}</td>
                       <td>{shiftName(emp.shift)}</td>
+                      <td className={shared.tableMuted}>{emp.manager_name || "—"}</td>
                       <td>{STATUS_LABELS[emp.status]}</td>
                       <td className={shared.tableMuted}>{emp.user_name || "—"}</td>
                       <td style={{ textAlign: "right" }}>
@@ -552,7 +600,7 @@ export default function HrPage() {
                   ))}
                   {employees?.length === 0 && (
                     <tr>
-                      <td colSpan={9} className={shared.tableMuted}>
+                      <td colSpan={10} className={shared.tableMuted}>
                         No employees yet.
                       </td>
                     </tr>
@@ -674,6 +722,129 @@ export default function HrPage() {
                       </option>
                     ))}
                   </select>
+                  <select
+                    value={empForm.cost_center}
+                    onChange={(e) => setEmpForm({ ...empForm, cost_center: e.target.value })}
+                    className={shared.select}
+                  >
+                    <option value="">No cost center</option>
+                    {costCenters?.map((cc) => (
+                      <option key={cc.id} value={cc.id}>
+                        {cc.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={empForm.manager}
+                    onChange={(e) => setEmpForm({ ...empForm, manager: e.target.value })}
+                    className={shared.select}
+                  >
+                    <option value="">No manager (reports to no one)</option>
+                    {employees
+                      ?.filter((e) => e.id !== editingEmpId)
+                      .map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.first_name} {e.last_name}
+                        </option>
+                      ))}
+                  </select>
+                  <details style={{ gridColumn: "1 / -1" }}>
+                    <summary className={shared.hint} style={{ cursor: "pointer" }}>
+                      More details (bank &amp; personal)
+                    </summary>
+                    <div className={shared.formRow} style={{ marginTop: 10 }}>
+                      <select
+                        value={empForm.payment_method}
+                        onChange={(e) =>
+                          setEmpForm({ ...empForm, payment_method: e.target.value as Employee["payment_method"] })
+                        }
+                        className={shared.select}
+                      >
+                        <option value="bank_transfer">Bank transfer</option>
+                        <option value="cash">Cash</option>
+                        <option value="mobile_money">Mobile money</option>
+                      </select>
+                      <input
+                        placeholder="Bank name"
+                        value={empForm.bank_name}
+                        onChange={(e) => setEmpForm({ ...empForm, bank_name: e.target.value })}
+                        className={shared.input}
+                      />
+                      <input
+                        placeholder="Bank account number"
+                        value={empForm.bank_account_number}
+                        onChange={(e) => setEmpForm({ ...empForm, bank_account_number: e.target.value })}
+                        className={shared.input}
+                      />
+                      <input
+                        placeholder="Bank account name"
+                        value={empForm.bank_account_name}
+                        onChange={(e) => setEmpForm({ ...empForm, bank_account_name: e.target.value })}
+                        className={shared.input}
+                      />
+                      <input
+                        placeholder="National ID"
+                        value={empForm.national_id}
+                        onChange={(e) => setEmpForm({ ...empForm, national_id: e.target.value })}
+                        className={shared.input}
+                      />
+                      <input
+                        placeholder="Passport number"
+                        value={empForm.passport_number}
+                        onChange={(e) => setEmpForm({ ...empForm, passport_number: e.target.value })}
+                        className={shared.input}
+                      />
+                      <input
+                        type="date"
+                        title="Date of birth"
+                        value={empForm.date_of_birth}
+                        onChange={(e) => setEmpForm({ ...empForm, date_of_birth: e.target.value })}
+                        className={shared.input}
+                      />
+                      <select
+                        value={empForm.gender}
+                        onChange={(e) => setEmpForm({ ...empForm, gender: e.target.value as Employee["gender"] })}
+                        className={shared.select}
+                      >
+                        <option value="">Gender…</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <select
+                        value={empForm.marital_status}
+                        onChange={(e) =>
+                          setEmpForm({ ...empForm, marital_status: e.target.value as Employee["marital_status"] })
+                        }
+                        className={shared.select}
+                      >
+                        <option value="">Marital status…</option>
+                        <option value="single">Single</option>
+                        <option value="married">Married</option>
+                        <option value="divorced">Divorced</option>
+                        <option value="widowed">Widowed</option>
+                      </select>
+                      <input
+                        placeholder="Address"
+                        value={empForm.address}
+                        onChange={(e) => setEmpForm({ ...empForm, address: e.target.value })}
+                        className={shared.input}
+                        style={{ flex: 1, maxWidth: 220 }}
+                      />
+                      <input
+                        placeholder="Emergency contact name"
+                        value={empForm.emergency_contact_name}
+                        onChange={(e) => setEmpForm({ ...empForm, emergency_contact_name: e.target.value })}
+                        className={shared.input}
+                      />
+                      <input
+                        placeholder="Emergency contact phone"
+                        value={empForm.emergency_contact_phone}
+                        onChange={(e) => setEmpForm({ ...empForm, emergency_contact_phone: e.target.value })}
+                        className={shared.input}
+                      />
+                    </div>
+                  </details>
                   <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
                     <button
                       type="submit"

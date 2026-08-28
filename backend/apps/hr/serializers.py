@@ -42,8 +42,9 @@ class ShiftTemplateSerializer(CompanyScopedSerializer):
 
 
 class EmployeeSerializer(CompanyScopedSerializer):
-    same_company_fields = ["department", "branch", "position", "shift"]
+    same_company_fields = ["department", "branch", "position", "shift", "cost_center", "manager"]
     user_name = serializers.SerializerMethodField()
+    manager_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
@@ -57,17 +58,40 @@ class EmployeeSerializer(CompanyScopedSerializer):
             "department",
             "branch",
             "shift",
+            "cost_center",
+            "manager",
+            "manager_name",
             "salary_cents",
             "joining_date",
             "status",
             "user",
             "user_name",
+            "payment_method",
+            "bank_name",
+            "bank_account_number",
+            "bank_account_name",
+            "national_id",
+            "passport_number",
+            "date_of_birth",
+            "gender",
+            "marital_status",
+            "address",
+            "emergency_contact_name",
+            "emergency_contact_phone",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 
     def get_user_name(self, obj):
         return obj.user.full_name if obj.user_id else ""
+
+    def get_manager_name(self, obj):
+        return str(obj.manager) if obj.manager_id else ""
+
+    def validate_manager(self, value):
+        if value is not None and self.instance is not None and value.pk == self.instance.pk:
+            raise serializers.ValidationError("An employee can't be their own manager.")
+        return value
 
     def validate_user(self, value):
         if value is None:

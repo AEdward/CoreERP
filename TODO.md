@@ -103,6 +103,22 @@ Scored against the diagram's Core Platform box (Users & Permissions, Companies, 
 - [ ] **Contacts as a core service** — `apps.crm.Contact` exists but is CRM-owned, not a shared core entity other modules reference the way the diagram implies.
 - [ ] **Products as a core service** — same shape as Contacts: `apps.catalog.Item` is real but Catalog-owned, not exposed as a shared core service.
 
+### HR gaps vs MiranErp/Odoo (from a direct comparison of Section F against MiranErp's actual `apps.hr` and general knowledge of Odoo's HR suite, 2026-08-28 — the user asked to add these and build them)
+- [ ] **Employee record depth** — bank/payment details, personal/statutory fields (national ID, DOB, gender, marital status, address, emergency contact), org hierarchy (`manager` FK), `CostCenter` link. MiranErp has all of this on `Employee`; port directly.
+- [ ] **Visual org chart** — a tree UI over the `manager`/direct-reports data above. Neither MiranErp nor CoreERP has the UI; MiranErp only has the data.
+- [ ] **Pay-grade concept (`SalaryStructure`)** — group employees into salary bands instead of only ad hoc per-employee components. Port from MiranErp.
+- [ ] **Leave balances** — `LeaveType.default_days_per_year` + a real allocated/used/remaining computation, plus `LeaveRequest.Status.CANCELLED` and approval auto-flipping `Employee.status` to `on_leave`. Port from MiranErp (`leave_balance.py`).
+- [ ] **Configurable Tax Brackets + Pension Settings** — replace `apps.payroll.engine`'s hardcoded PAYE brackets and 7%/11% pension constants with per-company editable DB tables, same shape `apps.tax.TaxRate` already uses for VAT. Port from MiranErp (`paye.py`/`pension.py`).
+- [ ] **Overtime pay** — closes the documented gap: `AttendanceRecord.overtime_hours` is tracked but never converted into pay. Port MiranErp's `OvertimeSettings` + `overtime.py`.
+- [ ] **Offboarding workflow** — resignation/termination reason, last working day, exit interview notes, IT/Finance/Admin clearances, only then flips the employee to Terminated. Port from MiranErp.
+- [ ] **Document expiry tracking** — a dedicated `doc_type` + `expiry_date` employee-document model feeding an HR dashboard reminder widget, not just generic file storage. Port from MiranErp.
+- [ ] **Shift roster** — real per-date `ShiftAssignment` plus `ShiftSwapRequest` ("cover my shift"), replacing the static one-`shift`-FK-per-employee shape. Port from MiranErp.
+- [ ] **Time-off accrual plans** — monthly accrual, carryover caps, a public-holiday calendar excluded from leave-day counts. Not in MiranErp either (flat entitlement only) — designed fresh.
+- [ ] **Skills & resume management** — a skills matrix per employee. Not in MiranErp or CoreERP — designed fresh, Odoo-inspired.
+- [ ] **Employee referral program** — `referred_by` on `Applicant`, traceable but not a full rewards system. Not in MiranErp or CoreERP.
+- [ ] **360° appraisal with multiple raters** — a review cycle grouping several `PerformanceReview`s (self/manager/peer) for the same employee/period. Not in MiranErp or CoreERP.
+- [ ] **Fleet management** — company vehicles + who's assigned which one. Not in MiranErp or CoreERP, Odoo-inspired, deliberately minimal (no maintenance/fuel-log system).
+
 ### Team growth
 - [ ] Invite-by-link flow (join an existing company — today you can only create one and become its Owner)
 - [ ] Custom roles per company (beyond the five seeded defaults)

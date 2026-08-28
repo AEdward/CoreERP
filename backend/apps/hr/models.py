@@ -3,6 +3,7 @@ from django.db import models
 
 from apps.branches.models import Branch
 from apps.common.models import TenantModel
+from apps.costcenters.models import CostCenter
 
 
 class Department(TenantModel):
@@ -80,6 +81,22 @@ class Employee(TenantModel):
         ON_LEAVE = "on_leave", "On leave"
         TERMINATED = "terminated", "Terminated"
 
+    class PaymentMethod(models.TextChoices):
+        BANK_TRANSFER = "bank_transfer", "Bank transfer"
+        CASH = "cash", "Cash"
+        MOBILE_MONEY = "mobile_money", "Mobile money"
+
+    class Gender(models.TextChoices):
+        MALE = "male", "Male"
+        FEMALE = "female", "Female"
+        OTHER = "other", "Other"
+
+    class MaritalStatus(models.TextChoices):
+        SINGLE = "single", "Single"
+        MARRIED = "married", "Married"
+        DIVORCED = "divorced", "Divorced"
+        WIDOWED = "widowed", "Widowed"
+
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     email = models.EmailField(blank=True)
@@ -96,6 +113,16 @@ class Employee(TenantModel):
     shift = models.ForeignKey(
         ShiftTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name="employees"
     )
+    cost_center = models.ForeignKey(
+        CostCenter, on_delete=models.SET_NULL, null=True, blank=True, related_name="employees"
+    )
+    # Org hierarchy — who this employee reports to. Self-referential and
+    # nullable (a GM/Owner-level employee reports to no one). Data model
+    # only — not wired into any approval-routing logic, that would need
+    # a concrete trigger of its own.
+    manager = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="direct_reports"
+    )
     salary_cents = models.BigIntegerField(default=0)
     joining_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
@@ -105,6 +132,24 @@ class Employee(TenantModel):
         help_text="The platform account this employee record belongs to, if any — links this "
         "record to Employee Self-Service. Set by HR, not the employee themselves.",
     )
+
+    # Payroll disbursement
+    payment_method = models.CharField(
+        max_length=16, choices=PaymentMethod.choices, default=PaymentMethod.BANK_TRANSFER
+    )
+    bank_name = models.CharField(max_length=100, blank=True)
+    bank_account_number = models.CharField(max_length=64, blank=True)
+    bank_account_name = models.CharField(max_length=150, blank=True)
+
+    # Personal / statutory
+    national_id = models.CharField(max_length=64, blank=True)
+    passport_number = models.CharField(max_length=64, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=16, choices=Gender.choices, blank=True)
+    marital_status = models.CharField(max_length=16, choices=MaritalStatus.choices, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    emergency_contact_name = models.CharField(max_length=150, blank=True)
+    emergency_contact_phone = models.CharField(max_length=32, blank=True)
 
     class Meta:
         db_table = "employees"

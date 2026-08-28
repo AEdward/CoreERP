@@ -158,11 +158,26 @@ export interface Employee {
   department: number | null;
   branch: number | null;
   shift: number | null;
+  cost_center: number | null;
+  manager: number | null;
+  manager_name: string;
   salary_cents: number;
   joining_date: string | null;
   status: "active" | "on_leave" | "terminated";
   user: number | null;
   user_name: string;
+  payment_method: "bank_transfer" | "cash" | "mobile_money";
+  bank_name: string;
+  bank_account_number: string;
+  bank_account_name: string;
+  national_id: string;
+  passport_number: string;
+  date_of_birth: string | null;
+  gender: "male" | "female" | "other" | "";
+  marital_status: "single" | "married" | "divorced" | "widowed" | "";
+  address: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
   created_at: string;
 }
 
