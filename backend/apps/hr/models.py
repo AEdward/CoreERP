@@ -205,6 +205,59 @@ class Employee(TenantModel):
         return f"{self.first_name} {self.last_name}"
 
 
+class Skill(TenantModel):
+    """A per-company reference skill (e.g. "Python", "Forklift
+    Operation") — designed fresh, Odoo-inspired: neither MiranErp nor
+    CoreERP has a skills matrix. Kept as a real lookup table rather than
+    free text on `EmployeeSkill` for the same reason `LeaveType`/
+    `SalaryComponent` are real tables — a matrix report grouping by
+    skill only works if the name is consistent across employees, not
+    whatever each entry happened to be typed as."""
+
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        db_table = "hr_skills"
+        constraints = [
+            models.UniqueConstraint(fields=["company", "name"], name="unique_company_skill_name")
+        ]
+        ordering = ["category", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class EmployeeSkill(TenantModel):
+    """One employee's proficiency in one Skill — the actual matrix
+    entry. A resume/CV itself isn't a field here or on Employee: it
+    attaches via the existing generic Documents panel already available
+    on every Employee record (`hr.employee` is already in
+    apps.common.targeting.ALLOWED_TARGETS), the same "one file-storage
+    mechanism project-wide" choice EmployeeContract/EmployeeDocument
+    already made, rather than adding a second, redundant upload slot."""
+
+    class Proficiency(models.TextChoices):
+        BEGINNER = "beginner", "Beginner"
+        INTERMEDIATE = "intermediate", "Intermediate"
+        ADVANCED = "advanced", "Advanced"
+        EXPERT = "expert", "Expert"
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="skills")
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="employee_skills")
+    proficiency = models.CharField(max_length=16, choices=Proficiency.choices, default=Proficiency.BEGINNER)
+
+    class Meta:
+        db_table = "hr_employee_skills"
+        constraints = [
+            models.UniqueConstraint(fields=["employee", "skill"], name="unique_employee_skill")
+        ]
+        ordering = ["skill__category", "skill__name"]
+
+    def __str__(self):
+        return f"{self.employee} — {self.skill} ({self.get_proficiency_display()})"
+
+
 class AttendanceRecord(TenantModel):
     """One employee's clock-in/out for one date. `source` distinguishes
     a manually-entered record from one that arrived via the bulk

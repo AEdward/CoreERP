@@ -7,6 +7,7 @@ from .views import (
     EmployeeContractViewSet,
     EmployeeDocumentViewSet,
     EmployeePickerView,
+    EmployeeSkillViewSet,
     EmployeeViewSet,
     LeaveRequestViewSet,
     LeaveTypeViewSet,
@@ -17,6 +18,7 @@ from .views import (
     ShiftAssignmentViewSet,
     ShiftSwapRequestViewSet,
     ShiftTemplateViewSet,
+    SkillViewSet,
 )
 
 router = DefaultRouter()
@@ -29,6 +31,8 @@ router.register("salary-structures", SalaryStructureViewSet, basename="salary-st
 router.register("employees", EmployeeViewSet, basename="employee")
 router.register("employee-contracts", EmployeeContractViewSet, basename="employee-contract")
 router.register("employee-documents", EmployeeDocumentViewSet, basename="employee-document")
+router.register("skills", SkillViewSet, basename="skill")
+router.register("employee-skills", EmployeeSkillViewSet, basename="employee-skill")
 router.register("leave-types", LeaveTypeViewSet, basename="leave-type")
 router.register("public-holidays", PublicHolidayViewSet, basename="public-holiday")
 router.register("leave-requests", LeaveRequestViewSet, basename="leave-request")

@@ -17,6 +17,7 @@ from .models import (
     Employee,
     EmployeeContract,
     EmployeeDocument,
+    EmployeeSkill,
     LeaveRequest,
     LeaveType,
     Offboarding,
@@ -26,6 +27,7 @@ from .models import (
     ShiftAssignment,
     ShiftSwapRequest,
     ShiftTemplate,
+    Skill,
 )
 from .serializers import (
     AttendanceRecordSerializer,
@@ -33,6 +35,7 @@ from .serializers import (
     EmployeeContractSerializer,
     EmployeeDocumentSerializer,
     EmployeeSerializer,
+    EmployeeSkillSerializer,
     LeaveRequestSerializer,
     LeaveTypeSerializer,
     OffboardingSerializer,
@@ -42,6 +45,7 @@ from .serializers import (
     ShiftAssignmentSerializer,
     ShiftSwapRequestSerializer,
     ShiftTemplateSerializer,
+    SkillSerializer,
 )
 
 
@@ -75,6 +79,25 @@ class EmployeeViewSet(CompanyScopedViewSet):
     ).all()
     serializer_class = EmployeeSerializer
     permission_module = "hr"
+
+
+class SkillViewSet(CompanyScopedViewSet):
+    queryset = Skill.objects.all()
+    serializer_class = SkillSerializer
+    permission_module = "hr"
+
+
+class EmployeeSkillViewSet(CompanyScopedViewSet):
+    queryset = EmployeeSkill.objects.select_related("employee", "skill").all()
+    serializer_class = EmployeeSkillSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
 
 
 class EmployeeContractViewSet(CompanyScopedViewSet):

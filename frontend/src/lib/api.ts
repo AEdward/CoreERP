@@ -397,6 +397,24 @@ export interface MyOnboardingTask {
   created_at: string;
 }
 
+export interface Skill {
+  id: number;
+  name: string;
+  category: string;
+  created_at: string;
+}
+
+export interface EmployeeSkill {
+  id: number;
+  employee: number;
+  employee_name: string;
+  skill: number;
+  skill_name: string;
+  skill_category: string;
+  proficiency: "beginner" | "intermediate" | "advanced" | "expert";
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -1801,6 +1819,23 @@ export const api = {
     request<SalaryStructure>("/api/hr/salary-structures/", { method: "POST", body: JSON.stringify(data) }),
   deleteSalaryStructure: (id: number) =>
     request<void>(`/api/hr/salary-structures/${id}/`, { method: "DELETE" }),
+  listSkills: () => request<Skill[]>("/api/hr/skills/"),
+  createSkill: (data: { name: string; category?: string }) =>
+    request<Skill>("/api/hr/skills/", { method: "POST", body: JSON.stringify(data) }),
+  deleteSkill: (id: number) => request<void>(`/api/hr/skills/${id}/`, { method: "DELETE" }),
+  listEmployeeSkills: (employeeId?: number) =>
+    request<EmployeeSkill[]>(
+      `/api/hr/employee-skills/${employeeId ? `?employee=${employeeId}` : ""}`
+    ),
+  createEmployeeSkill: (data: {
+    employee: number;
+    skill: number;
+    proficiency: EmployeeSkill["proficiency"];
+  }) => request<EmployeeSkill>("/api/hr/employee-skills/", { method: "POST", body: JSON.stringify(data) }),
+  updateEmployeeSkill: (id: number, data: { proficiency: EmployeeSkill["proficiency"] }) =>
+    request<EmployeeSkill>(`/api/hr/employee-skills/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteEmployeeSkill: (id: number) =>
+    request<void>(`/api/hr/employee-skills/${id}/`, { method: "DELETE" }),
   listEmployeeContracts: (employeeId?: number) =>
     request<EmployeeContract[]>(
       `/api/hr/employee-contracts/${employeeId ? `?employee=${employeeId}` : ""}`

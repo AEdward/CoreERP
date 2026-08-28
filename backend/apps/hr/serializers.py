@@ -8,6 +8,7 @@ from .models import (
     Employee,
     EmployeeContract,
     EmployeeDocument,
+    EmployeeSkill,
     LeaveRequest,
     LeaveType,
     Offboarding,
@@ -17,6 +18,7 @@ from .models import (
     ShiftAssignment,
     ShiftSwapRequest,
     ShiftTemplate,
+    Skill,
 )
 
 
@@ -117,6 +119,34 @@ class EmployeeSerializer(CompanyScopedSerializer):
         if company and not company.memberships.filter(user=value, status="active").exists():
             raise serializers.ValidationError("Must be an active member of this company.")
         return value
+
+
+class SkillSerializer(CompanyScopedSerializer):
+    class Meta:
+        model = Skill
+        fields = ["id", "name", "category", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class EmployeeSkillSerializer(CompanyScopedSerializer):
+    same_company_fields = ["employee", "skill"]
+    employee_name = serializers.CharField(source="employee.__str__", read_only=True)
+    skill_name = serializers.CharField(source="skill.name", read_only=True)
+    skill_category = serializers.CharField(source="skill.category", read_only=True)
+
+    class Meta:
+        model = EmployeeSkill
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "skill",
+            "skill_name",
+            "skill_category",
+            "proficiency",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class EmployeeContractSerializer(CompanyScopedSerializer):
