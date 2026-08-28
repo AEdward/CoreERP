@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
@@ -15,6 +16,7 @@ from .models import (
     EmployeeContract,
     LeaveRequest,
     LeaveType,
+    Offboarding,
     Position,
     SalaryStructure,
     ShiftTemplate,
@@ -26,6 +28,7 @@ from .serializers import (
     EmployeeSerializer,
     LeaveRequestSerializer,
     LeaveTypeSerializer,
+    OffboardingSerializer,
     PositionSerializer,
     SalaryStructureSerializer,
     ShiftTemplateSerializer,
@@ -75,6 +78,34 @@ class EmployeeContractViewSet(CompanyScopedViewSet):
         if employee_id:
             qs = qs.filter(employee_id=employee_id)
         return qs
+
+
+class OffboardingViewSet(CompanyScopedViewSet):
+    queryset = Offboarding.objects.select_related("employee").all()
+    serializer_class = OffboardingSerializer
+    permission_module = "hr"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        return qs
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        offboarding = self.get_object()
+        if offboarding.status == Offboarding.Status.COMPLETED:
+            raise ValidationError({"status": "Already completed."})
+        if not (offboarding.clearance_it and offboarding.clearance_finance and offboarding.clearance_admin):
+            raise ValidationError({"detail": "All three clearances (IT, Finance, Admin) must be checked first."})
+        with transaction.atomic():
+            offboarding.status = Offboarding.Status.COMPLETED
+            offboarding.completed_at = timezone.now()
+            offboarding.save(update_fields=["status", "completed_at"])
+            offboarding.employee.status = Employee.Status.TERMINATED
+            offboarding.employee.save(update_fields=["status"])
+        return Response(OffboardingSerializer(offboarding).data)
 
 
 class LeaveTypeViewSet(CompanyScopedViewSet):

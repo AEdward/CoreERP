@@ -292,6 +292,48 @@ class EmployeeContract(TenantModel):
         return f"{self.employee} — {self.get_contract_type_display()} ({self.start_date})"
 
 
+class Offboarding(TenantModel):
+    """One record per employee's exit — OneToOne, since starting
+    offboarding again for someone already fully offboarded isn't a real
+    scenario this project needs to model (a rehire gets a fresh Employee
+    row, not a reused old one). Creating this record does NOT itself
+    change Employee.status — someone can be mid-notice and still
+    actively working; only the explicit `complete` action, which
+    requires all three clearances checked, flips the employee to
+    TERMINATED. Ported from MiranErp's Offboarding. The "final
+    settlement" figure is deliberately not a separate stored field —
+    it's just that employee's most recent Payslip, already computed and
+    already viewable on the Payroll page; duplicating it here would be a
+    second source of truth for the same number."""
+
+    class Reason(models.TextChoices):
+        RESIGNATION = "resignation", "Resignation"
+        TERMINATION = "termination", "Termination"
+        RETIREMENT = "retirement", "Retirement"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        IN_PROGRESS = "in_progress", "In progress"
+        COMPLETED = "completed", "Completed"
+
+    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="offboarding")
+    reason = models.CharField(max_length=16, choices=Reason.choices, default=Reason.OTHER)
+    resignation_date = models.DateField()
+    last_working_day = models.DateField()
+    exit_interview_notes = models.TextField(blank=True)
+    clearance_it = models.BooleanField(default=False)
+    clearance_finance = models.BooleanField(default=False)
+    clearance_admin = models.BooleanField(default=False)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.IN_PROGRESS)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "hr_offboarding"
+
+    def __str__(self):
+        return f"{self.employee} — {self.get_reason_display()} ({self.status})"
+
+
 class LeaveType(TenantModel):
     """Per-company config, e.g. "Annual Leave", "Sick Leave" — same shape
     as apps.expenses' category free text would have been, but this one's

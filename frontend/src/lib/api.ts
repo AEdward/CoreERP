@@ -408,6 +408,23 @@ export interface EmployeeContract {
   created_at: string;
 }
 
+export interface Offboarding {
+  id: number;
+  employee: number;
+  employee_name: string;
+  reason: "resignation" | "termination" | "retirement" | "other";
+  reason_display: string;
+  resignation_date: string;
+  last_working_day: string;
+  exit_interview_notes: string;
+  clearance_it: boolean;
+  clearance_finance: boolean;
+  clearance_admin: boolean;
+  status: "in_progress" | "completed";
+  completed_at: string | null;
+  created_at: string;
+}
+
 export interface LeaveType {
   id: number;
   name: string;
@@ -1747,6 +1764,33 @@ export const api = {
     }),
   deleteEmployeeContract: (id: number) =>
     request<void>(`/api/hr/employee-contracts/${id}/`, { method: "DELETE" }),
+  listOffboardings: (employeeId?: number) =>
+    request<Offboarding[]>(`/api/hr/offboarding/${employeeId ? `?employee=${employeeId}` : ""}`),
+  createOffboarding: (data: {
+    employee: number;
+    reason: Offboarding["reason"];
+    resignation_date: string;
+    last_working_day: string;
+    exit_interview_notes?: string;
+  }) => request<Offboarding>("/api/hr/offboarding/", { method: "POST", body: JSON.stringify(data) }),
+  updateOffboarding: (
+    id: number,
+    data: Partial<
+      Pick<
+        Offboarding,
+        | "reason"
+        | "resignation_date"
+        | "last_working_day"
+        | "exit_interview_notes"
+        | "clearance_it"
+        | "clearance_finance"
+        | "clearance_admin"
+      >
+    >
+  ) => request<Offboarding>(`/api/hr/offboarding/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  completeOffboarding: (id: number) =>
+    request<Offboarding>(`/api/hr/offboarding/${id}/complete/`, { method: "POST" }),
+  deleteOffboarding: (id: number) => request<void>(`/api/hr/offboarding/${id}/`, { method: "DELETE" }),
   listLeaveTypes: () => request<LeaveType[]>("/api/hr/leave-types/"),
   createLeaveType: (data: { name: string; paid: boolean; default_days_per_year?: number }) =>
     request<LeaveType>("/api/hr/leave-types/", { method: "POST", body: JSON.stringify(data) }),

@@ -9,6 +9,7 @@ from .models import (
     EmployeeContract,
     LeaveRequest,
     LeaveType,
+    Offboarding,
     Position,
     SalaryStructure,
     ShiftTemplate,
@@ -130,6 +131,41 @@ class EmployeeContractSerializer(CompanyScopedSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class OffboardingSerializer(CompanyScopedSerializer):
+    same_company_fields = ["employee"]
+    employee_name = serializers.CharField(source="employee.__str__", read_only=True)
+    reason_display = serializers.CharField(source="get_reason_display", read_only=True)
+
+    class Meta:
+        model = Offboarding
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "reason",
+            "reason_display",
+            "resignation_date",
+            "last_working_day",
+            "exit_interview_notes",
+            "clearance_it",
+            "clearance_finance",
+            "clearance_admin",
+            "status",
+            "completed_at",
+            "created_at",
+        ]
+        read_only_fields = ["id", "status", "completed_at", "created_at"]
+
+    def validate(self, attrs):
+        resignation_date = attrs.get("resignation_date", getattr(self.instance, "resignation_date", None))
+        last_working_day = attrs.get("last_working_day", getattr(self.instance, "last_working_day", None))
+        if resignation_date and last_working_day and last_working_day < resignation_date:
+            raise serializers.ValidationError(
+                {"last_working_day": "Must be on or after the resignation/notice date."}
+            )
+        return attrs
 
 
 class LeaveTypeSerializer(CompanyScopedSerializer):

@@ -9,6 +9,7 @@ from .views import (
     EmployeeViewSet,
     LeaveRequestViewSet,
     LeaveTypeViewSet,
+    OffboardingViewSet,
     PositionViewSet,
     SalaryStructureViewSet,
     ShiftTemplateViewSet,
@@ -24,6 +25,7 @@ router.register("employee-contracts", EmployeeContractViewSet, basename="employe
 router.register("leave-types", LeaveTypeViewSet, basename="leave-type")
 router.register("leave-requests", LeaveRequestViewSet, basename="leave-request")
 router.register("attendance", AttendanceRecordViewSet, basename="attendance")
+router.register("offboarding", OffboardingViewSet, basename="offboarding")
 
 urlpatterns = router.urls + [
     path("employee-picker/", EmployeePickerView.as_view(), name="employee-picker"),

@@ -15,6 +15,7 @@ import {
   type LeaveBalance,
   type LeaveRequest,
   type LeaveType,
+  type Offboarding,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import shared from "@/styles/shared.module.css";
@@ -59,6 +60,21 @@ const EMPTY_LEAVE_FORM = {
   reason: "",
 };
 
+const OFFBOARDING_REASON_LABELS: Record<Offboarding["reason"], string> = {
+  resignation: "Resignation",
+  termination: "Termination",
+  retirement: "Retirement",
+  other: "Other",
+};
+
+const EMPTY_OFFBOARDING_FORM = {
+  employee: "",
+  reason: "resignation" as Offboarding["reason"],
+  resignation_date: "",
+  last_working_day: "",
+  exit_interview_notes: "",
+};
+
 function formatCents(cents: number) {
   return (cents / 100).toFixed(2);
 }
@@ -85,18 +101,25 @@ export default function LeaveAndContractsPage() {
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [balances, setBalances] = useState<LeaveBalance[] | null>(null);
 
+  const [offboardings, setOffboardings] = useState<Offboarding[] | null>(null);
+  const [offboardingForm, setOffboardingForm] = useState(EMPTY_OFFBOARDING_FORM);
+  const [offboardingWorking, setOffboardingWorking] = useState(false);
+  const [offboardingError, setOffboardingError] = useState<string | null>(null);
+
   async function loadAll() {
     try {
-      const [c, lr, lt, emp] = await Promise.all([
+      const [c, lr, lt, emp, off] = await Promise.all([
         api.listEmployeeContracts(),
         api.listLeaveRequests(),
         api.listLeaveTypes(),
         api.listEmployeePicker(),
+        api.listOffboardings(),
       ]);
       setContracts(c);
       setLeaveRequests(lr);
       setLeaveTypes(lt);
       setEmployees(emp);
+      setOffboardings(off);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Failed to load data.");
     }
@@ -215,6 +238,62 @@ export default function LeaveAndContractsPage() {
       await loadAll();
     } catch (err) {
       setLeaveError(err instanceof ApiError ? err.message : "Failed to delete leave request.");
+    }
+  }
+
+  async function handleAddOffboarding(e: React.FormEvent) {
+    e.preventDefault();
+    setOffboardingWorking(true);
+    setOffboardingError(null);
+    try {
+      await api.createOffboarding({
+        employee: Number(offboardingForm.employee),
+        reason: offboardingForm.reason,
+        resignation_date: offboardingForm.resignation_date,
+        last_working_day: offboardingForm.last_working_day,
+        exit_interview_notes: offboardingForm.exit_interview_notes,
+      });
+      setOffboardingForm(EMPTY_OFFBOARDING_FORM);
+      await loadAll();
+    } catch (err) {
+      setOffboardingError(err instanceof ApiError ? err.message : "Failed to start offboarding.");
+    } finally {
+      setOffboardingWorking(false);
+    }
+  }
+
+  async function handleToggleClearance(o: Offboarding, field: "clearance_it" | "clearance_finance" | "clearance_admin") {
+    setOffboardingWorking(true);
+    setOffboardingError(null);
+    try {
+      await api.updateOffboarding(o.id, { [field]: !o[field] });
+      await loadAll();
+    } catch (err) {
+      setOffboardingError(err instanceof ApiError ? err.message : "Failed to update clearance.");
+    } finally {
+      setOffboardingWorking(false);
+    }
+  }
+
+  async function handleCompleteOffboarding(id: number) {
+    setOffboardingWorking(true);
+    setOffboardingError(null);
+    try {
+      await api.completeOffboarding(id);
+      await loadAll();
+    } catch (err) {
+      setOffboardingError(err instanceof ApiError ? err.message : "Failed to complete offboarding.");
+    } finally {
+      setOffboardingWorking(false);
+    }
+  }
+
+  async function handleDeleteOffboarding(id: number) {
+    try {
+      await api.deleteOffboarding(id);
+      await loadAll();
+    } catch (err) {
+      setOffboardingError(err instanceof ApiError ? err.message : "Failed to delete offboarding.");
     }
   }
 
@@ -599,6 +678,168 @@ export default function LeaveAndContractsPage() {
                 {leaveError && (
                   <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
                     {leaveError}
+                  </p>
+                )}
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Offboarding */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Offboarding</h2>
+          <p className={shared.hint} style={{ maxWidth: 700, marginBottom: 8 }}>
+            Starting offboarding doesn&apos;t change the employee&apos;s status by itself — they may
+            still be actively working through their notice period. Only completing it, once all
+            three clearances are checked, flips the employee to Terminated.
+          </p>
+          <div className={shared.card}>
+            <table className={shared.table}>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Reason</th>
+                  <th>Resignation date</th>
+                  <th>Last working day</th>
+                  <th>Clearances</th>
+                  <th>Status</th>
+                  {canManage && <th></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {offboardings?.map((o) => (
+                  <tr key={o.id}>
+                    <td>{o.employee_name}</td>
+                    <td>{OFFBOARDING_REASON_LABELS[o.reason]}</td>
+                    <td>{o.resignation_date}</td>
+                    <td>{o.last_working_day}</td>
+                    <td>
+                      {(["clearance_it", "clearance_finance", "clearance_admin"] as const).map((field) => (
+                        <label
+                          key={field}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, marginRight: 10, fontSize: 13 }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={o[field]}
+                            disabled={!canManage || o.status === "completed" || offboardingWorking}
+                            onChange={() => handleToggleClearance(o, field)}
+                          />
+                          {field === "clearance_it" ? "IT" : field === "clearance_finance" ? "Finance" : "Admin"}
+                        </label>
+                      ))}
+                    </td>
+                    <td>
+                      <span className={`${shared.badge} ${o.status === "completed" ? shared.badgeSuccess : shared.badgeWarn}`}>
+                        {o.status === "completed" ? "Completed" : "In progress"}
+                      </span>
+                    </td>
+                    {canManage && (
+                      <td style={{ textAlign: "right" }}>
+                        {o.status === "in_progress" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCompleteOffboarding(o.id)}
+                            disabled={
+                              offboardingWorking || !o.clearance_it || !o.clearance_finance || !o.clearance_admin
+                            }
+                            className={`${shared.btn} ${shared.btnSmall}`}
+                            style={{ marginRight: 6 }}
+                          >
+                            Complete
+                          </button>
+                        )}
+                        <RowActions
+                          onDelete={() => handleDeleteOffboarding(o.id)}
+                          disabled={offboardingWorking}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {offboardings?.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className={shared.tableMuted}>
+                      No offboarding records yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleAddOffboarding} className={shared.formGrid} style={{ marginTop: 16 }}>
+                <select
+                  required
+                  value={offboardingForm.employee}
+                  onChange={(e) => setOffboardingForm({ ...offboardingForm, employee: e.target.value })}
+                  className={shared.select}
+                >
+                  <option value="">Employee…</option>
+                  {employees?.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={offboardingForm.reason}
+                  onChange={(e) =>
+                    setOffboardingForm({
+                      ...offboardingForm,
+                      reason: e.target.value as Offboarding["reason"],
+                    })
+                  }
+                  className={shared.select}
+                >
+                  <option value="resignation">Resignation</option>
+                  <option value="termination">Termination</option>
+                  <option value="retirement">Retirement</option>
+                  <option value="other">Other</option>
+                </select>
+                <input
+                  type="date"
+                  required
+                  value={offboardingForm.resignation_date}
+                  onChange={(e) =>
+                    setOffboardingForm({ ...offboardingForm, resignation_date: e.target.value })
+                  }
+                  className={shared.input}
+                  title="Resignation / notice date"
+                />
+                <input
+                  type="date"
+                  required
+                  value={offboardingForm.last_working_day}
+                  onChange={(e) =>
+                    setOffboardingForm({ ...offboardingForm, last_working_day: e.target.value })
+                  }
+                  className={shared.input}
+                  title="Last working day"
+                />
+                <input
+                  placeholder="Exit interview notes (optional)"
+                  value={offboardingForm.exit_interview_notes}
+                  onChange={(e) =>
+                    setOffboardingForm({ ...offboardingForm, exit_interview_notes: e.target.value })
+                  }
+                  className={shared.input}
+                  style={{ gridColumn: "1 / -1" }}
+                />
+                <button
+                  type="submit"
+                  disabled={
+                    offboardingWorking ||
+                    !offboardingForm.employee ||
+                    !offboardingForm.resignation_date ||
+                    !offboardingForm.last_working_day
+                  }
+                  className={`${shared.btn} ${shared.btnPrimary}`}
+                >
+                  Start offboarding
+                </button>
+                {offboardingError && (
+                  <p className={shared.errorText} style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    {offboardingError}
                   </p>
                 )}
               </form>
