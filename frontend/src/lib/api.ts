@@ -278,6 +278,22 @@ export interface Loan {
   created_at: string;
 }
 
+export interface TaxBracket {
+  id: number;
+  lower_bound_cents: number;
+  upper_bound_cents: number | null;
+  rate_percent: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PensionSettings {
+  id: number;
+  employee_rate_percent: string;
+  employer_rate_percent: string;
+  created_at: string;
+}
+
 // --- Recruitment ---
 
 export interface JobVacancy {
@@ -1816,6 +1832,15 @@ export const api = {
     request<Loan>(`/api/payroll/loans/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteLoan: (id: number) => request<void>(`/api/payroll/loans/${id}/`, { method: "DELETE" }),
   cancelLoan: (id: number) => request<Loan>(`/api/payroll/loans/${id}/cancel/`, { method: "POST" }),
+  listTaxBrackets: () => request<TaxBracket[]>("/api/payroll/tax-brackets/"),
+  createTaxBracket: (data: { lower_bound_cents: number; upper_bound_cents: number | null; rate_percent: string }) =>
+    request<TaxBracket>("/api/payroll/tax-brackets/", { method: "POST", body: JSON.stringify(data) }),
+  updateTaxBracket: (id: number, data: Partial<Pick<TaxBracket, "lower_bound_cents" | "upper_bound_cents" | "rate_percent" | "is_active">>) =>
+    request<TaxBracket>(`/api/payroll/tax-brackets/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteTaxBracket: (id: number) => request<void>(`/api/payroll/tax-brackets/${id}/`, { method: "DELETE" }),
+  getPensionSettings: () => request<PensionSettings>("/api/payroll/pension-settings/"),
+  updatePensionSettings: (data: { employee_rate_percent?: string; employer_rate_percent?: string }) =>
+    request<PensionSettings>("/api/payroll/pension-settings/", { method: "PATCH", body: JSON.stringify(data) }),
 
   // --- Recruitment ---
   listJobVacancies: () => request<JobVacancy[]>("/api/recruitment/vacancies/"),

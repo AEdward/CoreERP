@@ -3,13 +3,36 @@ from rest_framework import serializers
 from apps.common.numbering import next_number
 from apps.common.serializers import CompanyScopedSerializer
 
-from .models import EmployeeSalaryComponent, Loan, PayrollRun, Payslip, PayslipLine, SalaryComponent
+from .models import (
+    EmployeeSalaryComponent,
+    Loan,
+    PayrollRun,
+    Payslip,
+    PayslipLine,
+    PensionSettings,
+    SalaryComponent,
+    TaxBracket,
+)
 
 
 class SalaryComponentSerializer(CompanyScopedSerializer):
     class Meta:
         model = SalaryComponent
         fields = ["id", "name", "category", "is_taxable", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class TaxBracketSerializer(CompanyScopedSerializer):
+    class Meta:
+        model = TaxBracket
+        fields = ["id", "lower_bound_cents", "upper_bound_cents", "rate_percent", "is_active", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class PensionSettingsSerializer(CompanyScopedSerializer):
+    class Meta:
+        model = PensionSettings
+        fields = ["id", "employee_rate_percent", "employer_rate_percent", "created_at"]
         read_only_fields = ["id", "created_at"]
 
 

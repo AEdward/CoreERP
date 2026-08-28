@@ -1,18 +1,58 @@
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from apps.common.permissions import user_has_permission
 from apps.common.views import CompanyScopedReadOnlyViewSet, CompanyScopedViewSet
 
 from .engine import mark_payroll_run_paid, process_payroll_run
-from .models import EmployeeSalaryComponent, Loan, PayrollRun, Payslip, SalaryComponent
+from .models import EmployeeSalaryComponent, Loan, PayrollRun, Payslip, PensionSettings, SalaryComponent, TaxBracket
 from .serializers import (
     EmployeeSalaryComponentSerializer,
     LoanSerializer,
     PayrollRunSerializer,
     PayslipSerializer,
+    PensionSettingsSerializer,
     SalaryComponentSerializer,
+    TaxBracketSerializer,
 )
+
+
+class TaxBracketViewSet(CompanyScopedViewSet):
+    queryset = TaxBracket.objects.all()
+    serializer_class = TaxBracketSerializer
+    permission_module = "hr"
+
+
+class PensionSettingsView(APIView):
+    """One row per company — no list/create/delete, since the row is
+    seeded automatically on company bootstrap (see apps.payroll.seed)
+    and a company should never end up with zero or multiple rows to
+    choose between. GET/PATCH resolve straight to that one row."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_settings(self, request, action):
+        if not request.company:
+            raise NotFound("Select an active company first (POST /api/companies/active/).")
+        if not user_has_permission(request.user, request.company, "hr", action):
+            raise PermissionDenied(f"You don't have permission to {action} hr in this company.")
+        try:
+            return PensionSettings.objects.get(company=request.company)
+        except PensionSettings.DoesNotExist:
+            raise NotFound("No pension settings configured for this company.")
+
+    def get(self, request):
+        return Response(PensionSettingsSerializer(self._get_settings(request, "view")).data)
+
+    def patch(self, request):
+        instance = self._get_settings(request, "manage")
+        serializer = PensionSettingsSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class SalaryComponentViewSet(CompanyScopedViewSet):

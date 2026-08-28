@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
@@ -5,7 +6,9 @@ from .views import (
     LoanViewSet,
     PayrollRunViewSet,
     PayslipViewSet,
+    PensionSettingsView,
     SalaryComponentViewSet,
+    TaxBracketViewSet,
 )
 
 router = DefaultRouter()
@@ -16,5 +19,8 @@ router.register(
 router.register("runs", PayrollRunViewSet, basename="payroll-run")
 router.register("payslips", PayslipViewSet, basename="payslip")
 router.register("loans", LoanViewSet, basename="loan")
+router.register("tax-brackets", TaxBracketViewSet, basename="tax-bracket")
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path("pension-settings/", PensionSettingsView.as_view(), name="pension-settings"),
+]

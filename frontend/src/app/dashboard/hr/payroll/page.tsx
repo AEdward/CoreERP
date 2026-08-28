@@ -10,8 +10,10 @@ import {
   type EmployeeSalaryComponent,
   type Loan,
   type PayrollRun,
+  type PensionSettings,
   type Payslip,
   type SalaryComponent,
+  type TaxBracket,
 } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import shared from "@/styles/shared.module.css";
@@ -76,17 +78,33 @@ export default function PayrollPage() {
   const [runPayslips, setRunPayslips] = useState<Payslip[] | null>(null);
   const [expandedPayslipId, setExpandedPayslipId] = useState<number | null>(null);
 
+  const [taxBrackets, setTaxBrackets] = useState<TaxBracket[] | null>(null);
+  const [bracketForm, setBracketForm] = useState({ lower_bound_cents: "", upper_bound_cents: "", rate_percent: "" });
+  const [bracketWorking, setBracketWorking] = useState(false);
+  const [pension, setPension] = useState<PensionSettings | null>(null);
+  const [pensionForm, setPensionForm] = useState({ employee_rate_percent: "", employer_rate_percent: "" });
+  const [pensionWorking, setPensionWorking] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
   async function loadAll() {
     try {
-      const [c, a, r, emp, l] = await Promise.all([
+      const [c, a, r, emp, l, brackets, pensionSettings] = await Promise.all([
         api.listSalaryComponents(),
         api.listEmployeeSalaryComponents(),
         api.listPayrollRuns(),
         api.listEmployeePicker(),
         api.listLoans(),
+        api.listTaxBrackets(),
+        api.getPensionSettings(),
       ]);
       setComponents(c);
       setAssignments(a);
+      setTaxBrackets(brackets);
+      setPension(pensionSettings);
+      setPensionForm({
+        employee_rate_percent: pensionSettings.employee_rate_percent,
+        employer_rate_percent: pensionSettings.employer_rate_percent,
+      });
       setRuns(r);
       setEmployees(emp);
       setLoans(l);
@@ -102,6 +120,50 @@ export default function PayrollPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMembership?.company.id]);
+
+  async function handleAddBracket(e: React.FormEvent) {
+    e.preventDefault();
+    setBracketWorking(true);
+    setSettingsError(null);
+    try {
+      await api.createTaxBracket({
+        lower_bound_cents: Math.round(Number(bracketForm.lower_bound_cents || 0) * 100),
+        upper_bound_cents: bracketForm.upper_bound_cents
+          ? Math.round(Number(bracketForm.upper_bound_cents) * 100)
+          : null,
+        rate_percent: bracketForm.rate_percent || "0",
+      });
+      setBracketForm({ lower_bound_cents: "", upper_bound_cents: "", rate_percent: "" });
+      await loadAll();
+    } catch (err) {
+      setSettingsError(err instanceof ApiError ? err.message : "Failed to save tax bracket.");
+    } finally {
+      setBracketWorking(false);
+    }
+  }
+
+  async function handleDeleteBracket(id: number) {
+    try {
+      await api.deleteTaxBracket(id);
+      await loadAll();
+    } catch (err) {
+      setSettingsError(err instanceof ApiError ? err.message : "Failed to delete tax bracket.");
+    }
+  }
+
+  async function handleSavePension(e: React.FormEvent) {
+    e.preventDefault();
+    setPensionWorking(true);
+    setSettingsError(null);
+    try {
+      await api.updatePensionSettings(pensionForm);
+      await loadAll();
+    } catch (err) {
+      setSettingsError(err instanceof ApiError ? err.message : "Failed to save pension settings.");
+    } finally {
+      setPensionWorking(false);
+    }
+  }
 
   async function handleAddComponent(e: React.FormEvent) {
     e.preventDefault();
@@ -280,12 +342,131 @@ export default function PayrollPage() {
           </div>
         </div>
         <p className={shared.hint} style={{ maxWidth: 700 }}>
-          PAYE income tax and pension (7% employee / 11% employer) are computed automatically per
-          Ethiopia&apos;s Income Tax Proclamation No. 1395/2025 — not editable here. Basic Salary
-          comes from each employee&apos;s HR record; components below are additional allowances or
-          deductions layered on top.
+          PAYE income tax brackets and pension contribution rates below drive the automatic payroll
+          calculation. Basic Salary comes from each employee&apos;s HR record; components further
+          down are additional allowances or deductions layered on top.
         </p>
         {loadError && <p className={shared.errorText}>{loadError}</p>}
+        {settingsError && <p className={shared.errorText}>{settingsError}</p>}
+
+        {/* Payroll Settings: Tax Brackets + Pension */}
+        <div className={shared.section}>
+          <h2 className={shared.sectionTitle}>Payroll settings</h2>
+          <div className={shared.card}>
+            <h3 style={{ marginTop: 0 }}>Tax brackets (PAYE)</h3>
+            <table className={shared.table}>
+              <thead>
+                <tr>
+                  <th>From (ETB)</th>
+                  <th>To (ETB)</th>
+                  <th>Rate</th>
+                  {canManage && <th />}
+                </tr>
+              </thead>
+              <tbody>
+                {taxBrackets?.map((b) => (
+                  <tr key={b.id}>
+                    <td>{(b.lower_bound_cents / 100).toLocaleString()}</td>
+                    <td className={shared.tableMuted}>
+                      {b.upper_bound_cents != null ? (b.upper_bound_cents / 100).toLocaleString() : "and above"}
+                    </td>
+                    <td className={shared.tableMuted}>{b.rate_percent}%</td>
+                    {canManage && (
+                      <td style={{ textAlign: "right" }}>
+                        <RowActions
+                          onDelete={() => handleDeleteBracket(b.id)}
+                          disabled={bracketWorking}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {taxBrackets?.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className={shared.tableMuted}>
+                      No tax brackets configured yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && (
+              <form onSubmit={handleAddBracket} className={shared.formRow} style={{ marginTop: 12 }}>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="From (ETB)"
+                  value={bracketForm.lower_bound_cents}
+                  onChange={(e) => setBracketForm({ ...bracketForm, lower_bound_cents: e.target.value })}
+                  className={shared.input}
+                  style={{ maxWidth: 140 }}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="To (blank = no cap)"
+                  value={bracketForm.upper_bound_cents}
+                  onChange={(e) => setBracketForm({ ...bracketForm, upper_bound_cents: e.target.value })}
+                  className={shared.input}
+                  style={{ maxWidth: 160 }}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Rate %"
+                  value={bracketForm.rate_percent}
+                  onChange={(e) => setBracketForm({ ...bracketForm, rate_percent: e.target.value })}
+                  className={shared.input}
+                  style={{ maxWidth: 100 }}
+                />
+                <button type="submit" className={shared.buttonPrimary} disabled={bracketWorking}>
+                  Add bracket
+                </button>
+              </form>
+            )}
+
+            <h3>Pension contribution rates</h3>
+            {canManage ? (
+              <form onSubmit={handleSavePension} className={shared.formRow}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  Employee %
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={pensionForm.employee_rate_percent}
+                    onChange={(e) =>
+                      setPensionForm({ ...pensionForm, employee_rate_percent: e.target.value })
+                    }
+                    className={shared.input}
+                    style={{ maxWidth: 90 }}
+                  />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  Employer %
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={pensionForm.employer_rate_percent}
+                    onChange={(e) =>
+                      setPensionForm({ ...pensionForm, employer_rate_percent: e.target.value })
+                    }
+                    className={shared.input}
+                    style={{ maxWidth: 90 }}
+                  />
+                </label>
+                <button type="submit" className={shared.buttonPrimary} disabled={pensionWorking}>
+                  Save
+                </button>
+              </form>
+            ) : (
+              pension && (
+                <p className={shared.tableMuted}>
+                  Employee {pension.employee_rate_percent}% / Employer {pension.employer_rate_percent}%
+                </p>
+              )
+            )}
+          </div>
+        </div>
 
         {/* Salary Components */}
         <div className={shared.section}>

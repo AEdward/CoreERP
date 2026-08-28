@@ -1,7 +1,63 @@
+from decimal import Decimal
+
 from django.db import models
 
 from apps.common.models import TenantModel
 from apps.hr.models import Employee
+
+
+class TaxBracket(TenantModel):
+    """A configurable PAYE income-tax bracket — the same "company-editable
+    reference table" shape apps.tax.TaxRate already establishes for VAT,
+    just for payroll's own tax domain. Seeded with Ethiopia's actual
+    current bands (Proclamation No. 1395/2025) for every company (see
+    apps.payroll.seed), not placeholders — a company can edit or replace
+    them afterwards. `upper_bound_cents` is null for the open-ended top
+    bracket. apps.payroll.engine.calculate_paye_cents sums marginal tax
+    band-by-band across these (not the equivalent "flat rate minus a
+    lookup deduction" shortcut some payroll tools use), so a company
+    entering arbitrary custom brackets doesn't also have to correctly
+    compute a matching deduction constant — one less way to get this
+    wrong. Brackets aren't validated against overlapping/gaps — same
+    trust-the-configured-data stance TaxRate already takes."""
+
+    lower_bound_cents = models.BigIntegerField()
+    upper_bound_cents = models.BigIntegerField(null=True, blank=True)
+    rate_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "payroll_tax_brackets"
+        ordering = ["lower_bound_cents"]
+
+    def __str__(self):
+        upper = str(self.upper_bound_cents) if self.upper_bound_cents is not None else "∞"
+        return f"{self.lower_bound_cents}–{upper} @ {self.rate_percent}%"
+
+
+class PensionSettings(TenantModel):
+    """One row per company — the statutory pension withholding rates
+    payroll applies to every payslip's basic salary: a share withheld
+    from the employee (a PayslipLine deduction, like PAYE) and a share
+    the company itself contributes on top (never deducted from the
+    employee). Defaults match Ethiopia's Pension Proclamation No.
+    715/2011 (as amended) for private-sector employers — 7% employee /
+    11% employer of basic salary — but kept as a real per-company
+    settings row rather than a hardcoded constant since the applicable
+    rate depends on employer type and can change by amendment. Seeded
+    for every company (see apps.payroll.seed); apps.payroll.engine
+    falls back to 0/0 if a company somehow has none, rather than
+    erroring, the same "opt in, no forced number" shape TaxBracket's
+    own per-company opt-in follows."""
+
+    employee_rate_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("7.00"))
+    employer_rate_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("11.00"))
+
+    class Meta:
+        db_table = "payroll_pension_settings"
+
+    def __str__(self):
+        return f"{self.employee_rate_percent}% employee / {self.employer_rate_percent}% employer"
 
 
 class SalaryComponent(TenantModel):

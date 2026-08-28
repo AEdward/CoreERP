@@ -1,51 +1,53 @@
-"""Ethiopian payroll math — the one place PAYE income tax and pension
-get computed, so the brackets/rates live in exactly one spot.
-
-PAYE brackets are Ethiopia's Federal Income Tax (Amendment) Proclamation
-No. 1395/2025, effective 7 July 2025: monthly employment income taxed
-progressively at 0% to ETB 2,000, 15% to 4,000, 20% to 7,000, 25% to
-10,000, 30% to 14,000, 35% above. Pension is 7% employee / 11% employer
-of gross salary, uncapped, and does NOT reduce the PAYE taxable base —
-both are computed on the same gross figure independently.
+"""Ethiopian payroll math — the one place PAYE income tax and pension get
+computed, so the computation logic lives in exactly one spot. The actual
+brackets/rates are per-company configurable data now (apps.payroll.{TaxBracket,
+PensionSettings}, seeded per apps.payroll.seed with Ethiopia's real defaults —
+Federal Income Tax (Amendment) Proclamation No. 1395/2025 and Pension
+Proclamation No. 715/2011), not hardcoded constants — a company can edit or
+replace them without a code change. Pension does NOT reduce the PAYE taxable
+base — both are computed on the same gross figure independently.
 
 Bracket boundaries are stored in cents (ETB * 100) to match every other
-money field in this project. Computed bracket-by-bracket (marginal rate
-on each band) rather than the equivalent "flat rate minus a lookup
-deduction" shortcut some payroll tools use, so the six brackets above
-stay the single source of truth with no second deduction-constant table
-to keep in sync.
+money field in this project. Computed bracket-by-bracket (marginal rate on
+each band) rather than the equivalent "flat rate minus a lookup deduction"
+shortcut some payroll tools use, so a company entering arbitrary custom
+brackets doesn't also have to correctly compute a matching deduction
+constant — one less way to misconfigure this.
 """
+
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-PAYE_BRACKETS_CENTS = [
-    # (lower_bound_cents, upper_bound_cents or None for the top bracket, rate)
-    (0, 200_000, 0.00),
-    (200_000, 400_000, 0.15),
-    (400_000, 700_000, 0.20),
-    (700_000, 1_000_000, 0.25),
-    (1_000_000, 1_400_000, 0.30),
-    (1_400_000, None, 0.35),
-]
-
-PENSION_EMPLOYEE_RATE = 0.07
-PENSION_EMPLOYER_RATE = 0.11
+from .models import PensionSettings, TaxBracket
 
 
-def calculate_paye_cents(taxable_income_cents):
+def calculate_paye_cents(company, taxable_income_cents):
     if taxable_income_cents <= 0:
         return 0
-    tax = 0.0
-    for lower, upper, rate in PAYE_BRACKETS_CENTS:
-        if taxable_income_cents <= lower:
+    tax = Decimal(0)
+    for bracket in TaxBracket.objects.filter(company=company, is_active=True).order_by("lower_bound_cents"):
+        if taxable_income_cents <= bracket.lower_bound_cents:
             break
+        upper = bracket.upper_bound_cents
         band_top = min(taxable_income_cents, upper) if upper is not None else taxable_income_cents
-        band_amount = band_top - lower
+        band_amount = band_top - bracket.lower_bound_cents
         if band_amount > 0:
-            tax += band_amount * rate
-    return round(tax)
+            tax += Decimal(band_amount) * bracket.rate_percent / Decimal("100")
+    return int(tax.to_integral_value(rounding=ROUND_HALF_UP))
+
+
+def calculate_pension_cents(base_salary_cents, rate_percent):
+    """rate_percent is a PensionSettings rate (e.g. Decimal('7.00')).
+    Shared by both the employee-withheld share and the employer's own
+    contribution — same `rate% of basic salary` formula, just different
+    rates and destinations (see process_payroll_run)."""
+    if base_salary_cents <= 0 or not rate_percent:
+        return 0
+    amount = Decimal(base_salary_cents) * rate_percent / Decimal("100")
+    return int(amount.to_integral_value(rounding=ROUND_HALF_UP))
 
 
 @transaction.atomic
@@ -70,6 +72,9 @@ def process_payroll_run(request, run):
 
     company = run.company
     employees = Employee.objects.filter(company=company).exclude(status=Employee.Status.TERMINATED)
+    pension_settings = PensionSettings.objects.filter(company=company).first()
+    pension_employee_rate = pension_settings.employee_rate_percent if pension_settings else 0
+    pension_employer_rate = pension_settings.employer_rate_percent if pension_settings else 0
 
     for employee in employees:
         components = EmployeeSalaryComponent.objects.filter(employee=employee).select_related("component")
@@ -80,9 +85,9 @@ def process_payroll_run(request, run):
         gross_cents = basic_cents + sum(c.amount_cents for c in earnings)
         taxable_cents = basic_cents + sum(c.amount_cents for c in earnings if c.component.is_taxable)
 
-        paye_cents = calculate_paye_cents(taxable_cents)
-        pension_employee_cents = round(gross_cents * PENSION_EMPLOYEE_RATE)
-        pension_employer_cents = round(gross_cents * PENSION_EMPLOYER_RATE)
+        paye_cents = calculate_paye_cents(company, taxable_cents)
+        pension_employee_cents = calculate_pension_cents(gross_cents, pension_employee_rate)
+        pension_employer_cents = calculate_pension_cents(gross_cents, pension_employer_rate)
         other_deductions_cents = sum(c.amount_cents for c in deductions)
 
         # Installments are computed from each loan's remaining_balance_cents

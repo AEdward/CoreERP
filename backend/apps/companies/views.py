@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.accounting.seed import create_default_accounts_for_company
 from apps.common.permissions import user_has_permission
+from apps.payroll.seed import create_default_payroll_settings_for_company
 from apps.roles.models import MembershipRole
 from apps.roles.seed import create_default_roles_for_company
 
@@ -47,6 +48,7 @@ class CompanyListCreateView(APIView):
             roles = create_default_roles_for_company(company)
             MembershipRole.objects.create(membership=membership, role=roles["Owner"])
             create_default_accounts_for_company(company)
+            create_default_payroll_settings_for_company(company)
 
         return Response(CompanySerializer(company).data, status=status.HTTP_201_CREATED)
 
