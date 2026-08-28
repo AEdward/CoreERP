@@ -250,6 +250,44 @@ export interface Loan {
   created_at: string;
 }
 
+// --- Recruitment ---
+
+export interface JobVacancy {
+  id: number;
+  title: string;
+  department: number | null;
+  position: number | null;
+  description: string;
+  openings: number;
+  status: "open" | "on_hold" | "closed";
+  posted_date: string;
+  applicant_count: number;
+  created_at: string;
+}
+
+export interface Applicant {
+  id: number;
+  vacancy: number;
+  vacancy_title: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  status: "applied" | "screening" | "interview" | "offer" | "hired" | "rejected";
+  applied_date: string;
+  notes: string;
+  hired_employee: number | null;
+  created_at: string;
+}
+
+export interface OnboardingTask {
+  id: number;
+  employee: number;
+  title: string;
+  is_complete: boolean;
+  due_date: string | null;
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -1672,6 +1710,35 @@ export const api = {
     request<Loan>(`/api/payroll/loans/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteLoan: (id: number) => request<void>(`/api/payroll/loans/${id}/`, { method: "DELETE" }),
   cancelLoan: (id: number) => request<Loan>(`/api/payroll/loans/${id}/cancel/`, { method: "POST" }),
+
+  // --- Recruitment ---
+  listJobVacancies: () => request<JobVacancy[]>("/api/recruitment/vacancies/"),
+  createJobVacancy: (data: {
+    title: string;
+    department?: number | null;
+    position?: number | null;
+    description?: string;
+    openings?: number;
+    posted_date: string;
+  }) => request<JobVacancy>("/api/recruitment/vacancies/", { method: "POST", body: JSON.stringify(data) }),
+  updateJobVacancy: (id: number, data: Partial<Pick<JobVacancy, "title" | "department" | "position" | "description" | "openings" | "status">>) =>
+    request<JobVacancy>(`/api/recruitment/vacancies/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteJobVacancy: (id: number) => request<void>(`/api/recruitment/vacancies/${id}/`, { method: "DELETE" }),
+  listApplicants: (vacancyId?: number) =>
+    request<Applicant[]>(`/api/recruitment/applicants/${vacancyId ? `?vacancy=${vacancyId}` : ""}`),
+  createApplicant: (data: { vacancy: number; full_name: string; email?: string; phone?: string; applied_date: string; notes?: string }) =>
+    request<Applicant>("/api/recruitment/applicants/", { method: "POST", body: JSON.stringify(data) }),
+  updateApplicant: (id: number, data: Partial<Pick<Applicant, "status" | "notes" | "email" | "phone">>) =>
+    request<Applicant>(`/api/recruitment/applicants/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteApplicant: (id: number) => request<void>(`/api/recruitment/applicants/${id}/`, { method: "DELETE" }),
+  hireApplicant: (id: number) => request<Applicant>(`/api/recruitment/applicants/${id}/hire/`, { method: "POST" }),
+  listOnboardingTasks: (employeeId?: number) =>
+    request<OnboardingTask[]>(`/api/recruitment/onboarding-tasks/${employeeId ? `?employee=${employeeId}` : ""}`),
+  createOnboardingTask: (data: { employee: number; title: string; due_date?: string | null }) =>
+    request<OnboardingTask>("/api/recruitment/onboarding-tasks/", { method: "POST", body: JSON.stringify(data) }),
+  updateOnboardingTask: (id: number, data: Partial<Pick<OnboardingTask, "is_complete" | "title" | "due_date">>) =>
+    request<OnboardingTask>(`/api/recruitment/onboarding-tasks/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteOnboardingTask: (id: number) => request<void>(`/api/recruitment/onboarding-tasks/${id}/`, { method: "DELETE" }),
 
   // --- Catalog ---
   listItems: () => request<Item[]>("/api/catalog/items/"),

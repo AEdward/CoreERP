@@ -261,6 +261,8 @@ export default function HrPage() {
               <a href="/dashboard/hr/leave-and-contracts">Leave requests & employee contracts &rarr;</a>
               {" · "}
               <a href="/dashboard/hr/payroll">Payroll &rarr;</a>
+              {" · "}
+              <a href="/dashboard/hr/recruitment">Recruitment &rarr;</a>
             </p>
           </div>
         </div>

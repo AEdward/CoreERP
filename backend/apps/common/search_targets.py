@@ -97,4 +97,9 @@ SEARCH_TARGETS = {
         "title": lambda obj: f"{obj.employee} — {obj.leave_type}",
         "url": "/dashboard/hr",
     },
+    "recruitment.applicant": {
+        "search_fields": ["full_name", "email", "phone"],
+        "title": lambda obj: f"{obj.full_name} — {obj.vacancy}",
+        "url": "/dashboard/hr/recruitment",
+    },
 }
