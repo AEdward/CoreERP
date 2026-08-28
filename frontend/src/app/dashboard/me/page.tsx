@@ -59,11 +59,14 @@ export default function MyProfilePage() {
 
   async function loadAll() {
     try {
-      const [p, lr, lt, ot, ps, rv, att] = await Promise.all([
-        api.getMyProfile().catch((err) => {
-          if (err instanceof ApiError && err.status === 404) return "unlinked" as const;
-          throw err;
-        }),
+      const p = await api.getMyProfile().catch((err) => {
+        if (err instanceof ApiError && err.status === 404) return "unlinked" as const;
+        throw err;
+      });
+      setProfile(p);
+      if (p === "unlinked") return;
+
+      const [lr, lt, ot, ps, rv, att] = await Promise.all([
         api.listMyLeaveRequests(),
         api.listMyLeaveTypes(),
         api.listMyOnboardingTasks(),
@@ -71,7 +74,6 @@ export default function MyProfilePage() {
         api.listMyPerformanceReviews(),
         api.getMyAttendance(),
       ]);
-      setProfile(p);
       setLeaveRequests(lr);
       setLeaveTypes(lt);
       setOnboardingTasks(ot);
