@@ -25,6 +25,11 @@ class Item(TenantModel):
         "tax.TaxRate", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    # Section L: Retail — lets a retail POS checkout resolve a scanned
+    # barcode straight to an Item without a variant. A specific SKU
+    # variant (apps.retail.ProductVariant) carries its own barcode
+    # instead, for items sold in multiple scannable configurations.
+    barcode = models.CharField(max_length=64, blank=True)
 
     class Meta:
         db_table = "items"

@@ -54,6 +54,9 @@ DEFAULT_PERMISSIONS = [
     # Section K: Real Estate.
     ("realestate", "view"),
     ("realestate", "manage"),
+    # Section L: Retail.
+    ("retail", "view"),
+    ("retail", "manage"),
 ]
 
 # Every role gets these automatically — shared productivity/platform
@@ -116,6 +119,8 @@ DEFAULT_ROLES = {
         "manufacturing.manage",
         "realestate.view",
         "realestate.manage",
+        "retail.view",
+        "retail.manage",
     ],
     "Finance Manager": ["accounting.view", "accounting.manage"],
     "HR Manager": ["hr.view", "hr.manage"],
@@ -139,6 +144,17 @@ DEFAULT_ROLES = {
         "realestate.manage",
         "accounting.view",
     ],
+    # Section L: Retail — the checkout-floor role. Narrower than "Store
+    # Manager" below: can ring up sales, open/close their own shift, and
+    # process returns, but not touch Promotions/Product Variants. Named
+    # "Retail Cashier" rather than reusing "Cashier" — that name is
+    # already the Section J front-desk/POS role (hotel.view, pos.*), a
+    # different job function in a different vertical.
+    "Retail Cashier": ["retail.view", "retail.manage"],
+    # Full retail ownership plus inventory visibility to know what's on
+    # hand, same shape as Production Manager's own cut of Inventory
+    # Manager's permission set.
+    "Store Manager": ["retail.view", "retail.manage", "inventory.view", "procurement.view"],
     # Section J roles, ported from AEdward/MiranErp's own role seeding —
     # full visibility across every module (view-only, not the day-to-day
     # write access plain Owner has) for a hotel principal who wants
@@ -203,6 +219,7 @@ DEFAULT_ROLES = {
         "loyalty.view",
         "manufacturing.view",
         "realestate.view",
+        "retail.view",
     ],
 }
 

@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "apps.fleet",
     "apps.manufacturing",
     "apps.realestate",
+    "apps.retail",
     "apps.selfservice",
     "apps.activity",
     "apps.documents",

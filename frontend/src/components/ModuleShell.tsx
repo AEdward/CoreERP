@@ -28,6 +28,7 @@ export type ModuleKey =
   | "pos"
   | "manufacturing"
   | "realestate"
+  | "retail"
   | "myprofile";
 
 interface NavItem {
@@ -264,6 +265,25 @@ const MODULE_NAV: Record<ModuleKey, { title: string; groups: NavGroup[] }> = {
           { href: "/dashboard/realestate/agents", label: "Sales Agents" },
           { href: "/dashboard/realestate/maintenance", label: "Maintenance" },
           { href: "/dashboard/realestate/expenses", label: "Expenses" },
+        ],
+      },
+    ],
+  },
+  // Section L: Retail — a retail-checkout POS, deliberately separate
+  // from apps.pos (restaurant/bar-flavored, ported from MiranErp — see
+  // docs/MODULE_MAP.md Section L's own note). Designed fresh.
+  retail: {
+    title: "Retail",
+    groups: [
+      {
+        items: [
+          { href: "/dashboard/retail", label: "Checkout" },
+          { href: "/dashboard/retail/sales", label: "Sales" },
+          { href: "/dashboard/retail/registers", label: "Registers & Shifts" },
+          { href: "/dashboard/retail/variants", label: "Product Variants" },
+          { href: "/dashboard/retail/promotions", label: "Promotions" },
+          { href: "/dashboard/retail/gift-cards", label: "Gift Cards" },
+          { href: "/dashboard/retail/returns", label: "Returns" },
         ],
       },
     ],

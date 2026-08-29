@@ -776,6 +776,130 @@ export interface PropertyExpense {
   created_at: string;
 }
 
+// --- Retail (Section L) ---
+
+export interface Register {
+  id: number;
+  branch: number | null;
+  branch_name: string;
+  name: string;
+  code: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CashierShift {
+  id: number;
+  register: number;
+  register_name: string;
+  cashier: number;
+  cashier_name: string;
+  opening_float_cents: number;
+  closing_amount_cents: number | null;
+  status: "open" | "closed";
+  closed_at: string | null;
+  created_at: string;
+}
+
+export interface ProductVariant {
+  id: number;
+  item: number;
+  item_name: string;
+  name: string;
+  sku: string;
+  barcode: string;
+  price_cents: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface RetailPromotion {
+  id: number;
+  name: string;
+  code: string;
+  discount_type: "percent" | "fixed";
+  discount_value: string;
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface RetailSaleLine {
+  id: number;
+  item: number;
+  item_name: string;
+  variant: number | null;
+  variant_name: string;
+  quantity: number;
+  unit_price_cents: number;
+  discount_percent: number;
+  line_total_cents: number;
+}
+
+export interface RetailSale {
+  id: number;
+  number: string;
+  register: number;
+  register_name: string;
+  shift: number;
+  warehouse: number;
+  customer: number | null;
+  customer_name: string;
+  cashier: number;
+  cashier_name: string;
+  promotion: number | null;
+  promotion_name: string;
+  payment_method: "cash" | "card" | "mobile_money" | "gift_card";
+  subtotal_cents: number;
+  discount_cents: number;
+  tax_cents: number;
+  total_cents: number;
+  status: "completed" | "partially_returned" | "returned";
+  lines: RetailSaleLine[];
+  created_at: string;
+}
+
+export interface GiftCard {
+  id: number;
+  code: string;
+  initial_balance_cents: number;
+  balance_cents: number;
+  issued_to: number | null;
+  issued_to_name: string;
+  issued_date: string;
+  status: "active" | "redeemed" | "expired";
+  created_at: string;
+}
+
+export interface GiftCardTransaction {
+  id: number;
+  gift_card: number;
+  type: "issue" | "reload" | "redeem";
+  amount_cents: number;
+  sale: number | null;
+  created_at: string;
+}
+
+export interface RetailReturnLine {
+  id: number;
+  sale_line: number;
+  item_name: string;
+  quantity: number;
+  refund_amount_cents: number;
+}
+
+export interface RetailReturn {
+  id: number;
+  number: string;
+  sale: number;
+  sale_number: string;
+  reason: string;
+  refund_amount_cents: number;
+  lines: RetailReturnLine[];
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -891,6 +1015,7 @@ export interface Item {
   price_cents: number;
   cost_cents: number;
   tax_rate: number | null;
+  barcode: string;
   status: "active" | "archived";
   created_at: string;
 }
@@ -3645,4 +3770,108 @@ export const api = {
     amount_cents: number;
     expense_date: string;
   }) => request<PropertyExpense>("/api/realestate/expenses/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Retail (Section L) ---
+  listRegisters: () => request<Register[]>("/api/retail/registers/"),
+  createRegister: (data: { branch?: number | null; name: string; code?: string; is_active?: boolean }) =>
+    request<Register>("/api/retail/registers/", { method: "POST", body: JSON.stringify(data) }),
+  updateRegister: (id: number, data: Partial<Pick<Register, "branch" | "name" | "code" | "is_active">>) =>
+    request<Register>(`/api/retail/registers/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteRegister: (id: number) => request<void>(`/api/retail/registers/${id}/`, { method: "DELETE" }),
+
+  listCashierShifts: (params?: { register?: number; status?: CashierShift["status"] }) => {
+    const qs = new URLSearchParams();
+    if (params?.register) qs.set("register", String(params.register));
+    if (params?.status) qs.set("status", params.status);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<CashierShift[]>(`/api/retail/shifts/${suffix}`);
+  },
+  openCashierShift: (data: { register: number; opening_float_cents?: number }) =>
+    request<CashierShift>("/api/retail/shifts/", { method: "POST", body: JSON.stringify(data) }),
+  closeCashierShift: (id: number, closingAmountCents: number) =>
+    request<CashierShift>(`/api/retail/shifts/${id}/close/`, {
+      method: "POST",
+      body: JSON.stringify({ closing_amount_cents: closingAmountCents }),
+    }),
+
+  listProductVariants: (itemId?: number) =>
+    request<ProductVariant[]>(`/api/retail/variants/${itemId ? `?item=${itemId}` : ""}`),
+  createProductVariant: (data: {
+    item: number;
+    name: string;
+    sku?: string;
+    barcode?: string;
+    price_cents?: number | null;
+  }) => request<ProductVariant>("/api/retail/variants/", { method: "POST", body: JSON.stringify(data) }),
+  updateProductVariant: (
+    id: number,
+    data: Partial<Pick<ProductVariant, "name" | "sku" | "barcode" | "price_cents" | "is_active">>
+  ) => request<ProductVariant>(`/api/retail/variants/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteProductVariant: (id: number) => request<void>(`/api/retail/variants/${id}/`, { method: "DELETE" }),
+
+  listRetailPromotions: () => request<RetailPromotion[]>("/api/retail/promotions/"),
+  createRetailPromotion: (data: {
+    name: string;
+    code?: string;
+    discount_type: RetailPromotion["discount_type"];
+    discount_value: string;
+    start_date?: string | null;
+    end_date?: string | null;
+    is_active?: boolean;
+  }) => request<RetailPromotion>("/api/retail/promotions/", { method: "POST", body: JSON.stringify(data) }),
+  updateRetailPromotion: (id: number, data: Partial<Pick<RetailPromotion, "is_active" | "end_date">>) =>
+    request<RetailPromotion>(`/api/retail/promotions/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteRetailPromotion: (id: number) => request<void>(`/api/retail/promotions/${id}/`, { method: "DELETE" }),
+
+  listRetailSales: (params?: { register?: number; shift?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.register) qs.set("register", String(params.register));
+    if (params?.shift) qs.set("shift", String(params.shift));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<RetailSale[]>(`/api/retail/sales/${suffix}`);
+  },
+  getRetailSale: (id: number) => request<RetailSale>(`/api/retail/sales/${id}/`),
+  checkoutRetailSale: (data: {
+    register: number;
+    shift: number;
+    warehouse: number;
+    customer?: number | null;
+    promotion?: number | null;
+    payment_method: RetailSale["payment_method"];
+    lines: {
+      item: number;
+      variant?: number | null;
+      quantity: number;
+      unit_price_cents: number;
+      discount_percent?: number;
+    }[];
+  }) => request<RetailSale>("/api/retail/sales/", { method: "POST", body: JSON.stringify(data) }),
+
+  listGiftCards: () => request<GiftCard[]>("/api/retail/gift-cards/"),
+  issueGiftCard: (data: {
+    code: string;
+    initial_balance_cents: number;
+    issued_to?: number | null;
+    issued_date: string;
+  }) => request<GiftCard>("/api/retail/gift-cards/", { method: "POST", body: JSON.stringify(data) }),
+  redeemGiftCard: (id: number, amountCents: number, saleId?: number) =>
+    request<GiftCard>(`/api/retail/gift-cards/${id}/redeem/`, {
+      method: "POST",
+      body: JSON.stringify({ amount_cents: amountCents, ...(saleId ? { sale: saleId } : {}) }),
+    }),
+  reloadGiftCard: (id: number, amountCents: number) =>
+    request<GiftCard>(`/api/retail/gift-cards/${id}/reload/`, {
+      method: "POST",
+      body: JSON.stringify({ amount_cents: amountCents }),
+    }),
+  listGiftCardTransactions: (giftCardId: number) =>
+    request<GiftCardTransaction[]>(`/api/retail/gift-card-transactions/?gift_card=${giftCardId}`),
+
+  listRetailReturns: (saleId?: number) =>
+    request<RetailReturn[]>(`/api/retail/returns/${saleId ? `?sale=${saleId}` : ""}`),
+  createRetailReturn: (data: {
+    sale: number;
+    reason?: string;
+    lines: { sale_line: number; quantity: number }[];
+  }) => request<RetailReturn>("/api/retail/returns/", { method: "POST", body: JSON.stringify(data) }),
 };

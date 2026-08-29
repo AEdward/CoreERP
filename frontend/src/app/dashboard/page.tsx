@@ -62,6 +62,7 @@ const MODULE_GROUPS: { title: string; tiles: { key: string; label: string; permi
     tiles: [
       { key: "manufacturing", label: "Manufacturing", permission: "manufacturing.view", href: "/dashboard/manufacturing" },
       { key: "realestate", label: "Real Estate", permission: "realestate.view", href: "/dashboard/realestate" },
+      { key: "retail", label: "Retail", permission: "retail.view", href: "/dashboard/retail" },
       { key: "hotel", label: "Hotel", permission: "hotel.view", href: "/dashboard/hotel" },
       {
         key: "housekeeping",

@@ -267,6 +267,27 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  retail: {
+    a: "#7c3aed",
+    b: "#22c55e",
+    render: (a, b) => (
+      <>
+        <path d="M14 16h20l-2 18a3 3 0 0 1-3 3H19a3 3 0 0 1-3-3Z" fill={a} opacity="0.9" />
+        <path
+          d="M18 16v-2a6 6 0 0 1 12 0v2"
+          fill="none"
+          stroke={a}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+        <rect x="19" y="24" width="2.4" height="9" fill="white" opacity="0.9" />
+        <rect x="22.5" y="24" width="1.2" height="9" fill="white" opacity="0.9" />
+        <rect x="25" y="24" width="2.4" height="9" fill="white" opacity="0.9" />
+        <rect x="28.5" y="24" width="1.2" height="9" fill="white" opacity="0.9" />
+        <circle cx="33" cy="35" r="5" fill={b} />
+      </>
+    ),
+  },
 };
 
 export function ModuleIcon({ moduleKey, muted, size = 44 }: { moduleKey: string; muted?: boolean; size?: number }) {

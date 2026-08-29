@@ -277,21 +277,23 @@ Designed fresh — no MiranErp/Odoo source ported (neither project has a real-es
 
 ## L. Retail
 
-- [ ] Retail Management
-- [ ] Point of Sale (POS) — MiranErp has a POS app, but it's restaurant/bar-flavored (tables, kitchen display, happy hour), not a retail-checkout shape
-- [ ] Barcode POS
-- [ ] Cashier Management
-- [ ] Registers
-- [ ] Shifts
-- [ ] Product Variants
-- [ ] Promotions
-- [ ] Discounts
-- [ ] Loyalty Program
-- [ ] Gift Cards
-- [ ] Returns
-- [ ] Multi-store Management
-- [ ] Omnichannel Commerce
-- [ ] E-commerce Integration
+Designed fresh — `apps.retail` is a real retail-checkout POS, deliberately separate from `apps.pos` (ported from MiranErp for Section J: restaurant/bar-flavored — tables, kitchen display, happy hour — not this shape). Verified end-to-end (backend API + browser UI): a checkout actually decrements `apps.inventory` stock per line, applies a line-level discount plus a header-level Promotion, runs the shared `apps.tax.engine` for tax, and a Return actually restocks — the feature `apps.procurement.PurchaseReturn`'s own docstring flags as deliberately not built there yet. "Multi-store Management" isn't a new model — a Register just optionally belongs to an existing `apps.branches.Branch`, the same location concept every other module already uses.
+
+- [x] Retail Management
+- [x] Point of Sale (POS) — `RetailSale`/`RetailSaleLine`, numbered via `apps.common.numbering` (`RSALE-00001`); append-only once completed, same as `apps.sales.Invoice`
+- [x] Barcode POS — `apps.catalog.Item.barcode` for a plain item, `ProductVariant.barcode` for a specific SKU variant; checkout resolves either straight to a cart line
+- [x] Cashier Management — `CashierShift.cashier` auto-set from the logged-in user, never client-writable
+- [x] Registers — `Register`
+- [x] Shifts — `CashierShift`, open/close; at most one open shift per register at a time (app-layer check, same shape `apps.fleet.VehicleAssignment` uses for "who's currently holding this")
+- [x] Product Variants — `ProductVariant`; stock is still tracked at the Item level, not per-variant — a known simplification, the same kind `apps.inventory.StorageLocation` itself accepts for bin-level tracking
+- [x] Promotions — `Promotion`, a named header-level campaign discount a cashier selects on the sale
+- [x] Discounts — `RetailSaleLine.discount_percent`, the same ad hoc line-item discount shape `apps.sales.SalesOrderLine` already established
+- [ ] Loyalty Program — `apps.loyalty` already exists (Section J) but is hard-linked to `apps.hotel.Reservation`; generalizing it for a non-hotel vertical is a real follow-up, not attempted here rather than half-done
+- [x] Gift Cards — `GiftCard` + `GiftCardTransaction` (issue/reload/redeem ledger)
+- [x] Returns — `RetailReturn`/`RetailReturnLine`, quantity validated against what each sale line has left to return, restocks via a real IN `StockMovement`
+- [x] Multi-store Management — `Register.branch`, see section intro
+- [ ] Omnichannel Commerce — no actual external channel to integrate with, so there's nothing real to build against — same restraint as `apps.manufacturing`'s Production Scheduling gap
+- [ ] E-commerce Integration — same reasoning as Omnichannel Commerce
 
 ## M. Healthcare
 

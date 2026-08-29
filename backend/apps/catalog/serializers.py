@@ -14,6 +14,7 @@ class ItemSerializer(CompanyScopedSerializer):
             "price_cents",
             "cost_cents",
             "tax_rate",
+            "barcode",
             "status",
             "created_at",
         ]
