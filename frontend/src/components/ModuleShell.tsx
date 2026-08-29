@@ -26,6 +26,7 @@ export type ModuleKey =
   | "spa"
   | "loyalty"
   | "pos"
+  | "manufacturing"
   | "myprofile";
 
 interface NavItem {
@@ -229,6 +230,21 @@ const MODULE_NAV: Record<ModuleKey, { title: string; groups: NavGroup[] }> = {
         items: [
           { href: "/dashboard/pos", label: "Overview" },
           { href: "/dashboard/kds", label: "Kitchen Display" },
+        ],
+      },
+    ],
+  },
+  // Section I: Manufacturing — designed fresh (no MiranErp/Odoo source
+  // ported), see docs/MODULE_MAP.md Section I.
+  manufacturing: {
+    title: "Manufacturing",
+    groups: [
+      {
+        items: [
+          { href: "/dashboard/manufacturing", label: "Production Orders" },
+          { href: "/dashboard/manufacturing/boms", label: "Bills of Materials" },
+          { href: "/dashboard/manufacturing/work-centers", label: "Work Centers & Machines" },
+          { href: "/dashboard/manufacturing/shortage-report", label: "Shortage Report" },
         ],
       },
     ],

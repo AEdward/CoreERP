@@ -456,6 +456,156 @@ export interface VehicleAssignment {
   created_at: string;
 }
 
+// --- Manufacturing (Section I) ---
+
+export interface WorkCenter {
+  id: number;
+  name: string;
+  code: string;
+  hourly_rate_cents: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Machine {
+  id: number;
+  work_center: number;
+  work_center_name: string;
+  name: string;
+  code: string;
+  status: "active" | "maintenance" | "retired";
+  notes: string;
+  created_at: string;
+}
+
+export interface MachineMaintenanceLog {
+  id: number;
+  machine: number;
+  machine_name: string;
+  performed_at: string;
+  description: string;
+  cost_cents: number;
+  downtime_hours: string | null;
+  created_at: string;
+}
+
+export interface BOMLine {
+  id: number;
+  component_item: number;
+  component_item_name: string;
+  quantity_per_unit: number;
+}
+
+export interface BOMByproduct {
+  id: number;
+  item: number;
+  item_name: string;
+  quantity_per_unit: number;
+}
+
+export interface BOMOperation {
+  id: number;
+  work_center: number;
+  work_center_name: string;
+  name: string;
+  sequence: number;
+  duration_minutes: string;
+}
+
+export interface BillOfMaterial {
+  id: number;
+  output_item: number;
+  output_item_name: string;
+  name: string;
+  is_active: boolean;
+  notes: string;
+  lines: BOMLine[];
+  byproducts: BOMByproduct[];
+  operations: BOMOperation[];
+  created_at: string;
+}
+
+export interface ManufacturingWorkOrder {
+  id: number;
+  production_order: number;
+  work_center: number;
+  work_center_name: string;
+  operation_name: string;
+  sequence: number;
+  status: "pending" | "in_progress" | "completed";
+  planned_hours: string;
+  actual_hours: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface MaterialConsumption {
+  id: number;
+  production_order: number;
+  item: number;
+  item_name: string;
+  quantity: number;
+  unit_cost_cents: number;
+  created_at: string;
+}
+
+export interface ScrapEntry {
+  id: number;
+  production_order: number;
+  item: number;
+  item_name: string;
+  quantity: number;
+  unit_cost_cents: number;
+  reason: string;
+  created_at: string;
+}
+
+export interface QualityCheck {
+  id: number;
+  production_order: number;
+  result: "pass" | "fail" | "rework";
+  checked_by: number | null;
+  checked_by_name: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface ProductionOrder {
+  id: number;
+  number: string;
+  bom: number;
+  bom_name: string;
+  output_item_name: string;
+  warehouse: number;
+  warehouse_name: string;
+  quantity: number;
+  produced_quantity: number;
+  status: "planned" | "in_progress" | "completed" | "cancelled";
+  planned_start_date: string | null;
+  planned_end_date: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  notes: string;
+  work_orders: ManufacturingWorkOrder[];
+  total_material_cost_cents: number;
+  total_labor_cost_cents: number;
+  total_scrap_cost_cents: number;
+  total_cost_cents: number;
+  created_at: string;
+}
+
+export interface ShortageReportRow {
+  item: number;
+  item_name: string;
+  warehouse: number;
+  warehouse_name: string;
+  required_quantity: number;
+  on_hand_quantity: number;
+  shortage_quantity: number;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -3073,4 +3223,115 @@ export const api = {
     request<VehicleAssignment>(`/api/fleet/vehicle-assignments/${id}/end/`, { method: "POST" }),
   deleteVehicleAssignment: (id: number) =>
     request<void>(`/api/fleet/vehicle-assignments/${id}/`, { method: "DELETE" }),
+
+  // --- Manufacturing (Section I) ---
+  listWorkCenters: () => request<WorkCenter[]>("/api/manufacturing/work-centers/"),
+  createWorkCenter: (data: { name: string; code?: string; hourly_rate_cents?: number; is_active?: boolean }) =>
+    request<WorkCenter>("/api/manufacturing/work-centers/", { method: "POST", body: JSON.stringify(data) }),
+  updateWorkCenter: (id: number, data: Partial<Pick<WorkCenter, "name" | "code" | "hourly_rate_cents" | "is_active">>) =>
+    request<WorkCenter>(`/api/manufacturing/work-centers/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteWorkCenter: (id: number) => request<void>(`/api/manufacturing/work-centers/${id}/`, { method: "DELETE" }),
+
+  listMachines: () => request<Machine[]>("/api/manufacturing/machines/"),
+  createMachine: (data: { work_center: number; name: string; code?: string; status?: Machine["status"]; notes?: string }) =>
+    request<Machine>("/api/manufacturing/machines/", { method: "POST", body: JSON.stringify(data) }),
+  updateMachine: (id: number, data: Partial<Pick<Machine, "work_center" | "name" | "code" | "status" | "notes">>) =>
+    request<Machine>(`/api/manufacturing/machines/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteMachine: (id: number) => request<void>(`/api/manufacturing/machines/${id}/`, { method: "DELETE" }),
+
+  listMachineMaintenanceLogs: (machineId?: number) =>
+    request<MachineMaintenanceLog[]>(
+      `/api/manufacturing/machine-maintenance-logs/${machineId ? `?machine=${machineId}` : ""}`
+    ),
+  createMachineMaintenanceLog: (data: {
+    machine: number;
+    performed_at: string;
+    description: string;
+    cost_cents?: number;
+    downtime_hours?: string | null;
+  }) =>
+    request<MachineMaintenanceLog>("/api/manufacturing/machine-maintenance-logs/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  listBOMs: () => request<BillOfMaterial[]>("/api/manufacturing/boms/"),
+  createBOM: (data: {
+    output_item: number;
+    name: string;
+    is_active?: boolean;
+    notes?: string;
+    lines: { component_item: number; quantity_per_unit: number }[];
+    byproducts?: { item: number; quantity_per_unit: number }[];
+    operations?: { work_center: number; name: string; sequence?: number; duration_minutes?: number }[];
+  }) => request<BillOfMaterial>("/api/manufacturing/boms/", { method: "POST", body: JSON.stringify(data) }),
+  updateBOM: (
+    id: number,
+    data: Partial<{
+      output_item: number;
+      name: string;
+      is_active: boolean;
+      notes: string;
+      lines: { component_item: number; quantity_per_unit: number }[];
+      byproducts: { item: number; quantity_per_unit: number }[];
+      operations: { work_center: number; name: string; sequence?: number; duration_minutes?: number }[];
+    }>
+  ) => request<BillOfMaterial>(`/api/manufacturing/boms/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteBOM: (id: number) => request<void>(`/api/manufacturing/boms/${id}/`, { method: "DELETE" }),
+
+  listProductionOrders: () => request<ProductionOrder[]>("/api/manufacturing/production-orders/"),
+  getProductionOrder: (id: number) => request<ProductionOrder>(`/api/manufacturing/production-orders/${id}/`),
+  createProductionOrder: (data: {
+    bom: number;
+    warehouse: number;
+    quantity: number;
+    planned_start_date?: string | null;
+    planned_end_date?: string | null;
+    notes?: string;
+  }) => request<ProductionOrder>("/api/manufacturing/production-orders/", { method: "POST", body: JSON.stringify(data) }),
+  startProductionOrder: (id: number) =>
+    request<ProductionOrder>(`/api/manufacturing/production-orders/${id}/start/`, { method: "POST" }),
+  cancelProductionOrder: (id: number) =>
+    request<ProductionOrder>(`/api/manufacturing/production-orders/${id}/cancel/`, { method: "POST" }),
+  completeProductionOrder: (id: number) =>
+    request<ProductionOrder>(`/api/manufacturing/production-orders/${id}/complete/`, { method: "POST" }),
+  listMaterialConsumptions: (productionOrderId: number) =>
+    request<MaterialConsumption[]>(`/api/manufacturing/material-consumptions/?production_order=${productionOrderId}`),
+  consumeMaterial: (id: number, data: { item: number; quantity: number }) =>
+    request<MaterialConsumption>(`/api/manufacturing/production-orders/${id}/consume/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  produceOutput: (id: number, data: { quantity: number }) =>
+    request<ProductionOrder>(`/api/manufacturing/production-orders/${id}/produce/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getShortageReport: () => request<ShortageReportRow[]>("/api/manufacturing/production-orders/shortage-report/"),
+
+  listManufacturingWorkOrders: (productionOrderId?: number) =>
+    request<ManufacturingWorkOrder[]>(
+      `/api/manufacturing/work-orders/${productionOrderId ? `?production_order=${productionOrderId}` : ""}`
+    ),
+  startManufacturingWorkOrder: (id: number) =>
+    request<ManufacturingWorkOrder>(`/api/manufacturing/work-orders/${id}/start/`, { method: "POST" }),
+  completeManufacturingWorkOrder: (id: number, actualHours?: string) =>
+    request<ManufacturingWorkOrder>(`/api/manufacturing/work-orders/${id}/complete/`, {
+      method: "POST",
+      body: JSON.stringify(actualHours ? { actual_hours: actualHours } : {}),
+    }),
+
+  listScrapEntries: (productionOrderId?: number) =>
+    request<ScrapEntry[]>(
+      `/api/manufacturing/scrap-entries/${productionOrderId ? `?production_order=${productionOrderId}` : ""}`
+    ),
+  createScrapEntry: (data: { production_order: number; item: number; quantity: number; reason?: string }) =>
+    request<ScrapEntry>("/api/manufacturing/scrap-entries/", { method: "POST", body: JSON.stringify(data) }),
+
+  listQualityChecks: (productionOrderId?: number) =>
+    request<QualityCheck[]>(
+      `/api/manufacturing/quality-checks/${productionOrderId ? `?production_order=${productionOrderId}` : ""}`
+    ),
+  createQualityCheck: (data: { production_order: number; result: QualityCheck["result"]; notes?: string }) =>
+    request<QualityCheck>("/api/manufacturing/quality-checks/", { method: "POST", body: JSON.stringify(data) }),
 };

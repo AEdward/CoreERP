@@ -154,6 +154,7 @@ Two of these are structural enough that retrofitting them after several vertical
 Backlog, unscheduled. Pick based on real demand once Phases 1–3.5 are live, not speculatively.
 
 - [x] Hotel (room bookings, folios) — backend ported from MiranErp, see Section J in `docs/MODULE_MAP.md`; no frontend
+- [x] Manufacturing (BOM, production/work orders, MRP-lite shortage report, costing) — designed fresh (Odoo used as a shape reference, not ported), full backend + frontend, see Section I in `docs/MODULE_MAP.md`
 - [ ] Real Estate (leases, units)
 - [ ] Retail (POS)
 - [ ] Healthcare (patient records)

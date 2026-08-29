@@ -52,10 +52,15 @@ const MODULE_GROUPS: { title: string; tiles: { key: string; label: string; permi
     ],
   },
   {
-    // Section J: Hotel & Hospitality, ported from AEdward/MiranErp — the
-    // first (and so far only) Industry Modules vertical.
-    title: "Industry Modules — Hospitality",
+    // Industry Modules — one section for every vertical, not one per
+    // industry: Section J (Hotel & Hospitality, ported from
+    // AEdward/MiranErp) was the first tile here; Section I
+    // (Manufacturing, designed fresh) is the second. The section title
+    // dropped its old "— Hospitality" suffix once a second vertical
+    // joined it.
+    title: "Industry Modules",
     tiles: [
+      { key: "manufacturing", label: "Manufacturing", permission: "manufacturing.view", href: "/dashboard/manufacturing" },
       { key: "hotel", label: "Hotel", permission: "hotel.view", href: "/dashboard/hotel" },
       {
         key: "housekeeping",

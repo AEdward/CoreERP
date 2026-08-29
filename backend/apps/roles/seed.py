@@ -48,6 +48,9 @@ DEFAULT_PERMISSIONS = [
     ("loyalty", "manage"),
     ("pos", "view"),
     ("pos", "manage"),
+    # Section I: Manufacturing.
+    ("manufacturing", "view"),
+    ("manufacturing", "manage"),
 ]
 
 # Every role gets these automatically — shared productivity/platform
@@ -106,11 +109,23 @@ DEFAULT_ROLES = {
         "loyalty.manage",
         "pos.view",
         "pos.manage",
+        "manufacturing.view",
+        "manufacturing.manage",
     ],
     "Finance Manager": ["accounting.view", "accounting.manage"],
     "HR Manager": ["hr.view", "hr.manage"],
     "Sales Manager": ["sales.view", "sales.manage"],
     "Inventory Manager": ["inventory.view", "inventory.manage", "procurement.view", "procurement.manage"],
+    # Section I: Manufacturing — plans BOMs/production, needs inventory
+    # visibility to know what's on hand for a run without owning general
+    # stock management itself (same shape as Procurement Officer's
+    # narrower cut of Inventory Manager's own permission set).
+    "Production Manager": [
+        "manufacturing.view",
+        "manufacturing.manage",
+        "inventory.view",
+        "procurement.view",
+    ],
     # Section J roles, ported from AEdward/MiranErp's own role seeding —
     # full visibility across every module (view-only, not the day-to-day
     # write access plain Owner has) for a hotel principal who wants
@@ -173,6 +188,7 @@ DEFAULT_ROLES = {
         "gym.view",
         "conference.view",
         "loyalty.view",
+        "manufacturing.view",
     ],
 }
 

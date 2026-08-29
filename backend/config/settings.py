@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "apps.recruitment",
     "apps.performance",
     "apps.fleet",
+    "apps.manufacturing",
     "apps.selfservice",
     "apps.activity",
     "apps.documents",

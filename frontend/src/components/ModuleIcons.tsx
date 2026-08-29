@@ -235,6 +235,19 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  manufacturing: {
+    a: "#475569",
+    b: "#f97316",
+    render: (a, b) => (
+      <>
+        <path
+          d="M24 10a14 14 0 0 1 13.6 10.7l4.4.9-1.4 5.8-4.4-.5a14 14 0 0 1-4.1 5.9l1.9 4-5.3 2.8-2.6-3.6a14 14 0 0 1-7 0l-2.6 3.6-5.3-2.8 1.9-4a14 14 0 0 1-4.1-5.9l-4.4.5-1.4-5.8 4.4-.9A14 14 0 0 1 24 10Z"
+          fill={a}
+        />
+        <circle cx="24" cy="24" r="6.5" fill={b} />
+      </>
+    ),
+  },
 };
 
 export function ModuleIcon({ moduleKey, muted, size = 44 }: { moduleKey: string; muted?: boolean; size?: number }) {

@@ -200,22 +200,24 @@ Note: this whole section is genuinely Core-adjacent, not industry — it's the b
 
 ## I. Manufacturing
 
-- [ ] Manufacturing
-- [ ] Bill of Materials (BOM)
-- [ ] Production Orders
-- [ ] Production Planning
-- [ ] Material Requirements Planning (MRP)
-- [ ] Work Orders
-- [ ] Work Centers
-- [ ] Production Scheduling
-- [ ] Raw Materials
-- [ ] Finished Goods
-- [ ] Work in Progress
-- [ ] Quality Control
-- [ ] Production Costing
-- [ ] Machine Management
-- [ ] Manufacturing Maintenance
-- [ ] Waste / Scrap Management
+Designed fresh — no MiranErp or Odoo source ported wholesale the way Section J was (neither project has a manufacturing reference to port). Built as a thin but real vertical slice: `apps.manufacturing`'s BOM → Production Order → Work Order loop actually consumes/produces `apps.inventory` stock and rolls up real costing, verified end-to-end (backend API + browser UI) rather than left as scaffolding. Odoo's `mrp` module was used as a reference for shape — BOM byproducts and BOM-defined routing operations (auto-copied onto each production order's work orders) both mirror it. `Raw Materials` / `Finished Goods` / `Work in Progress` aren't separate models: they're all just `apps.catalog.Item` (raw material if some BOM consumes it, finished good if some BOM produces it) and a `ProductionOrder` whose status is `in_progress`, the same way Section A's own notes treat `Contacts`/`Products` as core concepts rather than dedicated tables.
+
+- [x] Manufacturing
+- [x] Bill of Materials (BOM) — `BillOfMaterial` + `BOMLine`, normalized to "per 1 unit of output" so a production order's required-component math is just `quantity_per_unit * order.quantity`; `BOMByproduct` for secondary outputs, `BOMOperation` for the BOM's routing
+- [x] Production Orders — `ProductionOrder`, numbered via the shared `apps.common.numbering` engine (`MO-00001`); `start`/`consume`/`produce`/`complete`/`cancel` actions
+- [ ] Production Planning — no forward capacity/date planning beyond the order's own `planned_start_date`/`planned_end_date` fields; see Production Scheduling below
+- [x] Material Requirements Planning (MRP) — MRP-lite: a shortage report netting every open order's outstanding component requirements against on-hand stock per (item, warehouse). Same restrained scope as Inventory's own reorder-suggestions feature, not a full MRP run/scheduling engine
+- [x] Work Orders — `WorkOrder`, one per BOM operation, auto-generated (and scaled to the order's quantity) when a `ProductionOrder` is created from a BOM with a routing defined
+- [x] Work Centers — `WorkCenter`, carries the blended labor+overhead `hourly_rate_cents` used for costing
+- [ ] Production Scheduling — work orders carry a `sequence` and `planned_hours`/`actual_hours`, but nothing schedules them against work center capacity or a calendar
+- [x] Raw Materials — `apps.catalog.Item`, see section intro
+- [x] Finished Goods — `apps.catalog.Item`, see section intro
+- [x] Work in Progress — `ProductionOrder.status == in_progress`, see section intro
+- [x] Quality Control — `QualityCheck` (pass/fail/rework) against a production order
+- [x] Production Costing — `ProductionOrder.total_cost_cents` rolls up material (consumption-time cost snapshot), labor (work order actual hours × work center rate), and scrap cost
+- [x] Machine Management — `Machine`, belongs to a `WorkCenter`
+- [x] Manufacturing Maintenance — `MachineMaintenanceLog`; deliberately a plain log, not a port of `apps.maintenance`'s Room-hardwired WorkOrder/MaintenanceSchedule pair (see that app's own docstring on why generalizing it is out of scope here)
+- [x] Waste / Scrap Management — `ScrapEntry`, cost-snapshotted the same way `MaterialConsumption` is
 
 ## J. Hotel & Hospitality
 
