@@ -252,26 +252,28 @@ Not on the original checklist above but built as real MiranErp apps and ported a
 
 Real-world feature reference already gathered (see chat: OVID Real Estate's actual module list — Payment Plans, Collection Committee, Loan Management, Construction, Portfolio Management were the standout real needs beyond "leases, units").
 
-- [ ] Real Estate Management
-- [ ] Property Management
-- [ ] Property Projects
-- [ ] Buildings
-- [ ] Units
-- [ ] Unit Types
-- [ ] Property Listings
-- [ ] Property Sales
-- [ ] Property Rentals
-- [ ] Leasing
-- [ ] Tenants
-- [ ] Lease Contracts
-- [ ] Rent Collection
-- [ ] Installment Management
-- [ ] Real Estate CRM
-- [ ] Sales Agents
-- [ ] Agent Commissions
-- [ ] Property Maintenance
-- [ ] Property Expenses
-- [ ] Property Documents
+Designed fresh — no MiranErp/Odoo source ported (neither project has a real-estate reference). Built as a thin but real vertical slice: `apps.realestate`'s Project → Building → Unit hierarchy actually drives Listings, Sales (with a generated installment payment plan and an auto-computed agent commission), and Leasing (with a generated rent-collection schedule), verified end-to-end (backend API + browser UI) rather than left as scaffolding. Of the OVID reference list, Payment Plans (`PaymentInstallment`) and a thin Construction signal (`PropertyProject.status`) are built; Collection Committee (an approval workflow for overdue collections) and full Loan/Mortgage Management are deliberately deferred — same "no template/automation layer without a concrete second requirement" restraint `apps.fleet` and `apps.manufacturing` both applied, not an oversight. `Tenants` and `Real Estate CRM` aren't separate models: a tenant/buyer is just an `apps.crm.Customer` (same reuse Section J's Hotel made of Customer for guests), and the existing CRM pipeline already covers lead tracking for a sale. `Property Documents` is covered by registering these models in `apps.common.targeting.ALLOWED_TARGETS` rather than a new Document-like model.
+
+- [x] Real Estate Management
+- [x] Property Management
+- [x] Property Projects — `PropertyProject`
+- [x] Buildings — `Building`
+- [x] Units — `Unit`
+- [x] Unit Types — `UnitType`
+- [x] Property Listings — `PropertyListing`
+- [x] Property Sales — `PropertySale`, numbered via `apps.common.numbering` (`PSALE-00001`); `complete`/`cancel` actions flip the unit's status
+- [x] Property Rentals — see Leasing below (one `LeaseContract` model covers both)
+- [x] Leasing — `LeaseContract`, numbered (`LEASE-00001`); `terminate` action
+- [x] Tenants — `apps.crm.Customer`, see section intro
+- [x] Lease Contracts — `LeaseContract`
+- [x] Rent Collection — `RentPayment`, generated in a batch across the lease's date range (`generate_rent_schedule`), then tracked individually as each period is collected
+- [x] Installment Management — `PaymentInstallment`, generated in a batch over the balance remaining after down payment (`generate_installments`)
+- [x] Real Estate CRM — `apps.crm`, see section intro
+- [x] Sales Agents — `SalesAgent`, optionally linked to an internal HR Employee (external/brokerage agents are common in real estate, so the link isn't required)
+- [x] Agent Commissions — `AgentCommission`, computed once when a sale is marked completed (rate/amount snapshotted, not recomputed later)
+- [x] Property Maintenance — `PropertyMaintenanceRequest`; deliberately its own model, not a port of `apps.maintenance`'s Room-hardwired WorkOrder pair (same reasoning `apps.manufacturing.MachineMaintenanceLog` already applied)
+- [x] Property Expenses — `PropertyExpense`, scoped to a Building with an optional Unit narrowing
+- [x] Property Documents — `apps.common.targeting.ALLOWED_TARGETS`, see section intro
 
 ## L. Retail
 

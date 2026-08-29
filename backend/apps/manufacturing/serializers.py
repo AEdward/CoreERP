@@ -231,7 +231,7 @@ class ScrapEntrySerializer(CompanyScopedSerializer):
 
 class QualityCheckSerializer(CompanyScopedSerializer):
     same_company_fields = ["production_order"]
-    checked_by_name = serializers.CharField(source="checked_by.get_full_name", read_only=True)
+    checked_by_name = serializers.CharField(source="checked_by.full_name", read_only=True, default="")
 
     class Meta:
         model = QualityCheck

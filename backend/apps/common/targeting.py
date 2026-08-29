@@ -40,6 +40,11 @@ ALLOWED_TARGETS = {
     "payroll.payrollrun": ("hr", "Payroll Run"),
     "recruitment.applicant": ("hr", "Applicant"),
     "performance.performancereview": ("hr", "Performance Review"),
+    "realestate.propertyproject": ("realestate", "Property Project"),
+    "realestate.building": ("realestate", "Building"),
+    "realestate.unit": ("realestate", "Unit"),
+    "realestate.propertysale": ("realestate", "Property Sale"),
+    "realestate.leasecontract": ("realestate", "Lease Contract"),
 }
 
 

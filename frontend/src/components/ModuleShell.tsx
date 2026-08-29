@@ -27,6 +27,7 @@ export type ModuleKey =
   | "loyalty"
   | "pos"
   | "manufacturing"
+  | "realestate"
   | "myprofile";
 
 interface NavItem {
@@ -245,6 +246,24 @@ const MODULE_NAV: Record<ModuleKey, { title: string; groups: NavGroup[] }> = {
           { href: "/dashboard/manufacturing/boms", label: "Bills of Materials" },
           { href: "/dashboard/manufacturing/work-centers", label: "Work Centers & Machines" },
           { href: "/dashboard/manufacturing/shortage-report", label: "Shortage Report" },
+        ],
+      },
+    ],
+  },
+  // Section K: Real Estate — designed fresh (no MiranErp/Odoo source
+  // ported), see docs/MODULE_MAP.md Section K.
+  realestate: {
+    title: "Real Estate",
+    groups: [
+      {
+        items: [
+          { href: "/dashboard/realestate", label: "Properties" },
+          { href: "/dashboard/realestate/listings", label: "Listings" },
+          { href: "/dashboard/realestate/sales", label: "Sales" },
+          { href: "/dashboard/realestate/leasing", label: "Leasing" },
+          { href: "/dashboard/realestate/agents", label: "Sales Agents" },
+          { href: "/dashboard/realestate/maintenance", label: "Maintenance" },
+          { href: "/dashboard/realestate/expenses", label: "Expenses" },
         ],
       },
     ],

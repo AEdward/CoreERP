@@ -248,6 +248,25 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  realestate: {
+    a: "#0f766e",
+    b: "#fbbf24",
+    render: (a, b) => (
+      <>
+        <rect x="10" y="14" width="16" height="26" fill={a} opacity="0.92" />
+        <rect x="26" y="20" width="12" height="20" fill={a} opacity="0.7" />
+        <rect x="14" y="18" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="19" y="18" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="14" y="24" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="19" y="24" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="14" y="30" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="19" y="30" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="29" y="24" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="29" y="30" width="3" height="3" fill="white" opacity="0.85" />
+        <rect x="17" y="35" width="5" height="5" fill={b} />
+      </>
+    ),
+  },
 };
 
 export function ModuleIcon({ moduleKey, muted, size = 44 }: { moduleKey: string; muted?: boolean; size?: number }) {

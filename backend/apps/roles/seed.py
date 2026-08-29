@@ -51,6 +51,9 @@ DEFAULT_PERMISSIONS = [
     # Section I: Manufacturing.
     ("manufacturing", "view"),
     ("manufacturing", "manage"),
+    # Section K: Real Estate.
+    ("realestate", "view"),
+    ("realestate", "manage"),
 ]
 
 # Every role gets these automatically — shared productivity/platform
@@ -111,6 +114,8 @@ DEFAULT_ROLES = {
         "pos.manage",
         "manufacturing.view",
         "manufacturing.manage",
+        "realestate.view",
+        "realestate.manage",
     ],
     "Finance Manager": ["accounting.view", "accounting.manage"],
     "HR Manager": ["hr.view", "hr.manage"],
@@ -125,6 +130,14 @@ DEFAULT_ROLES = {
         "manufacturing.manage",
         "inventory.view",
         "procurement.view",
+    ],
+    # Section K: Real Estate — runs properties/sales/leasing day-to-day;
+    # accounting.view so they can see payment collection against the
+    # company's books without owning the general ledger itself.
+    "Property Manager": [
+        "realestate.view",
+        "realestate.manage",
+        "accounting.view",
     ],
     # Section J roles, ported from AEdward/MiranErp's own role seeding —
     # full visibility across every module (view-only, not the day-to-day
@@ -189,6 +202,7 @@ DEFAULT_ROLES = {
         "conference.view",
         "loyalty.view",
         "manufacturing.view",
+        "realestate.view",
     ],
 }
 

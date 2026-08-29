@@ -606,6 +606,176 @@ export interface ShortageReportRow {
   shortage_quantity: number;
 }
 
+// --- Real Estate (Section K) ---
+
+export interface PropertyProject {
+  id: number;
+  name: string;
+  description: string;
+  location: string;
+  status: "planning" | "under_construction" | "completed" | "on_hold";
+  start_date: string | null;
+  expected_completion_date: string | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface RealEstateBuilding {
+  id: number;
+  project: number | null;
+  project_name: string;
+  name: string;
+  address: string;
+  floors_count: number;
+  notes: string;
+  created_at: string;
+}
+
+export interface UnitType {
+  id: number;
+  name: string;
+  bedrooms: number;
+  bathrooms: number;
+  area_sqm: string | null;
+  base_sale_price_cents: number;
+  base_rent_cents_monthly: number;
+  created_at: string;
+}
+
+export interface PropertyUnit {
+  id: number;
+  building: number;
+  building_name: string;
+  unit_type: number | null;
+  unit_type_name: string;
+  unit_number: string;
+  floor: number | null;
+  status: "available" | "reserved" | "sold" | "rented" | "maintenance";
+  notes: string;
+  created_at: string;
+}
+
+export interface PropertyListing {
+  id: number;
+  unit: number;
+  unit_label: string;
+  listing_type: "sale" | "rent";
+  price_cents: number;
+  listed_date: string;
+  status: "active" | "withdrawn" | "closed";
+  description: string;
+  created_at: string;
+}
+
+export interface SalesAgent {
+  id: number;
+  employee: number | null;
+  employee_name: string;
+  name: string;
+  phone: string;
+  email: string;
+  commission_rate_percent: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PaymentInstallment {
+  id: number;
+  sale: number;
+  installment_number: number;
+  due_date: string;
+  amount_cents: number;
+  paid_amount_cents: number;
+  paid_date: string | null;
+  status: "pending" | "paid" | "overdue";
+}
+
+export interface AgentCommission {
+  id: number;
+  sale: number;
+  agent: number;
+  agent_name: string;
+  rate_percent: string;
+  amount_cents: number;
+  status: "pending" | "paid";
+  paid_date: string | null;
+}
+
+export interface PropertySale {
+  id: number;
+  number: string;
+  unit: number;
+  unit_label: string;
+  buyer: number;
+  buyer_name: string;
+  agent: number | null;
+  agent_name: string;
+  sale_price_cents: number;
+  down_payment_cents: number;
+  sale_date: string;
+  status: "pending" | "completed" | "cancelled";
+  notes: string;
+  installments: PaymentInstallment[];
+  commissions: AgentCommission[];
+  created_at: string;
+}
+
+export interface RentPayment {
+  id: number;
+  lease: number;
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  amount_cents: number;
+  paid_amount_cents: number;
+  paid_date: string | null;
+  status: "pending" | "paid" | "overdue";
+}
+
+export interface LeaseContract {
+  id: number;
+  number: string;
+  unit: number;
+  unit_label: string;
+  tenant: number;
+  tenant_name: string;
+  start_date: string;
+  end_date: string;
+  monthly_rent_cents: number;
+  deposit_cents: number;
+  status: "active" | "terminated" | "expired";
+  notes: string;
+  rent_payments: RentPayment[];
+  created_at: string;
+}
+
+export interface PropertyMaintenanceRequest {
+  id: number;
+  unit: number;
+  unit_label: string;
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high" | "urgent";
+  status: "open" | "in_progress" | "completed" | "cancelled";
+  reported_by: number | null;
+  reported_by_name: string;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface PropertyExpense {
+  id: number;
+  building: number;
+  building_name: string;
+  unit: number | null;
+  unit_label: string;
+  category: string;
+  description: string;
+  amount_cents: number;
+  expense_date: string;
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -3334,4 +3504,145 @@ export const api = {
     ),
   createQualityCheck: (data: { production_order: number; result: QualityCheck["result"]; notes?: string }) =>
     request<QualityCheck>("/api/manufacturing/quality-checks/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Real Estate (Section K) ---
+  listPropertyProjects: () => request<PropertyProject[]>("/api/realestate/projects/"),
+  createPropertyProject: (data: Partial<PropertyProject>) =>
+    request<PropertyProject>("/api/realestate/projects/", { method: "POST", body: JSON.stringify(data) }),
+  updatePropertyProject: (id: number, data: Partial<PropertyProject>) =>
+    request<PropertyProject>(`/api/realestate/projects/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePropertyProject: (id: number) => request<void>(`/api/realestate/projects/${id}/`, { method: "DELETE" }),
+
+  listRealEstateBuildings: () => request<RealEstateBuilding[]>("/api/realestate/buildings/"),
+  createRealEstateBuilding: (data: { project?: number | null; name: string; address?: string; floors_count?: number; notes?: string }) =>
+    request<RealEstateBuilding>("/api/realestate/buildings/", { method: "POST", body: JSON.stringify(data) }),
+  updateRealEstateBuilding: (id: number, data: Partial<Pick<RealEstateBuilding, "project" | "name" | "address" | "floors_count" | "notes">>) =>
+    request<RealEstateBuilding>(`/api/realestate/buildings/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteRealEstateBuilding: (id: number) => request<void>(`/api/realestate/buildings/${id}/`, { method: "DELETE" }),
+
+  listUnitTypes: () => request<UnitType[]>("/api/realestate/unit-types/"),
+  createUnitType: (data: Partial<UnitType>) =>
+    request<UnitType>("/api/realestate/unit-types/", { method: "POST", body: JSON.stringify(data) }),
+  deleteUnitType: (id: number) => request<void>(`/api/realestate/unit-types/${id}/`, { method: "DELETE" }),
+
+  listPropertyUnits: (buildingId?: number) =>
+    request<PropertyUnit[]>(`/api/realestate/units/${buildingId ? `?building=${buildingId}` : ""}`),
+  createPropertyUnit: (data: {
+    building: number;
+    unit_type?: number | null;
+    unit_number: string;
+    floor?: number | null;
+    notes?: string;
+  }) => request<PropertyUnit>("/api/realestate/units/", { method: "POST", body: JSON.stringify(data) }),
+  updatePropertyUnit: (
+    id: number,
+    data: Partial<Pick<PropertyUnit, "building" | "unit_type" | "unit_number" | "floor" | "status" | "notes">>
+  ) => request<PropertyUnit>(`/api/realestate/units/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePropertyUnit: (id: number) => request<void>(`/api/realestate/units/${id}/`, { method: "DELETE" }),
+
+  listPropertyListings: () => request<PropertyListing[]>("/api/realestate/listings/"),
+  createPropertyListing: (data: {
+    unit: number;
+    listing_type: PropertyListing["listing_type"];
+    price_cents: number;
+    listed_date: string;
+    description?: string;
+  }) => request<PropertyListing>("/api/realestate/listings/", { method: "POST", body: JSON.stringify(data) }),
+  updatePropertyListing: (id: number, data: Partial<Pick<PropertyListing, "status" | "price_cents" | "description">>) =>
+    request<PropertyListing>(`/api/realestate/listings/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePropertyListing: (id: number) => request<void>(`/api/realestate/listings/${id}/`, { method: "DELETE" }),
+
+  listSalesAgents: () => request<SalesAgent[]>("/api/realestate/sales-agents/"),
+  createSalesAgent: (data: {
+    employee?: number | null;
+    name: string;
+    phone?: string;
+    email?: string;
+    commission_rate_percent?: string;
+  }) => request<SalesAgent>("/api/realestate/sales-agents/", { method: "POST", body: JSON.stringify(data) }),
+  updateSalesAgent: (id: number, data: Partial<Pick<SalesAgent, "name" | "phone" | "email" | "commission_rate_percent" | "is_active">>) =>
+    request<SalesAgent>(`/api/realestate/sales-agents/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteSalesAgent: (id: number) => request<void>(`/api/realestate/sales-agents/${id}/`, { method: "DELETE" }),
+
+  listPropertySales: () => request<PropertySale[]>("/api/realestate/sales/"),
+  getPropertySale: (id: number) => request<PropertySale>(`/api/realestate/sales/${id}/`),
+  createPropertySale: (data: {
+    unit: number;
+    buyer: number;
+    agent?: number | null;
+    sale_price_cents: number;
+    down_payment_cents?: number;
+    sale_date: string;
+    notes?: string;
+  }) => request<PropertySale>("/api/realestate/sales/", { method: "POST", body: JSON.stringify(data) }),
+  generateInstallments: (saleId: number, data: { count: number; start_date: string }) =>
+    request<PropertySale>(`/api/realestate/sales/${saleId}/generate_installments/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  completePropertySale: (id: number) =>
+    request<PropertySale>(`/api/realestate/sales/${id}/complete/`, { method: "POST" }),
+  cancelPropertySale: (id: number) =>
+    request<PropertySale>(`/api/realestate/sales/${id}/cancel/`, { method: "POST" }),
+  recordInstallmentPayment: (id: number, paidDate?: string) =>
+    request<PaymentInstallment>(`/api/realestate/installments/${id}/record_payment/`, {
+      method: "POST",
+      body: JSON.stringify(paidDate ? { paid_date: paidDate } : {}),
+    }),
+  listAgentCommissions: (params?: { sale?: number; agent?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.sale) qs.set("sale", String(params.sale));
+    if (params?.agent) qs.set("agent", String(params.agent));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<AgentCommission[]>(`/api/realestate/commissions/${suffix}`);
+  },
+  markCommissionPaid: (id: number) =>
+    request<AgentCommission>(`/api/realestate/commissions/${id}/mark_paid/`, { method: "POST" }),
+
+  listLeaseContracts: () => request<LeaseContract[]>("/api/realestate/leases/"),
+  getLeaseContract: (id: number) => request<LeaseContract>(`/api/realestate/leases/${id}/`),
+  createLeaseContract: (data: {
+    unit: number;
+    tenant: number;
+    start_date: string;
+    end_date: string;
+    monthly_rent_cents: number;
+    deposit_cents?: number;
+    notes?: string;
+  }) => request<LeaseContract>("/api/realestate/leases/", { method: "POST", body: JSON.stringify(data) }),
+  generateRentSchedule: (leaseId: number) =>
+    request<LeaseContract>(`/api/realestate/leases/${leaseId}/generate_rent_schedule/`, { method: "POST" }),
+  terminateLease: (id: number) =>
+    request<LeaseContract>(`/api/realestate/leases/${id}/terminate/`, { method: "POST" }),
+  recordRentPayment: (id: number, paidDate?: string) =>
+    request<RentPayment>(`/api/realestate/rent-payments/${id}/record_payment/`, {
+      method: "POST",
+      body: JSON.stringify(paidDate ? { paid_date: paidDate } : {}),
+    }),
+
+  listPropertyMaintenanceRequests: (unitId?: number) =>
+    request<PropertyMaintenanceRequest[]>(`/api/realestate/maintenance-requests/${unitId ? `?unit=${unitId}` : ""}`),
+  createPropertyMaintenanceRequest: (data: {
+    unit: number;
+    title: string;
+    description?: string;
+    priority?: PropertyMaintenanceRequest["priority"];
+  }) =>
+    request<PropertyMaintenanceRequest>("/api/realestate/maintenance-requests/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  resolvePropertyMaintenanceRequest: (id: number) =>
+    request<PropertyMaintenanceRequest>(`/api/realestate/maintenance-requests/${id}/resolve/`, { method: "POST" }),
+
+  listPropertyExpenses: (buildingId?: number) =>
+    request<PropertyExpense[]>(`/api/realestate/expenses/${buildingId ? `?building=${buildingId}` : ""}`),
+  createPropertyExpense: (data: {
+    building: number;
+    unit?: number | null;
+    category: string;
+    description?: string;
+    amount_cents: number;
+    expense_date: string;
+  }) => request<PropertyExpense>("/api/realestate/expenses/", { method: "POST", body: JSON.stringify(data) }),
 };
