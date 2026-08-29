@@ -288,6 +288,25 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  healthcare: {
+    a: "#dc2626",
+    b: "#0891b2",
+    render: (a, b) => (
+      <>
+        <circle cx="24" cy="24" r="17" fill={b} opacity="0.16" />
+        <rect x="19" y="10" width="10" height="28" rx="2.5" fill={a} />
+        <rect x="10" y="19" width="28" height="10" rx="2.5" fill={a} />
+        <path
+          d="M9 30h7l3-6 4 10 3-7 2 3h11"
+          fill="none"
+          stroke={b}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </>
+    ),
+  },
 };
 
 export function ModuleIcon({ moduleKey, muted, size = 44 }: { moduleKey: string; muted?: boolean; size?: number }) {

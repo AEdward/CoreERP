@@ -29,6 +29,7 @@ export type ModuleKey =
   | "manufacturing"
   | "realestate"
   | "retail"
+  | "healthcare"
   | "myprofile";
 
 interface NavItem {
@@ -284,6 +285,26 @@ const MODULE_NAV: Record<ModuleKey, { title: string; groups: NavGroup[] }> = {
           { href: "/dashboard/retail/promotions", label: "Promotions" },
           { href: "/dashboard/retail/gift-cards", label: "Gift Cards" },
           { href: "/dashboard/retail/returns", label: "Returns" },
+        ],
+      },
+    ],
+  },
+  // Section M: Healthcare — designed fresh, no MiranErp/Odoo source
+  // ported (see apps.healthcare.models's own docstring for the scope
+  // this covers: patient -> appointment -> EMR -> diagnostic ->
+  // prescription/dispense -> admission/discharge -> billing/insurance
+  // -> blood bank, as one thin real vertical slice).
+  healthcare: {
+    title: "Healthcare",
+    groups: [
+      {
+        items: [
+          { href: "/dashboard/healthcare", label: "Patients" },
+          { href: "/dashboard/healthcare/staff", label: "Staff" },
+          { href: "/dashboard/healthcare/appointments", label: "Appointments" },
+          { href: "/dashboard/healthcare/admissions", label: "Admissions & Beds" },
+          { href: "/dashboard/healthcare/billing", label: "Billing & Insurance" },
+          { href: "/dashboard/healthcare/blood-bank", label: "Blood Bank" },
         ],
       },
     ],

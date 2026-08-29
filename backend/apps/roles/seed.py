@@ -57,6 +57,9 @@ DEFAULT_PERMISSIONS = [
     # Section L: Retail.
     ("retail", "view"),
     ("retail", "manage"),
+    # Section M: Healthcare.
+    ("healthcare", "view"),
+    ("healthcare", "manage"),
 ]
 
 # Every role gets these automatically — shared productivity/platform
@@ -121,6 +124,8 @@ DEFAULT_ROLES = {
         "realestate.manage",
         "retail.view",
         "retail.manage",
+        "healthcare.view",
+        "healthcare.manage",
     ],
     "Finance Manager": ["accounting.view", "accounting.manage"],
     "HR Manager": ["hr.view", "hr.manage"],
@@ -155,6 +160,15 @@ DEFAULT_ROLES = {
     # hand, same shape as Production Manager's own cut of Inventory
     # Manager's permission set.
     "Store Manager": ["retail.view", "retail.manage", "inventory.view", "procurement.view"],
+    # Section M: Healthcare — clinical staff (doctors and nurses alike;
+    # the permission model is module-level, not per-record, so both
+    # roles this section adds share the same healthcare.* grant, the
+    # same coarseness Section F's own roles accept elsewhere).
+    "Doctor": ["healthcare.view", "healthcare.manage"],
+    # The front-office/billing role — same healthcare.* access plus
+    # accounting.view for billing oversight, the same shape Property
+    # Manager's own accounting.view cut uses.
+    "Hospital Administrator": ["healthcare.view", "healthcare.manage", "accounting.view"],
     # Section J roles, ported from AEdward/MiranErp's own role seeding —
     # full visibility across every module (view-only, not the day-to-day
     # write access plain Owner has) for a hotel principal who wants
@@ -220,6 +234,7 @@ DEFAULT_ROLES = {
         "manufacturing.view",
         "realestate.view",
         "retail.view",
+        "healthcare.view",
     ],
 }
 

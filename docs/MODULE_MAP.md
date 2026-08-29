@@ -297,25 +297,27 @@ Designed fresh — `apps.retail` is a real retail-checkout POS, deliberately sep
 
 ## M. Healthcare
 
-- [ ] Healthcare Management
-- [ ] Patient Management
-- [ ] Appointments
-- [ ] Doctor Management
-- [ ] Nurse Management
-- [ ] Electronic Medical Records
-- [ ] Medical History
-- [ ] Pharmacy
-- [ ] Prescriptions
-- [ ] Laboratory
-- [ ] Radiology
-- [ ] Billing
-- [ ] Insurance
-- [ ] Inpatient Management
-- [ ] Outpatient Management
-- [ ] Emergency Management
-- [ ] Operating Room
-- [ ] Blood Bank
-- [ ] Medical Inventory
+Designed fresh — neither MiranErp nor Odoo has a healthcare reference to port from. Deliberately a thin real vertical slice, not a clinical system: no HL7/FHIR interoperability, no drug-interaction checking, no PACS imaging viewer, no crossmatch/compatibility safety logic for blood units — those are genuine safety-critical clinical subsystems this project has no business half-building. What's here is real and wired end to end, verified via a from-empty-DB migration replay, a Python API smoke test, and a browser Playwright pass: a patient's visit produces an EMR entry, a diagnostic order, a prescription that actually dispenses against real `apps.inventory` stock (decrementing it via a genuine `StockMovement`, not a simulated one), and a bill with a real insurance-coverage split. `Patient` is deliberately its own model, not reused from `apps.crm.Customer` the way Section J's Hotel guest, Section K's tenant/buyer, and Section L's retail customer all were — PHI (allergies, blood type, medical history) has no business living on the one shared CRM table every other vertical's staff can browse. This is the one section in the Phase 4 series that deliberately breaks the "reuse the core Customer concept" pattern, for a real reason, not by oversight. Several checklist items below are folded into a shared model rather than given one each, the same restraint Section K's Property Rentals/Leasing merge and Section L's Returns/RMA non-split used.
+
+- [x] Healthcare Management
+- [x] Patient Management — `Patient`, its own model (see section intro), with allergies/blood type/emergency contact
+- [x] Appointments — `Appointment`, full lifecycle (`check_in`/`complete`/`cancel`/`no_show`)
+- [x] Doctor Management — `MedicalStaff.role=doctor`
+- [x] Nurse Management — `MedicalStaff.role=nurse`; doctors and nurses share one roster filtered by `role`, the same way `Appointment.visit_type` folds four checklist items into one field rather than four tables
+- [x] Electronic Medical Records — `MedicalRecord`, one entry per visit with vitals (BP/temp/pulse/weight)
+- [x] Medical History — a patient's `MedicalRecord` list ordered by date; not a separate summarized model
+- [x] Pharmacy — `PrescriptionLine.item`, a plain `apps.catalog.Item` — no dedicated medication catalog
+- [x] Prescriptions — `Prescription`/`PrescriptionLine`, numbered `RX-00001`; `dispense` issues every pending line as a real OUT `StockMovement` and flips the prescription to Filled
+- [x] Laboratory — `DiagnosticOrder.type=lab`
+- [x] Radiology — `DiagnosticOrder.type=imaging`; lab and radiology share one order model/workflow (`complete`/`cancel`), not two near-identical tables
+- [x] Billing — `MedicalBill`/`MedicalBillLine`, numbered `MBILL-00001`, `record_payment` validated against the amount actually owed; deliberately internal-only, not posted to `apps.accounting`'s general ledger — same restraint `apps.manufacturing`'s production costing and `apps.retail`'s sale totals both apply
+- [x] Insurance — `InsuranceProvider` + `PatientInsurance` (policy + coverage %); a bill's `insurance_covered_cents`/`patient_owed_cents` split is computed from the linked policy's `coverage_percent` at creation time
+- [x] Inpatient Management — `Admission`/`Bed`, numbered `ADM-00001`; admitting flips the bed Occupied, `discharge` flips it back to Available
+- [x] Outpatient Management — `Appointment.visit_type=outpatient`
+- [x] Emergency Management — `Appointment.visit_type=emergency`
+- [x] Operating Room — `Appointment.visit_type=surgery`, with `Appointment.room` doubling as the OR number; a real booking slot, not a separate OR-scheduling system
+- [x] Blood Bank — `BloodUnit` tracks its own lifecycle (`reserve`/`use`/`discard`) rather than a separate request-and-fulfill model — reserving a unit for a patient *is* the request, the same way `apps.realestate.PropertySale` flips its own Unit to reserved rather than a separate reservation record
+- [x] Medical Inventory — `apps.inventory`/`apps.catalog`, the same reuse Section L made of the catalog for retail products; no dedicated medical-inventory model
 
 ## N. Construction
 

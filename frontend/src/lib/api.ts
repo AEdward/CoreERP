@@ -900,6 +900,190 @@ export interface RetailReturn {
   created_at: string;
 }
 
+// --- Healthcare (Section M) ---
+
+export interface Patient {
+  id: number;
+  first_name: string;
+  last_name: string;
+  name: string;
+  date_of_birth: string | null;
+  gender: "male" | "female" | "other" | "";
+  blood_type: string;
+  phone: string;
+  email: string;
+  address: string;
+  allergies: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  created_at: string;
+}
+
+export interface MedicalStaff {
+  id: number;
+  employee: number | null;
+  employee_name: string;
+  role: "doctor" | "nurse";
+  name: string;
+  specialization: string;
+  license_number: string;
+  phone: string;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Appointment {
+  id: number;
+  patient: number;
+  patient_name: string;
+  staff: number;
+  staff_name: string;
+  visit_type: "outpatient" | "inpatient" | "emergency" | "surgery";
+  scheduled_at: string;
+  duration_minutes: number;
+  room: string;
+  reason: string;
+  status: "scheduled" | "checked_in" | "completed" | "cancelled" | "no_show";
+  created_at: string;
+}
+
+export interface MedicalRecord {
+  id: number;
+  patient: number;
+  patient_name: string;
+  appointment: number | null;
+  recorded_by: number;
+  recorded_by_name: string;
+  record_date: string;
+  diagnosis: string;
+  notes: string;
+  blood_pressure: string;
+  temperature_celsius: string | null;
+  pulse_bpm: number | null;
+  weight_kg: string | null;
+  created_at: string;
+}
+
+export interface DiagnosticOrder {
+  id: number;
+  patient: number;
+  patient_name: string;
+  doctor: number;
+  doctor_name: string;
+  medical_record: number | null;
+  type: "lab" | "imaging";
+  test_name: string;
+  status: "ordered" | "in_progress" | "completed" | "cancelled";
+  ordered_date: string;
+  result_text: string;
+  result_date: string | null;
+  created_at: string;
+}
+
+export interface PrescriptionLine {
+  id: number;
+  item: number;
+  item_name: string;
+  quantity: number;
+  dosage_instructions: string;
+  dispensed: boolean;
+}
+
+export interface Prescription {
+  id: number;
+  number: string;
+  patient: number;
+  patient_name: string;
+  doctor: number;
+  doctor_name: string;
+  medical_record: number | null;
+  prescribed_date: string;
+  status: "active" | "filled" | "cancelled";
+  lines: PrescriptionLine[];
+  created_at: string;
+}
+
+export interface Bed {
+  id: number;
+  ward: string;
+  bed_number: string;
+  status: "available" | "occupied" | "maintenance";
+  created_at: string;
+}
+
+export interface Admission {
+  id: number;
+  number: string;
+  patient: number;
+  patient_name: string;
+  bed: number;
+  bed_label: string;
+  admitting_doctor: number;
+  doctor_name: string;
+  reason: string;
+  discharged_at: string | null;
+  status: "admitted" | "discharged";
+  created_at: string;
+}
+
+export interface InsuranceProvider {
+  id: number;
+  name: string;
+  contact_phone: string;
+  contact_email: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PatientInsurance {
+  id: number;
+  patient: number;
+  patient_name: string;
+  provider: number;
+  provider_name: string;
+  policy_number: string;
+  coverage_percent: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface MedicalBillLine {
+  id: number;
+  description: string;
+  amount_cents: number;
+}
+
+export interface MedicalBill {
+  id: number;
+  number: string;
+  patient: number;
+  patient_name: string;
+  admission: number | null;
+  appointment: number | null;
+  patient_insurance: number | null;
+  subtotal_cents: number;
+  insurance_covered_cents: number;
+  patient_owed_cents: number;
+  paid_amount_cents: number;
+  status: "pending" | "partially_paid" | "paid";
+  lines: MedicalBillLine[];
+  created_at: string;
+}
+
+export interface BloodUnit {
+  id: number;
+  blood_type: string;
+  volume_ml: number;
+  collected_date: string;
+  expiry_date: string;
+  status: "available" | "reserved" | "used" | "expired" | "discarded";
+  reserved_for: number | null;
+  reserved_for_name: string;
+  notes: string;
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -3874,4 +4058,165 @@ export const api = {
     reason?: string;
     lines: { sale_line: number; quantity: number }[];
   }) => request<RetailReturn>("/api/retail/returns/", { method: "POST", body: JSON.stringify(data) }),
+
+  // --- Healthcare (Section M) ---
+  listPatients: () => request<Patient[]>("/api/healthcare/patients/"),
+  getPatient: (id: number) => request<Patient>(`/api/healthcare/patients/${id}/`),
+  createPatient: (data: Partial<Patient>) =>
+    request<Patient>("/api/healthcare/patients/", { method: "POST", body: JSON.stringify(data) }),
+  updatePatient: (id: number, data: Partial<Patient>) =>
+    request<Patient>(`/api/healthcare/patients/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePatient: (id: number) => request<void>(`/api/healthcare/patients/${id}/`, { method: "DELETE" }),
+
+  listMedicalStaff: (role?: MedicalStaff["role"]) =>
+    request<MedicalStaff[]>(`/api/healthcare/staff/${role ? `?role=${role}` : ""}`),
+  createMedicalStaff: (data: {
+    employee?: number | null;
+    role: MedicalStaff["role"];
+    name: string;
+    specialization?: string;
+    license_number?: string;
+    phone?: string;
+    email?: string;
+  }) => request<MedicalStaff>("/api/healthcare/staff/", { method: "POST", body: JSON.stringify(data) }),
+  updateMedicalStaff: (
+    id: number,
+    data: Partial<Pick<MedicalStaff, "name" | "specialization" | "license_number" | "phone" | "email" | "is_active">>
+  ) => request<MedicalStaff>(`/api/healthcare/staff/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteMedicalStaff: (id: number) => request<void>(`/api/healthcare/staff/${id}/`, { method: "DELETE" }),
+
+  listAppointments: (patientId?: number) =>
+    request<Appointment[]>(`/api/healthcare/appointments/${patientId ? `?patient=${patientId}` : ""}`),
+  createAppointment: (data: {
+    patient: number;
+    staff: number;
+    visit_type?: Appointment["visit_type"];
+    scheduled_at: string;
+    duration_minutes?: number;
+    room?: string;
+    reason?: string;
+  }) => request<Appointment>("/api/healthcare/appointments/", { method: "POST", body: JSON.stringify(data) }),
+  checkInAppointment: (id: number) =>
+    request<Appointment>(`/api/healthcare/appointments/${id}/check_in/`, { method: "POST" }),
+  completeAppointment: (id: number) =>
+    request<Appointment>(`/api/healthcare/appointments/${id}/complete/`, { method: "POST" }),
+  cancelAppointment: (id: number) =>
+    request<Appointment>(`/api/healthcare/appointments/${id}/cancel/`, { method: "POST" }),
+  noShowAppointment: (id: number) =>
+    request<Appointment>(`/api/healthcare/appointments/${id}/no_show/`, { method: "POST" }),
+
+  listMedicalRecords: (patientId?: number) =>
+    request<MedicalRecord[]>(`/api/healthcare/medical-records/${patientId ? `?patient=${patientId}` : ""}`),
+  createMedicalRecord: (data: {
+    patient: number;
+    appointment?: number | null;
+    recorded_by: number;
+    record_date: string;
+    diagnosis?: string;
+    notes?: string;
+    blood_pressure?: string;
+    temperature_celsius?: string | null;
+    pulse_bpm?: number | null;
+    weight_kg?: string | null;
+  }) => request<MedicalRecord>("/api/healthcare/medical-records/", { method: "POST", body: JSON.stringify(data) }),
+
+  listDiagnosticOrders: (patientId?: number) =>
+    request<DiagnosticOrder[]>(`/api/healthcare/diagnostic-orders/${patientId ? `?patient=${patientId}` : ""}`),
+  createDiagnosticOrder: (data: {
+    patient: number;
+    doctor: number;
+    medical_record?: number | null;
+    type: DiagnosticOrder["type"];
+    test_name: string;
+    ordered_date: string;
+  }) => request<DiagnosticOrder>("/api/healthcare/diagnostic-orders/", { method: "POST", body: JSON.stringify(data) }),
+  completeDiagnosticOrder: (id: number, resultText?: string) =>
+    request<DiagnosticOrder>(`/api/healthcare/diagnostic-orders/${id}/complete/`, {
+      method: "POST",
+      body: JSON.stringify(resultText !== undefined ? { result_text: resultText } : {}),
+    }),
+  cancelDiagnosticOrder: (id: number) =>
+    request<DiagnosticOrder>(`/api/healthcare/diagnostic-orders/${id}/cancel/`, { method: "POST" }),
+
+  listPrescriptions: (patientId?: number) =>
+    request<Prescription[]>(`/api/healthcare/prescriptions/${patientId ? `?patient=${patientId}` : ""}`),
+  createPrescription: (data: {
+    patient: number;
+    doctor: number;
+    medical_record?: number | null;
+    prescribed_date: string;
+    lines: { item: number; quantity: number; dosage_instructions?: string }[];
+  }) => request<Prescription>("/api/healthcare/prescriptions/", { method: "POST", body: JSON.stringify(data) }),
+  dispensePrescription: (id: number, warehouseId: number) =>
+    request<Prescription>(`/api/healthcare/prescriptions/${id}/dispense/`, {
+      method: "POST",
+      body: JSON.stringify({ warehouse: warehouseId }),
+    }),
+  cancelPrescription: (id: number) =>
+    request<Prescription>(`/api/healthcare/prescriptions/${id}/cancel/`, { method: "POST" }),
+
+  listBeds: () => request<Bed[]>("/api/healthcare/beds/"),
+  createBed: (data: { ward: string; bed_number: string }) =>
+    request<Bed>("/api/healthcare/beds/", { method: "POST", body: JSON.stringify(data) }),
+  updateBed: (id: number, data: Partial<Pick<Bed, "ward" | "bed_number" | "status">>) =>
+    request<Bed>(`/api/healthcare/beds/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteBed: (id: number) => request<void>(`/api/healthcare/beds/${id}/`, { method: "DELETE" }),
+
+  listAdmissions: (patientId?: number) =>
+    request<Admission[]>(`/api/healthcare/admissions/${patientId ? `?patient=${patientId}` : ""}`),
+  createAdmission: (data: { patient: number; bed: number; admitting_doctor: number; reason?: string }) =>
+    request<Admission>("/api/healthcare/admissions/", { method: "POST", body: JSON.stringify(data) }),
+  dischargeAdmission: (id: number) =>
+    request<Admission>(`/api/healthcare/admissions/${id}/discharge/`, { method: "POST" }),
+
+  listInsuranceProviders: () => request<InsuranceProvider[]>("/api/healthcare/insurance-providers/"),
+  createInsuranceProvider: (data: { name: string; contact_phone?: string; contact_email?: string }) =>
+    request<InsuranceProvider>("/api/healthcare/insurance-providers/", { method: "POST", body: JSON.stringify(data) }),
+  updateInsuranceProvider: (id: number, data: Partial<Pick<InsuranceProvider, "name" | "contact_phone" | "contact_email" | "is_active">>) =>
+    request<InsuranceProvider>(`/api/healthcare/insurance-providers/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteInsuranceProvider: (id: number) => request<void>(`/api/healthcare/insurance-providers/${id}/`, { method: "DELETE" }),
+
+  listPatientInsurances: (patientId?: number) =>
+    request<PatientInsurance[]>(`/api/healthcare/patient-insurances/${patientId ? `?patient=${patientId}` : ""}`),
+  createPatientInsurance: (data: { patient: number; provider: number; policy_number: string; coverage_percent?: string }) =>
+    request<PatientInsurance>("/api/healthcare/patient-insurances/", { method: "POST", body: JSON.stringify(data) }),
+  updatePatientInsurance: (id: number, data: Partial<Pick<PatientInsurance, "policy_number" | "coverage_percent" | "is_active">>) =>
+    request<PatientInsurance>(`/api/healthcare/patient-insurances/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  listMedicalBills: (patientId?: number) =>
+    request<MedicalBill[]>(`/api/healthcare/bills/${patientId ? `?patient=${patientId}` : ""}`),
+  getMedicalBill: (id: number) => request<MedicalBill>(`/api/healthcare/bills/${id}/`),
+  createMedicalBill: (data: {
+    patient: number;
+    admission?: number | null;
+    appointment?: number | null;
+    patient_insurance?: number | null;
+    lines: { description: string; amount_cents: number }[];
+  }) => request<MedicalBill>("/api/healthcare/bills/", { method: "POST", body: JSON.stringify(data) }),
+  recordMedicalBillPayment: (id: number, amountCents: number) =>
+    request<MedicalBill>(`/api/healthcare/bills/${id}/record_payment/`, {
+      method: "POST",
+      body: JSON.stringify({ amount_cents: amountCents }),
+    }),
+
+  listBloodUnits: (params?: { blood_type?: string; status?: BloodUnit["status"] }) => {
+    const qs = new URLSearchParams();
+    if (params?.blood_type) qs.set("blood_type", params.blood_type);
+    if (params?.status) qs.set("status", params.status);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<BloodUnit[]>(`/api/healthcare/blood-units/${suffix}`);
+  },
+  createBloodUnit: (data: { blood_type: string; volume_ml?: number; collected_date: string; expiry_date: string; notes?: string }) =>
+    request<BloodUnit>("/api/healthcare/blood-units/", { method: "POST", body: JSON.stringify(data) }),
+  reserveBloodUnit: (id: number, patientId: number) =>
+    request<BloodUnit>(`/api/healthcare/blood-units/${id}/reserve/`, {
+      method: "POST",
+      body: JSON.stringify({ patient: patientId }),
+    }),
+  useBloodUnit: (id: number) => request<BloodUnit>(`/api/healthcare/blood-units/${id}/use/`, { method: "POST" }),
+  discardBloodUnit: (id: number, reason?: string) =>
+    request<BloodUnit>(`/api/healthcare/blood-units/${id}/discard/`, {
+      method: "POST",
+      body: JSON.stringify(reason !== undefined ? { reason } : {}),
+    }),
 };
