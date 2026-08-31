@@ -158,7 +158,7 @@ Backlog, unscheduled. Pick based on real demand once Phases 1–3.5 are live, no
 - [x] Real Estate (property projects/buildings/units, listings, sales with installment payment plans + agent commissions, leasing with rent collection, maintenance, expenses) — designed fresh (no MiranErp/Odoo reference existed for this vertical), full backend + frontend, see Section K in `docs/MODULE_MAP.md`
 - [x] Retail (barcode POS checkout, registers/cashier shifts, product variants, promotions + line discounts, gift cards, returns with real restock) — designed fresh (deliberately separate from apps.pos's restaurant/bar shape), full backend + frontend, see Section L in `docs/MODULE_MAP.md`
 - [x] Healthcare (patient records, appointments, doctor/nurse roster, EMR, lab/radiology diagnostic orders, prescriptions that dispense against real inventory stock, inpatient admissions/beds, billing with insurance coverage split, blood bank) — designed fresh (no MiranErp/Odoo reference existed for this vertical), full backend + frontend, see Section M in `docs/MODULE_MAP.md`
-- [ ] Construction (project costing)
+- [x] Construction (projects, BOQ/cost estimation, contracts + subcontractors, site logs, materials issued against real inventory stock, equipment/labor assignments, site expenses, change orders that actually adjust the budget, project costing rollup, quality inspections, safety incidents) — designed fresh (no MiranErp/Odoo reference existed for this vertical), full backend + frontend, see Section N in `docs/MODULE_MAP.md`. This closes out Phase 4's originally-scoped industry-module backlog (Hotel, Manufacturing, Real Estate, Retail, Healthcare, Construction).
 
 ## Open risks to revisit (from architecture doc §11)
 

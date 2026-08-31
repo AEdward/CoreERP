@@ -1084,6 +1084,170 @@ export interface BloodUnit {
   created_at: string;
 }
 
+// --- Construction (Section N) ---
+
+export interface ConstructionProject {
+  id: number;
+  number: string;
+  name: string;
+  client: number | null;
+  client_name: string;
+  site_address: string;
+  site_manager: number | null;
+  site_manager_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  budget_cents: number;
+  status: "planning" | "in_progress" | "on_hold" | "completed" | "cancelled";
+  notes: string;
+  created_at: string;
+}
+
+export interface ConstructionCosting {
+  budget_cents: number;
+  estimated_cents: number;
+  materials_cents: number;
+  labor_cents: number;
+  equipment_cents: number;
+  subcontract_cents: number;
+  site_expenses_cents: number;
+  actual_cents: number;
+  variance_cents: number;
+}
+
+export interface BOQItem {
+  id: number;
+  project: number;
+  category: string;
+  description: string;
+  unit: string;
+  quantity: string;
+  unit_cost_cents: number;
+  estimated_cost_cents: number;
+  created_at: string;
+}
+
+export interface Contract {
+  id: number;
+  number: string;
+  project: number;
+  contract_type: "main" | "subcontract";
+  customer: number | null;
+  customer_name: string;
+  supplier: number | null;
+  supplier_name: string;
+  scope_of_work: string;
+  contract_value_cents: number;
+  retention_percent: string;
+  start_date: string | null;
+  end_date: string | null;
+  status: "draft" | "active" | "completed" | "terminated";
+  created_at: string;
+}
+
+export interface SiteLog {
+  id: number;
+  project: number;
+  log_date: string;
+  percent_complete: number;
+  work_summary: string;
+  weather: string;
+  logged_by: number | null;
+  logged_by_name: string;
+  created_at: string;
+}
+
+export interface MaterialIssue {
+  id: number;
+  project: number;
+  item: number;
+  item_name: string;
+  warehouse: number;
+  warehouse_name: string;
+  quantity: number;
+  unit_cost_cents: number;
+  created_at: string;
+}
+
+export interface Equipment {
+  id: number;
+  name: string;
+  equipment_type: string;
+  status: "available" | "in_use" | "maintenance" | "retired";
+  notes: string;
+  created_at: string;
+}
+
+export interface EquipmentAssignment {
+  id: number;
+  equipment: number;
+  equipment_name: string;
+  project: number;
+  project_name: string;
+  start_date: string;
+  end_date: string | null;
+  daily_rate_cents: number;
+  created_at: string;
+}
+
+export interface LaborAssignment {
+  id: number;
+  employee: number;
+  employee_name: string;
+  project: number;
+  project_name: string;
+  role: string;
+  start_date: string;
+  end_date: string | null;
+  daily_rate_cents: number;
+  created_at: string;
+}
+
+export interface SiteExpense {
+  id: number;
+  project: number;
+  category: string;
+  description: string;
+  amount_cents: number;
+  expense_date: string;
+  created_at: string;
+}
+
+export interface ChangeOrder {
+  id: number;
+  number: string;
+  project: number;
+  project_name: string;
+  description: string;
+  amount_cents: number;
+  requested_date: string;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+}
+
+export interface QualityInspection {
+  id: number;
+  project: number;
+  inspected_by: number | null;
+  inspected_by_name: string;
+  inspection_date: string;
+  result: "pass" | "fail" | "conditional";
+  notes: string;
+  created_at: string;
+}
+
+export interface SafetyIncident {
+  id: number;
+  project: number;
+  incident_date: string;
+  description: string;
+  severity: "low" | "medium" | "high" | "critical";
+  reported_by: number | null;
+  reported_by_name: string;
+  corrective_action: string;
+  created_at: string;
+}
+
 export interface EmployeeContract {
   id: number;
   employee: number;
@@ -4219,4 +4383,134 @@ export const api = {
       method: "POST",
       body: JSON.stringify(reason !== undefined ? { reason } : {}),
     }),
+
+  // --- Construction (Section N) ---
+  listConstructionProjects: () => request<ConstructionProject[]>("/api/construction/projects/"),
+  getConstructionProject: (id: number) => request<ConstructionProject>(`/api/construction/projects/${id}/`),
+  createConstructionProject: (data: {
+    name: string;
+    client?: number | null;
+    site_address?: string;
+    site_manager?: number | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    status?: ConstructionProject["status"];
+    notes?: string;
+  }) => request<ConstructionProject>("/api/construction/projects/", { method: "POST", body: JSON.stringify(data) }),
+  updateConstructionProject: (
+    id: number,
+    data: Partial<Pick<ConstructionProject, "name" | "client" | "site_address" | "site_manager" | "start_date" | "end_date" | "status" | "notes">>
+  ) => request<ConstructionProject>(`/api/construction/projects/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteConstructionProject: (id: number) => request<void>(`/api/construction/projects/${id}/`, { method: "DELETE" }),
+  getConstructionProjectCosting: (id: number) =>
+    request<ConstructionCosting>(`/api/construction/projects/${id}/costing/`),
+
+  listBOQItems: (projectId?: number) =>
+    request<BOQItem[]>(`/api/construction/boq-items/${projectId ? `?project=${projectId}` : ""}`),
+  createBOQItem: (data: {
+    project: number;
+    category?: string;
+    description: string;
+    unit?: string;
+    quantity?: string;
+    unit_cost_cents?: number;
+  }) => request<BOQItem>("/api/construction/boq-items/", { method: "POST", body: JSON.stringify(data) }),
+  updateBOQItem: (id: number, data: Partial<Pick<BOQItem, "category" | "description" | "unit" | "quantity" | "unit_cost_cents">>) =>
+    request<BOQItem>(`/api/construction/boq-items/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteBOQItem: (id: number) => request<void>(`/api/construction/boq-items/${id}/`, { method: "DELETE" }),
+
+  listContracts: (projectId?: number) =>
+    request<Contract[]>(`/api/construction/contracts/${projectId ? `?project=${projectId}` : ""}`),
+  createContract: (data: {
+    project: number;
+    contract_type: Contract["contract_type"];
+    customer?: number | null;
+    supplier?: number | null;
+    scope_of_work?: string;
+    contract_value_cents?: number;
+    retention_percent?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+    status?: Contract["status"];
+  }) => request<Contract>("/api/construction/contracts/", { method: "POST", body: JSON.stringify(data) }),
+  updateContract: (
+    id: number,
+    data: Partial<Pick<Contract, "scope_of_work" | "contract_value_cents" | "retention_percent" | "start_date" | "end_date" | "status">>
+  ) => request<Contract>(`/api/construction/contracts/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteContract: (id: number) => request<void>(`/api/construction/contracts/${id}/`, { method: "DELETE" }),
+
+  listSiteLogs: (projectId?: number) =>
+    request<SiteLog[]>(`/api/construction/site-logs/${projectId ? `?project=${projectId}` : ""}`),
+  createSiteLog: (data: {
+    project: number;
+    log_date: string;
+    percent_complete?: number;
+    work_summary?: string;
+    weather?: string;
+    logged_by?: number | null;
+  }) => request<SiteLog>("/api/construction/site-logs/", { method: "POST", body: JSON.stringify(data) }),
+
+  listMaterialIssues: (projectId?: number) =>
+    request<MaterialIssue[]>(`/api/construction/material-issues/${projectId ? `?project=${projectId}` : ""}`),
+  createMaterialIssue: (data: { project: number; item: number; warehouse: number; quantity: number }) =>
+    request<MaterialIssue>("/api/construction/material-issues/", { method: "POST", body: JSON.stringify(data) }),
+
+  listEquipment: () => request<Equipment[]>("/api/construction/equipment/"),
+  createEquipment: (data: { name: string; equipment_type?: string; notes?: string }) =>
+    request<Equipment>("/api/construction/equipment/", { method: "POST", body: JSON.stringify(data) }),
+  updateEquipment: (id: number, data: Partial<Pick<Equipment, "name" | "equipment_type" | "status" | "notes">>) =>
+    request<Equipment>(`/api/construction/equipment/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteEquipment: (id: number) => request<void>(`/api/construction/equipment/${id}/`, { method: "DELETE" }),
+
+  listEquipmentAssignments: (params?: { project?: number; equipment?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.project) qs.set("project", String(params.project));
+    if (params?.equipment) qs.set("equipment", String(params.equipment));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<EquipmentAssignment[]>(`/api/construction/equipment-assignments/${suffix}`);
+  },
+  createEquipmentAssignment: (data: { equipment: number; project: number; start_date: string; daily_rate_cents?: number }) =>
+    request<EquipmentAssignment>("/api/construction/equipment-assignments/", { method: "POST", body: JSON.stringify(data) }),
+  endEquipmentAssignment: (id: number) =>
+    request<EquipmentAssignment>(`/api/construction/equipment-assignments/${id}/end/`, { method: "POST" }),
+
+  listLaborAssignments: (projectId?: number) =>
+    request<LaborAssignment[]>(`/api/construction/labor-assignments/${projectId ? `?project=${projectId}` : ""}`),
+  createLaborAssignment: (data: { employee: number; project: number; role?: string; start_date: string; daily_rate_cents?: number }) =>
+    request<LaborAssignment>("/api/construction/labor-assignments/", { method: "POST", body: JSON.stringify(data) }),
+  endLaborAssignment: (id: number) =>
+    request<LaborAssignment>(`/api/construction/labor-assignments/${id}/end/`, { method: "POST" }),
+
+  listSiteExpenses: (projectId?: number) =>
+    request<SiteExpense[]>(`/api/construction/site-expenses/${projectId ? `?project=${projectId}` : ""}`),
+  createSiteExpense: (data: { project: number; category?: string; description?: string; amount_cents: number; expense_date: string }) =>
+    request<SiteExpense>("/api/construction/site-expenses/", { method: "POST", body: JSON.stringify(data) }),
+
+  listChangeOrders: (projectId?: number) =>
+    request<ChangeOrder[]>(`/api/construction/change-orders/${projectId ? `?project=${projectId}` : ""}`),
+  createChangeOrder: (data: { project: number; description: string; amount_cents: number; requested_date: string }) =>
+    request<ChangeOrder>("/api/construction/change-orders/", { method: "POST", body: JSON.stringify(data) }),
+  approveChangeOrder: (id: number) => request<ChangeOrder>(`/api/construction/change-orders/${id}/approve/`, { method: "POST" }),
+  rejectChangeOrder: (id: number) => request<ChangeOrder>(`/api/construction/change-orders/${id}/reject/`, { method: "POST" }),
+
+  listQualityInspections: (projectId?: number) =>
+    request<QualityInspection[]>(`/api/construction/quality-inspections/${projectId ? `?project=${projectId}` : ""}`),
+  createQualityInspection: (data: {
+    project: number;
+    inspected_by?: number | null;
+    inspection_date: string;
+    result: QualityInspection["result"];
+    notes?: string;
+  }) => request<QualityInspection>("/api/construction/quality-inspections/", { method: "POST", body: JSON.stringify(data) }),
+
+  listSafetyIncidents: (projectId?: number) =>
+    request<SafetyIncident[]>(`/api/construction/safety-incidents/${projectId ? `?project=${projectId}` : ""}`),
+  createSafetyIncident: (data: {
+    project: number;
+    incident_date: string;
+    description: string;
+    severity?: SafetyIncident["severity"];
+    reported_by?: number | null;
+    corrective_action?: string;
+  }) => request<SafetyIncident>("/api/construction/safety-incidents/", { method: "POST", body: JSON.stringify(data) }),
 };

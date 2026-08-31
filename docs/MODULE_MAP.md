@@ -321,24 +321,26 @@ Designed fresh — neither MiranErp nor Odoo has a healthcare reference to port 
 
 ## N. Construction
 
-- [ ] Construction Management
-- [ ] Projects
-- [ ] Project Budgeting
-- [ ] BOQ
-- [ ] Cost Estimation
-- [ ] Contracts
-- [ ] Subcontractors
-- [ ] Site Management
-- [ ] Materials
-- [ ] Equipment
-- [ ] Labor
-- [ ] Work Progress
-- [ ] Site Expenses
-- [ ] Construction Procurement
-- [ ] Project Costing
-- [ ] Change Orders
-- [ ] Quality Control
-- [ ] Safety Management
+Designed fresh — neither MiranErp nor Odoo has a construction reference to port from. Deliberately a thin real vertical slice, not a full project-management/ERP-for-builders system: no CPM/Gantt critical-path scheduling, no drawing/BIM management, no payment-certificate/retention-release workflow beyond a flat retention percent — those are genuine specialist subsystems this project has no business half-building. Verified end-to-end (from-empty-DB migration replay, a 46-assertion Python API smoke test, and a 23-assertion Playwright pass through the real browser UI): a project's Bill of Quantities feeds a real budget, materials issued against it actually decrement `apps.inventory` stock (a real OUT `StockMovement`, cost-snapshotted the same way `apps.manufacturing.MaterialConsumption` is), and a Change Order actually adjusts the project's `budget_cents` rather than just being a note. `ConstructionProject` reuses `apps.crm.Customer` for the client — the same "reuse the core Customer concept" pattern Section J/K/L all used (Section M's Patient was this series' one deliberate exception, for a real PHI reason that doesn't apply here). Every BOQ line, contract, site log, material issue, equipment/labor assignment, expense, change order, and inspection belongs to exactly one project, so — unlike Real Estate's Sales/Leasing, which are real cross-property views a company actually wants — those all live inside that project's own detail page rather than getting a top-level nav entry each, the same "fold what only makes sense in context" call Section M's patient chart makes.
+
+- [x] Construction Management
+- [x] Projects — `ConstructionProject`, numbered `PROJ-00001`
+- [x] Project Budgeting — `ConstructionProject.budget_cents`; starts at zero and only moves when a `ChangeOrder` is approved, a real effect not a status flag
+- [x] BOQ — `BOQItem`
+- [x] Cost Estimation — the same `BOQItem` model *is* the cost estimate — one checklist item under two names in construction practice, not two models
+- [x] Contracts — `Contract.contract_type=main`, numbered `CONTRACT-00001`
+- [x] Subcontractors — `Contract.contract_type=subcontract`, against `apps.suppliers.Supplier`; folds into the same `Contract` model as Contracts via `contract_type`, the same way `Appointment.visit_type` folded four Section M checklist items into one field
+- [x] Site Management — `ConstructionProject.site_manager` + `site_address` fields, not a separate model — the same "a field, not a model" shape Section L's "Multi-store Management" used for `Register.branch`
+- [x] Materials — `MaterialIssue`, issues a real OUT `StockMovement` against `apps.inventory` immediately at creation (never deferred), `unit_cost_cents` snapshotted from `Item.cost_cents` at issue time
+- [x] Equipment — `Equipment` + `EquipmentAssignment`, the same open-until-closed shape `apps.fleet.VehicleAssignment` already established, just equipment-on-a-project instead of employee-on-a-vehicle; assigning flips `Equipment.status` to In Use, `end` flips it back to Available
+- [x] Labor — `LaborAssignment` against `apps.hr.Employee`, same open-until-closed shape
+- [x] Work Progress — `SiteLog`, a daily percent-complete/summary/weather entry
+- [x] Site Expenses — `SiteExpense`, same shape as `apps.realestate.PropertyExpense`
+- [ ] Construction Procurement — `apps.procurement` already exists and could be used as-is to buy materials, but nothing ties a `PurchaseOrder` to a specific Project. Bolting a project tag onto that shared Core document felt like the wrong kind of touch for one vertical's benefit (unlike the Customer/tax-engine touches Section J made, which were genuinely reusable infrastructure), so it's left as a documented gap rather than forced
+- [x] Project Costing — `ConstructionProjectViewSet.costing`, a read-only rollup (BOQ estimate vs. actual materials/labor/equipment/subcontract/site-expense costs vs. budget) — a real derived report, not a stored model, the same restraint `apps.manufacturing`'s MRP-lite shortage report applies
+- [x] Change Orders — `ChangeOrder`, numbered `CO-00001`; `approve` actually adjusts the project's budget, `reject` just closes it out
+- [x] Quality Control — `QualityInspection` (pass/fail/conditional)
+- [x] Safety Management — `SafetyIncident` (severity + corrective action)
 
 ## O. Logistics & Transportation
 

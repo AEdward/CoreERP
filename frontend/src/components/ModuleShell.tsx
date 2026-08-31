@@ -30,6 +30,7 @@ export type ModuleKey =
   | "realestate"
   | "retail"
   | "healthcare"
+  | "construction"
   | "myprofile";
 
 interface NavItem {
@@ -305,6 +306,28 @@ const MODULE_NAV: Record<ModuleKey, { title: string; groups: NavGroup[] }> = {
           { href: "/dashboard/healthcare/admissions", label: "Admissions & Beds" },
           { href: "/dashboard/healthcare/billing", label: "Billing & Insurance" },
           { href: "/dashboard/healthcare/blood-bank", label: "Blood Bank" },
+        ],
+      },
+    ],
+  },
+  // Section N: Construction — designed fresh, no MiranErp/Odoo source
+  // ported. Every BOQ line, contract, site log, material issue,
+  // equipment/labor assignment, expense, change order, and inspection
+  // belongs to exactly one project (unlike Real Estate's Sales/Leasing,
+  // which are real cross-property views companies actually want), so
+  // those all live inside that project's own detail page rather than
+  // getting a top-level nav entry each — the same "fold what only makes
+  // sense in context" call Section M's patient chart makes. Equipment
+  // gets its own page because the equipment roster itself (not any one
+  // assignment) is genuinely cross-project, the same way Healthcare's
+  // Staff roster earned its own page.
+  construction: {
+    title: "Construction",
+    groups: [
+      {
+        items: [
+          { href: "/dashboard/construction", label: "Projects" },
+          { href: "/dashboard/construction/equipment", label: "Equipment" },
         ],
       },
     ],

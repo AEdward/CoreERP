@@ -64,6 +64,7 @@ const MODULE_GROUPS: { title: string; tiles: { key: string; label: string; permi
       { key: "realestate", label: "Real Estate", permission: "realestate.view", href: "/dashboard/realestate" },
       { key: "retail", label: "Retail", permission: "retail.view", href: "/dashboard/retail" },
       { key: "healthcare", label: "Healthcare", permission: "healthcare.view", href: "/dashboard/healthcare" },
+      { key: "construction", label: "Construction", permission: "construction.view", href: "/dashboard/construction" },
       { key: "hotel", label: "Hotel", permission: "hotel.view", href: "/dashboard/hotel" },
       {
         key: "housekeeping",

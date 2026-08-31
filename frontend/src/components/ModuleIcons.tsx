@@ -307,6 +307,18 @@ const ICONS: Record<string, { a: string; b: string; render: (a: string, b: strin
       </>
     ),
   },
+  construction: {
+    a: "#ea580c",
+    b: "#1e293b",
+    render: (a, b) => (
+      <>
+        <rect x="6" y="30" width="36" height="10" rx="2" fill={b} opacity="0.85" />
+        <rect x="20" y="8" width="8" height="26" fill={a} />
+        <path d="M10 8h28l-4 10H14Z" fill={a} opacity="0.9" />
+        <circle cx="24" cy="14" r="3" fill="white" opacity="0.85" />
+      </>
+    ),
+  },
 };
 
 export function ModuleIcon({ moduleKey, muted, size = 44 }: { moduleKey: string; muted?: boolean; size?: number }) {
